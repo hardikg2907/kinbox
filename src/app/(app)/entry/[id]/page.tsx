@@ -1,10 +1,18 @@
 import { ChevronLeft } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { EntryScreen } from "@/components/entry/entry-screen";
 import { EntrySkeleton } from "@/components/entry/entry-skeleton";
 import { getEntry } from "@/data/entries";
+
+// getEntry is cached per request, so the page body reuses this lookup.
+export async function generateMetadata({ params }: PageProps<"/entry/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  const entry = await getEntry(id);
+  return { title: entry ? entry.title.name : "Not found" };
+}
 
 // The shell (back link and skeleton) is static; everything per Owner streams in behind it.
 export default function EntryPage({ params }: PageProps<"/entry/[id]">) {
