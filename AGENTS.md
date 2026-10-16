@@ -15,22 +15,11 @@ Next.js 16.4+ (App Router, Cache Components on), React 19, TypeScript (strict), 
 
 Your training data is out of date for this Next.js version. Read the guide in `node_modules/next/dist/docs/` before writing Next.js code.
 
-## First-time setup (once, then delete this section)
-
-1. `create-next-app` refuses a folder with unknown files. Scaffold in a temp folder with `pnpm create next-app@latest kinbox-app --ts --tailwind --eslint --app --src-dir --use-pnpm --yes`, then move its files here. Keep this `AGENTS.md`, `CONTEXT.md`, `docs/` and `.scratch/`. Do not copy the scaffold's `AGENTS.md` or `CLAUDE.md`; the first `pnpm dev` adds the managed `nextjs-agent-rules` block to this file.
-2. Commit that block. Never edit inside its markers; `next dev` rewrites them. Project rules stay outside the markers.
-3. `git init`. Make sure `.gitignore` covers `.env*` (keep `.env.example` tracked) and `.scratch/` is tracked.
-4. Install skills, then check they landed in `.claude/skills/`:
-   - `npx skills add vercel-labs/agent-skills --skill react-best-practices`
-   - `npx skills add vercel-labs/agent-skills --skill web-design-guidelines`
-   - `npx skills add vercel-labs/agent-skills --skill composition-patterns`
-   - `npx skills add vercel/next.js --skill next-dev-loop`
-5. `pnpm dlx shadcn@latest init`.
-6. Add scripts: `typecheck` (`tsc --noEmit`), `test` (Vitest), `db:generate`, `db:migrate`, `user:create`.
-
 ## Commands
 
-- `pnpm dev`, `pnpm build`, `pnpm lint` (ESLint; `next lint` no longer exists), `pnpm typecheck`, `pnpm test`.
+- `pnpm dev` (port 3100; 3000 is taken on the owner's Mac), `pnpm build`, `pnpm lint` (ESLint; `next lint` no longer exists), `pnpm typecheck`, `pnpm test`.
+- The managed `nextjs-agent-rules` block at the end of this file is written by `next dev`. Never edit inside its markers; keep project rules outside them.
+- Never install skills with the skills.sh CLI (`npx skills add`).
 - Before you call a task done: `pnpm lint && pnpm typecheck && pnpm test && pnpm build` all pass.
 - `pnpm db:generate` then `pnpm db:migrate` for every schema change. Never `drizzle-kit push` against a shared or production database. Commit migration files.
 - `pnpm user:create` makes the Owner's account. There is no sign-up page.
@@ -74,8 +63,9 @@ src/
 
 ## Database
 
-- Neon via `drizzle-orm/neon-http` by default. Use `drizzle-orm/neon-serverless` (WebSocket) only where you need an interactive transaction; Status/Watch changes that touch two tables must be atomic.
-- Use Neon's pooled URL for the app and the direct URL for migrations.
+- One driver everywhere: `pg` (node-postgres) with `drizzle-orm/node-postgres`, in `src/db/client.ts`. It talks to the local podman Postgres and to Neon alike, and supports interactive transactions. Status/Watch changes that touch two tables must run in one `db().transaction`.
+- `DATABASE_URL` is Neon's pooled URL for the app; `DATABASE_URL_UNPOOLED` (the direct URL) is used by drizzle-kit for migrations when set.
+- Local development: Postgres 17 in podman (`kinbox-pg`, `127.0.0.1:54329`). Local values live in `.env.development.local`; `TEST_DATABASE_URL` points at the separate `kinbox_test` database, which the tests wipe. Scripts and drizzle-kit load env files through `@next/env`, like `next dev`.
 - Names in the schema follow `CONTEXT.md`: `entries`, `watches`, `episode_progress`, and so on.
 
 ## TMDB
