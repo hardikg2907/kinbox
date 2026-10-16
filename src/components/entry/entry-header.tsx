@@ -21,7 +21,7 @@ export function EntryScrim({ posterPath }: { posterPath: string | null }) {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] overflow-hidden"
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] overflow-hidden scrim-fade"
     >
       {src ? (
         // TMDB serves sized posters, so next/image optimisation would only spend quota.
