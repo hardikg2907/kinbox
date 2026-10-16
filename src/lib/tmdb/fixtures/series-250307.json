@@ -1,0 +1,266 @@
+{
+  "details": {
+    "kind": "series",
+    "tmdbId": 250307,
+    "name": "The Pitt (fixture)",
+    "year": 2025,
+    "posterPath": "/kvFSpESyBZMjaeOJDx7RS3P1jey.jpg",
+    "overview": "The staff of Pittsburgh's Trauma Medical Center work around the clock to save lives in an overcrowded and underfunded emergency department.",
+    "status": "Returning Series",
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "name": "Season 1",
+        "episodeCount": 15,
+        "airDate": "2025-01-09"
+      },
+      {
+        "seasonNumber": 2,
+        "name": "Season 2",
+        "episodeCount": 16,
+        "airDate": "2026-01-08"
+      }
+    ],
+    "lastEpisodeToAir": {
+      "seasonNumber": 2,
+      "episodeNumber": 10,
+      "airDate": "2026-03-12"
+    },
+    "nextEpisodeToAir": {
+      "seasonNumber": 2,
+      "episodeNumber": 11,
+      "airDate": "2030-01-04"
+    }
+  },
+  "seasons": [
+    {
+      "seasonNumber": 1,
+      "name": "Season 1",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 5237059,
+          "seasonNumber": 1,
+          "episodeNumber": 1,
+          "name": "7:00 A.M.",
+          "airDate": "2025-01-09"
+        },
+        {
+          "tmdbEpisodeId": 5829265,
+          "seasonNumber": 1,
+          "episodeNumber": 2,
+          "name": "8:00 A.M.",
+          "airDate": "2025-01-09"
+        },
+        {
+          "tmdbEpisodeId": 5829266,
+          "seasonNumber": 1,
+          "episodeNumber": 3,
+          "name": "9:00 A.M.",
+          "airDate": "2025-01-16"
+        },
+        {
+          "tmdbEpisodeId": 5829267,
+          "seasonNumber": 1,
+          "episodeNumber": 4,
+          "name": "10:00 A.M.",
+          "airDate": "2025-01-23"
+        },
+        {
+          "tmdbEpisodeId": 5829269,
+          "seasonNumber": 1,
+          "episodeNumber": 5,
+          "name": "11:00 A.M.",
+          "airDate": "2025-01-30"
+        },
+        {
+          "tmdbEpisodeId": 5829270,
+          "seasonNumber": 1,
+          "episodeNumber": 6,
+          "name": "12:00 P.M.",
+          "airDate": "2025-02-06"
+        },
+        {
+          "tmdbEpisodeId": 5829271,
+          "seasonNumber": 1,
+          "episodeNumber": 7,
+          "name": "1:00 P.M.",
+          "airDate": "2025-02-13"
+        },
+        {
+          "tmdbEpisodeId": 5829272,
+          "seasonNumber": 1,
+          "episodeNumber": 8,
+          "name": "2:00 P.M.",
+          "airDate": "2025-02-20"
+        },
+        {
+          "tmdbEpisodeId": 5829273,
+          "seasonNumber": 1,
+          "episodeNumber": 9,
+          "name": "3:00 P.M.",
+          "airDate": "2025-02-27"
+        },
+        {
+          "tmdbEpisodeId": 5829274,
+          "seasonNumber": 1,
+          "episodeNumber": 10,
+          "name": "4:00 P.M.",
+          "airDate": "2025-03-06"
+        },
+        {
+          "tmdbEpisodeId": 5829275,
+          "seasonNumber": 1,
+          "episodeNumber": 11,
+          "name": "5:00 P.M.",
+          "airDate": "2025-03-13"
+        },
+        {
+          "tmdbEpisodeId": 5829276,
+          "seasonNumber": 1,
+          "episodeNumber": 12,
+          "name": "6:00 P.M.",
+          "airDate": "2025-03-20"
+        },
+        {
+          "tmdbEpisodeId": 5829278,
+          "seasonNumber": 1,
+          "episodeNumber": 13,
+          "name": "7:00 P.M.",
+          "airDate": "2025-03-27"
+        },
+        {
+          "tmdbEpisodeId": 5829279,
+          "seasonNumber": 1,
+          "episodeNumber": 14,
+          "name": "8:00 P.M.",
+          "airDate": "2025-04-03"
+        },
+        {
+          "tmdbEpisodeId": 5829280,
+          "seasonNumber": 1,
+          "episodeNumber": 15,
+          "name": "9:00 P.M.",
+          "airDate": "2025-04-10"
+        }
+      ]
+    },
+    {
+      "seasonNumber": 2,
+      "name": "Season 2",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 6682985,
+          "seasonNumber": 2,
+          "episodeNumber": 1,
+          "name": "7:00 A.M.",
+          "airDate": "2026-01-08"
+        },
+        {
+          "tmdbEpisodeId": 6768674,
+          "seasonNumber": 2,
+          "episodeNumber": 2,
+          "name": "8:00 A.M.",
+          "airDate": "2026-01-15"
+        },
+        {
+          "tmdbEpisodeId": 6768675,
+          "seasonNumber": 2,
+          "episodeNumber": 3,
+          "name": "9:00 A.M.",
+          "airDate": "2026-01-22"
+        },
+        {
+          "tmdbEpisodeId": 6768676,
+          "seasonNumber": 2,
+          "episodeNumber": 4,
+          "name": "10:00 A.M.",
+          "airDate": "2026-01-29"
+        },
+        {
+          "tmdbEpisodeId": 6768677,
+          "seasonNumber": 2,
+          "episodeNumber": 5,
+          "name": "11:00 A.M.",
+          "airDate": "2026-02-05"
+        },
+        {
+          "tmdbEpisodeId": 6768678,
+          "seasonNumber": 2,
+          "episodeNumber": 6,
+          "name": "12:00 P.M.",
+          "airDate": "2026-02-12"
+        },
+        {
+          "tmdbEpisodeId": 6768679,
+          "seasonNumber": 2,
+          "episodeNumber": 7,
+          "name": "1:00 P.M.",
+          "airDate": "2026-02-19"
+        },
+        {
+          "tmdbEpisodeId": 6768680,
+          "seasonNumber": 2,
+          "episodeNumber": 8,
+          "name": "2:00 P.M.",
+          "airDate": "2026-02-26"
+        },
+        {
+          "tmdbEpisodeId": 6768681,
+          "seasonNumber": 2,
+          "episodeNumber": 9,
+          "name": "3:00 P.M.",
+          "airDate": "2026-03-05"
+        },
+        {
+          "tmdbEpisodeId": 6768682,
+          "seasonNumber": 2,
+          "episodeNumber": 10,
+          "name": "4:00 P.M.",
+          "airDate": "2026-03-12"
+        },
+        {
+          "tmdbEpisodeId": 6768683,
+          "seasonNumber": 2,
+          "episodeNumber": 11,
+          "name": "5:00 P.M.",
+          "airDate": "2030-01-04"
+        },
+        {
+          "tmdbEpisodeId": 6768684,
+          "seasonNumber": 2,
+          "episodeNumber": 12,
+          "name": "6:00 P.M.",
+          "airDate": "2030-01-11"
+        },
+        {
+          "tmdbEpisodeId": 6768685,
+          "seasonNumber": 2,
+          "episodeNumber": 13,
+          "name": "7:00 P.M.",
+          "airDate": "2030-01-18"
+        },
+        {
+          "tmdbEpisodeId": 6768686,
+          "seasonNumber": 2,
+          "episodeNumber": 14,
+          "name": "8:00 P.M.",
+          "airDate": "2030-01-25"
+        },
+        {
+          "tmdbEpisodeId": 6768687,
+          "seasonNumber": 2,
+          "episodeNumber": 15,
+          "name": "9:00 P.M.",
+          "airDate": "2030-02-01"
+        },
+        {
+          "tmdbEpisodeId": 6768688,
+          "seasonNumber": 2,
+          "episodeNumber": 16,
+          "name": null,
+          "airDate": null
+        }
+      ]
+    }
+  ]
+}
