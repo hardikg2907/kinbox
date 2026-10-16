@@ -52,7 +52,7 @@ src/
 ## Data and security rules
 
 - Every Server Action and route handler is a public endpoint. Inside each one: get the Owner with `requireOwner()` / `getOwner()` from `src/data/session.ts` (Better Auth's `auth().api.getSession`), validate input with a Zod `.strict()` schema, then call one `data/` function.
-- Every `data/` function starts with `import 'server-only'`, checks the session, and scopes every query by the Owner's user id. Never trust an id from the client without that ownership check.
+- Every `data/` file starts with `import 'server-only'`. Write functions take the `Owner` from `requireOwner()` as their first argument (actions get it through `runAction` in `src/actions/run.ts`); the readers that pages call (`getLibrary`, `getEntry`, `getSeason`, `searchTitles`) call `requireOwner()` themselves. Every query is scoped by `owner.id`. Never trust an id from the client without that ownership check.
 - Only `src/db` and `src/data` import the Drizzle client. Use the query builder; never build SQL from strings.
 - Return only the fields the UI needs. Errors to the client are generic; log details on the server without tokens, passwords or emails.
 - The cookie check in `proxy.ts` is only a fast redirect. Real checks happen on the server.
