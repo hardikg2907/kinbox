@@ -59,7 +59,7 @@ export function LibraryCard({ card, eager }: Props) {
             }}
           />
         ) : (
-          <p className="px-0.5 text-xs text-muted-foreground">Progress unavailable</p>
+          <p className="px-0.5 text-xs text-muted-foreground">Episodes unavailable right now</p>
         )
       ) : null}
     </li>
