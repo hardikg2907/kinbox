@@ -1,0 +1,260 @@
+{
+  "details": {
+    "kind": "series",
+    "tmdbId": 1396,
+    "name": "Breaking Bad",
+    "year": 2008,
+    "posterPath": "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
+    "overview": "Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer and given a prognosis of only two years left to live.",
+    "status": "Ended",
+    "seasons": [
+      {
+        "seasonNumber": 0,
+        "name": "Specials",
+        "episodeCount": 9,
+        "airDate": "2009-02-17"
+      },
+      {
+        "seasonNumber": 1,
+        "name": "Season 1",
+        "episodeCount": 7,
+        "airDate": "2008-01-20"
+      },
+      {
+        "seasonNumber": 2,
+        "name": "Season 2",
+        "episodeCount": 13,
+        "airDate": "2009-03-08"
+      }
+    ],
+    "lastEpisodeToAir": {
+      "seasonNumber": 2,
+      "episodeNumber": 13,
+      "airDate": "2009-05-31"
+    },
+    "nextEpisodeToAir": null
+  },
+  "seasons": [
+    {
+      "seasonNumber": 0,
+      "name": "Specials",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 62131,
+          "seasonNumber": 0,
+          "episodeNumber": 1,
+          "name": "Good Cop / Bad Cop",
+          "airDate": "2009-02-17"
+        },
+        {
+          "tmdbEpisodeId": 62133,
+          "seasonNumber": 0,
+          "episodeNumber": 2,
+          "name": "Wedding Day",
+          "airDate": "2009-02-17"
+        },
+        {
+          "tmdbEpisodeId": 62132,
+          "seasonNumber": 0,
+          "episodeNumber": 3,
+          "name": "TwaüghtHammër",
+          "airDate": "2009-02-17"
+        },
+        {
+          "tmdbEpisodeId": 62135,
+          "seasonNumber": 0,
+          "episodeNumber": 4,
+          "name": "Marie's Confession",
+          "airDate": "2009-02-17"
+        },
+        {
+          "tmdbEpisodeId": 62134,
+          "seasonNumber": 0,
+          "episodeNumber": 5,
+          "name": "The Break-In",
+          "airDate": "2009-02-24"
+        },
+        {
+          "tmdbEpisodeId": 62136,
+          "seasonNumber": 0,
+          "episodeNumber": 6,
+          "name": "Jesse Pinkman Evidence Tape",
+          "airDate": null
+        },
+        {
+          "tmdbEpisodeId": 1836320,
+          "seasonNumber": 0,
+          "episodeNumber": 7,
+          "name": "Walt's Confession",
+          "airDate": null
+        },
+        {
+          "tmdbEpisodeId": 1836324,
+          "seasonNumber": 0,
+          "episodeNumber": 8,
+          "name": "Pizza of Destiny: Cranston's Greatest Shot",
+          "airDate": "2011-06-07"
+        },
+        {
+          "tmdbEpisodeId": 1836322,
+          "seasonNumber": 0,
+          "episodeNumber": 9,
+          "name": "Alternate Ending",
+          "airDate": "2013-11-26"
+        }
+      ]
+    },
+    {
+      "seasonNumber": 1,
+      "name": "Season 1",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 62085,
+          "seasonNumber": 1,
+          "episodeNumber": 1,
+          "name": "Pilot",
+          "airDate": "2008-01-20"
+        },
+        {
+          "tmdbEpisodeId": 62086,
+          "seasonNumber": 1,
+          "episodeNumber": 2,
+          "name": "Cat's in the Bag...",
+          "airDate": "2008-01-27"
+        },
+        {
+          "tmdbEpisodeId": 62087,
+          "seasonNumber": 1,
+          "episodeNumber": 3,
+          "name": "...And the Bag's in the River",
+          "airDate": "2008-02-10"
+        },
+        {
+          "tmdbEpisodeId": 62088,
+          "seasonNumber": 1,
+          "episodeNumber": 4,
+          "name": "Cancer Man",
+          "airDate": "2008-02-17"
+        },
+        {
+          "tmdbEpisodeId": 62089,
+          "seasonNumber": 1,
+          "episodeNumber": 5,
+          "name": "Gray Matter",
+          "airDate": "2008-02-24"
+        },
+        {
+          "tmdbEpisodeId": 62090,
+          "seasonNumber": 1,
+          "episodeNumber": 6,
+          "name": "Crazy Handful of Nothin'",
+          "airDate": "2008-03-02"
+        },
+        {
+          "tmdbEpisodeId": 62091,
+          "seasonNumber": 1,
+          "episodeNumber": 7,
+          "name": "A No Rough Stuff Type Deal",
+          "airDate": "2008-03-09"
+        }
+      ]
+    },
+    {
+      "seasonNumber": 2,
+      "name": "Season 2",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 972873,
+          "seasonNumber": 2,
+          "episodeNumber": 1,
+          "name": "Seven Thirty-Seven",
+          "airDate": "2009-03-08"
+        },
+        {
+          "tmdbEpisodeId": 972874,
+          "seasonNumber": 2,
+          "episodeNumber": 2,
+          "name": "Grilled",
+          "airDate": "2009-03-15"
+        },
+        {
+          "tmdbEpisodeId": 62094,
+          "seasonNumber": 2,
+          "episodeNumber": 3,
+          "name": "Bit by a Dead Bee",
+          "airDate": "2009-03-22"
+        },
+        {
+          "tmdbEpisodeId": 62095,
+          "seasonNumber": 2,
+          "episodeNumber": 4,
+          "name": "Down",
+          "airDate": "2009-03-29"
+        },
+        {
+          "tmdbEpisodeId": 62096,
+          "seasonNumber": 2,
+          "episodeNumber": 5,
+          "name": "Breakage",
+          "airDate": "2009-04-05"
+        },
+        {
+          "tmdbEpisodeId": 62097,
+          "seasonNumber": 2,
+          "episodeNumber": 6,
+          "name": "Peekaboo",
+          "airDate": "2009-04-12"
+        },
+        {
+          "tmdbEpisodeId": 62098,
+          "seasonNumber": 2,
+          "episodeNumber": 7,
+          "name": "Negro y Azul",
+          "airDate": "2009-04-19"
+        },
+        {
+          "tmdbEpisodeId": 62099,
+          "seasonNumber": 2,
+          "episodeNumber": 8,
+          "name": "Better Call Saul",
+          "airDate": "2009-04-26"
+        },
+        {
+          "tmdbEpisodeId": 62100,
+          "seasonNumber": 2,
+          "episodeNumber": 9,
+          "name": "4 Days Out",
+          "airDate": "2009-05-03"
+        },
+        {
+          "tmdbEpisodeId": 62101,
+          "seasonNumber": 2,
+          "episodeNumber": 10,
+          "name": "Over",
+          "airDate": "2009-05-10"
+        },
+        {
+          "tmdbEpisodeId": 62102,
+          "seasonNumber": 2,
+          "episodeNumber": 11,
+          "name": "Mandala",
+          "airDate": "2009-05-17"
+        },
+        {
+          "tmdbEpisodeId": 62103,
+          "seasonNumber": 2,
+          "episodeNumber": 12,
+          "name": "Phoenix",
+          "airDate": "2009-05-24"
+        },
+        {
+          "tmdbEpisodeId": 62104,
+          "seasonNumber": 2,
+          "episodeNumber": 13,
+          "name": "ABQ",
+          "airDate": "2009-05-31"
+        }
+      ]
+    }
+  ]
+}

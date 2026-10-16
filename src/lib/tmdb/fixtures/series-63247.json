@@ -1,0 +1,185 @@
+{
+  "details": {
+    "kind": "series",
+    "tmdbId": 63247,
+    "name": "Westworld",
+    "year": 2016,
+    "posterPath": "/8MfgyFHf7XEboZJPZXCIDqqiz6e.jpg",
+    "overview": "A dark odyssey about the dawn of artificial consciousness and the evolution of sin.",
+    "status": "Canceled",
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "name": "Season One: The Maze",
+        "episodeCount": 10,
+        "airDate": "2016-10-02"
+      },
+      {
+        "seasonNumber": 2,
+        "name": "Season Two: The Door",
+        "episodeCount": 10,
+        "airDate": "2018-04-22"
+      }
+    ],
+    "lastEpisodeToAir": {
+      "seasonNumber": 2,
+      "episodeNumber": 10,
+      "airDate": "2018-06-24"
+    },
+    "nextEpisodeToAir": null
+  },
+  "seasons": [
+    {
+      "seasonNumber": 1,
+      "name": "Season One: The Maze",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 1216345,
+          "seasonNumber": 1,
+          "episodeNumber": 1,
+          "name": "The Original",
+          "airDate": "2016-10-02"
+        },
+        {
+          "tmdbEpisodeId": 1224967,
+          "seasonNumber": 1,
+          "episodeNumber": 2,
+          "name": "Chestnut",
+          "airDate": "2016-10-09"
+        },
+        {
+          "tmdbEpisodeId": 1224968,
+          "seasonNumber": 1,
+          "episodeNumber": 3,
+          "name": "The Stray",
+          "airDate": "2016-10-16"
+        },
+        {
+          "tmdbEpisodeId": 1224969,
+          "seasonNumber": 1,
+          "episodeNumber": 4,
+          "name": "Dissonance Theory",
+          "airDate": "2016-10-23"
+        },
+        {
+          "tmdbEpisodeId": 1224970,
+          "seasonNumber": 1,
+          "episodeNumber": 5,
+          "name": "Contrapasso",
+          "airDate": "2016-10-30"
+        },
+        {
+          "tmdbEpisodeId": 1224971,
+          "seasonNumber": 1,
+          "episodeNumber": 6,
+          "name": "The Adversary",
+          "airDate": "2016-11-06"
+        },
+        {
+          "tmdbEpisodeId": 1226012,
+          "seasonNumber": 1,
+          "episodeNumber": 7,
+          "name": "Trompe L'Oeil",
+          "airDate": "2016-11-13"
+        },
+        {
+          "tmdbEpisodeId": 1228539,
+          "seasonNumber": 1,
+          "episodeNumber": 8,
+          "name": "Trace Decay",
+          "airDate": "2016-11-20"
+        },
+        {
+          "tmdbEpisodeId": 1228543,
+          "seasonNumber": 1,
+          "episodeNumber": 9,
+          "name": "The Well-Tempered Clavier",
+          "airDate": "2016-11-27"
+        },
+        {
+          "tmdbEpisodeId": 1228545,
+          "seasonNumber": 1,
+          "episodeNumber": 10,
+          "name": "The Bicameral Mind",
+          "airDate": "2016-12-04"
+        }
+      ]
+    },
+    {
+      "seasonNumber": 2,
+      "name": "Season Two: The Door",
+      "episodes": [
+        {
+          "tmdbEpisodeId": 1428777,
+          "seasonNumber": 2,
+          "episodeNumber": 1,
+          "name": "Journey Into Night",
+          "airDate": "2018-04-22"
+        },
+        {
+          "tmdbEpisodeId": 1470329,
+          "seasonNumber": 2,
+          "episodeNumber": 2,
+          "name": "Reunion",
+          "airDate": "2018-04-29"
+        },
+        {
+          "tmdbEpisodeId": 1472419,
+          "seasonNumber": 2,
+          "episodeNumber": 3,
+          "name": "Virtù e Fortuna",
+          "airDate": "2018-05-06"
+        },
+        {
+          "tmdbEpisodeId": 1472420,
+          "seasonNumber": 2,
+          "episodeNumber": 4,
+          "name": "The Riddle of the Sphinx",
+          "airDate": "2018-05-13"
+        },
+        {
+          "tmdbEpisodeId": 1472421,
+          "seasonNumber": 2,
+          "episodeNumber": 5,
+          "name": "Akane No Mai",
+          "airDate": "2018-05-20"
+        },
+        {
+          "tmdbEpisodeId": 1487732,
+          "seasonNumber": 2,
+          "episodeNumber": 6,
+          "name": "Phase Space",
+          "airDate": "2018-05-27"
+        },
+        {
+          "tmdbEpisodeId": 1487733,
+          "seasonNumber": 2,
+          "episodeNumber": 7,
+          "name": "Les Écorchés",
+          "airDate": "2018-06-03"
+        },
+        {
+          "tmdbEpisodeId": 1487735,
+          "seasonNumber": 2,
+          "episodeNumber": 8,
+          "name": "Kiksuya",
+          "airDate": "2018-06-10"
+        },
+        {
+          "tmdbEpisodeId": 1487736,
+          "seasonNumber": 2,
+          "episodeNumber": 9,
+          "name": "Vanishing Point",
+          "airDate": "2018-06-17"
+        },
+        {
+          "tmdbEpisodeId": 1487737,
+          "seasonNumber": 2,
+          "episodeNumber": 10,
+          "name": "The Passenger",
+          "airDate": "2018-06-24"
+        }
+      ]
+    }
+  ]
+}
