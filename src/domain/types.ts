@@ -16,7 +16,7 @@ export type EpisodeKey = {
 export type Episode = EpisodeKey & {
   tmdbEpisodeId: number;
   name: string | null;
-  /** Null when TMDB has no air date yet; such an Episode counts as unaired. */
+  /** Null when TMDB has no date; series rules decide whether it counts as aired. */
   airDate: IsoDate | null;
 };
 
