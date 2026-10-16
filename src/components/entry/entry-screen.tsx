@@ -1,7 +1,7 @@
 import { NextBlock } from "@/components/progress/next-block";
 import { SeasonsPanel } from "@/components/progress/seasons-panel";
 import type { EntryView } from "@/data/dto";
-import { ENTRY_COLUMN, ENTRY_GRID, ENTRY_GRID_MOVIE, ENTRY_GRID_SERIES } from "./entry-layout";
+import { ENTRY_GRID, ENTRY_GRID_MOVIE, ENTRY_GRID_SERIES, entryAreas } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
 import { EntryHeader, EntryScrim } from "./entry-header";
 import { NoteSection } from "./note-section";
@@ -13,6 +13,7 @@ import { cn } from "cn";
 export function EntryScreen({ entry }: { entry: EntryView }) {
   const { title } = entry;
   const isSeries = title.kind === "series";
+  const area = entryAreas(isSeries);
 
   return (
     <EntryProvider
@@ -29,33 +30,29 @@ export function EntryScreen({ entry }: { entry: EntryView }) {
     >
       <EntryScrim posterPath={title.posterPath} />
       <div id="entry-content" className={cn(ENTRY_GRID, isSeries ? ENTRY_GRID_SERIES : ENTRY_GRID_MOVIE)}>
-        <div className={ENTRY_COLUMN}>
-          <div className="order-1">
-            <EntryHeader entryId={entry.id} title={title} />
-          </div>
-          <div className="order-3">
-            <RatingSection />
-          </div>
-          <div className="order-4">
-            <WatchesSection />
-          </div>
-          <div className="order-5">
-            <NoteSection note={entry.note} />
-          </div>
+        <div className={area.header}>
+          <EntryHeader entryId={entry.id} title={title} />
         </div>
         {isSeries ? (
-          <div className={ENTRY_COLUMN}>
-            <div className="order-2">
-              <NextBlock />
-            </div>
-            {entry.series ? (
-              <div className="order-6">
-                <SeasonsPanel />
-              </div>
-            ) : null}
+          <div className={area.next}>
+            <NextBlock />
           </div>
         ) : null}
-        <div className="order-7 lg:col-span-2">
+        <div className={area.rating}>
+          <RatingSection />
+        </div>
+        <div className={area.watches}>
+          <WatchesSection />
+        </div>
+        <div className={area.note}>
+          <NoteSection note={entry.note} />
+        </div>
+        {isSeries && entry.series ? (
+          <div className={area.seasons}>
+            <SeasonsPanel />
+          </div>
+        ) : null}
+        <div className={area.remove}>
           <RemoveEntry />
         </div>
       </div>

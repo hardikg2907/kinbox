@@ -10,7 +10,8 @@ import { SlideSwap } from "./slide-swap";
 
 const TMDB_DOWN = "Can't reach the movie database right now. Try again in a minute.";
 
-const CARD = "rounded-2xl bg-card p-5 ring-1 ring-foreground/10";
+// From `lg` the card is as tall as the header beside it, with the count pinned to its foot, so the Seasons below start level with the Rating.
+const CARD = "rounded-2xl bg-card p-5 ring-1 ring-foreground/10 lg:flex lg:h-full lg:flex-col lg:items-start";
 
 function NextName({ name, helper }: { name: string | null; helper: string | null }) {
   const [first] = useState(name);
@@ -72,6 +73,11 @@ export function NextBlock() {
   const canWatch = next !== null || model.nextPending;
   const ratio =
     series.totalCount > 0 ? Math.min(1, Math.max(0, series.watchedCount / series.totalCount)) : 0;
+  // Without this, "Caught up" beside "461 of 466 watched" reads as a mistake.
+  const notOutYet = Math.max(0, series.totalCount - series.airedCount);
+  const countLine = `${series.watchedCount} of ${series.totalCount} watched${
+    notOutYet > 0 ? `, ${notOutYet} not out yet` : ""
+  }`;
 
   return (
     <section id="series-progress" aria-labelledby="series-progress-title" className={CARD}>
@@ -96,9 +102,9 @@ export function NextBlock() {
           Watched it
         </Button>
       ) : null}
-      <div className={cn(canWatch ? "mt-5" : "mt-4")}>
+      <div className={cn(canWatch ? "mt-5 lg:pt-5" : "mt-4 lg:pt-4", "lg:mt-auto lg:w-full")}>
         <p id="series-progress-count" className="tabular text-sm text-muted-foreground">
-          {series.watchedCount} of {series.totalCount} watched
+          {countLine}
         </p>
         <div aria-hidden className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
           <div

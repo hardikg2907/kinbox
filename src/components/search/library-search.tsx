@@ -60,7 +60,7 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
             type="button"
             onClick={clear}
             aria-label="Clear search"
-            className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="absolute top-1/2 right-0.5 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
             <X aria-hidden className="size-5" />
           </button>

@@ -11,7 +11,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           <Link
             id="home-link"
             href="/"
-            className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 font-display text-3xl text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 font-display text-3xl text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
           >
             Kinbox
           </Link>

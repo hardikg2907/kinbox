@@ -37,7 +37,7 @@ export function Overview({ text }: { text: string }) {
         aria-controls={id}
         onClick={() => setExpanded((value) => !value)}
         className={cn(
-          "relative mt-1 flex h-6 cursor-pointer items-center rounded-md px-1 text-sm font-medium text-primary underline-offset-4 after:absolute after:-inset-x-2 after:-inset-y-2.5 after:content-[''] hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none",
+          "relative mt-1 flex h-6 cursor-pointer items-center rounded-md px-1 text-sm font-medium text-primary underline-offset-4 after:absolute after:-inset-x-2 after:-inset-y-2.5 after:content-[''] hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none",
           !clipped && !expanded && "invisible",
         )}
       >

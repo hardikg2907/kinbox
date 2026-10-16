@@ -25,7 +25,7 @@ export default function AboutPage() {
           href="https://www.themoviedb.org/"
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 inline-block rounded-md focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="mt-3 inline-flex min-h-11 items-center rounded-md focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
         >
           {/* A plain img: the logo is a tiny static SVG and needs no optimisation. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -93,7 +93,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   html {
     @apply font-sans;
@@ -123,6 +123,19 @@
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Washes the blurred poster behind the Entry page toward the page colour. It stays at least
+   85 % solid from the back link down, which keeps muted and accent text at AA on any poster,
+   and ends fully solid so the scrim has no visible bottom edge. */
+@utility scrim-wash {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--background) 50%, transparent) 0,
+    color-mix(in oklab, var(--background) 85%, transparent) 3.5rem,
+    color-mix(in oklab, var(--background) 92%, transparent) 9rem,
+    var(--background) 100%
+  );
 }
 
 /* The perforated edge of a ticket stub, used for each Watch. */

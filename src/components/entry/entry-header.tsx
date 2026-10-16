@@ -13,14 +13,15 @@ function formatRuntime(minutes: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
-// The Title's own poster, blurred and washed toward the page colour. The wash
-// stays at least 75 % solid under the text, so contrast holds on any poster.
+// The Title's own poster, blurred and washed toward the page colour. No ancestor is
+// positioned, so it measures against the page itself: it runs edge to edge from behind the
+// app header and fades out at the bottom. The wash keeps text at AA contrast on any poster.
 export function EntryScrim({ posterPath }: { posterPath: string | null }) {
   const src = posterUrl(posterPath, "w342");
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[26rem] overflow-hidden"
+      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] overflow-hidden"
     >
       {src ? (
         // TMDB serves sized posters, so next/image optimisation would only spend quota.
@@ -32,7 +33,7 @@ export function EntryScrim({ posterPath }: { posterPath: string | null }) {
           className="absolute inset-0 size-full scale-125 object-cover opacity-60 blur-2xl saturate-150"
         />
       ) : null}
-      <div className="absolute inset-0 bg-linear-to-b from-background/75 via-background/85 to-background" />
+      <div className="absolute inset-0 scrim-wash" />
     </div>
   );
 }

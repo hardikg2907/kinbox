@@ -21,7 +21,7 @@ export function LibraryCard({ card, eager }: Props) {
     <li id={`card-${entryId}`} className="flex flex-col gap-2">
       <Link
         href={`/entry/${entryId}`}
-        className="group flex flex-col gap-2 rounded-lg focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+        className="group flex flex-col gap-2 rounded-lg focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
       >
         {/* Named for the poster on the Entry page header; default="none" keeps it still unless it has a partner to morph into. */}
         <ViewTransition name={`poster-${entryId}`} share="auto" default="none">
@@ -30,6 +30,7 @@ export function LibraryCard({ card, eager }: Props) {
             name={name}
             size="w342"
             eager={eager}
+            decorative
             className="transition-transform duration-200 ease-out group-hover:scale-[1.02] group-active:scale-[0.98]"
           />
         </ViewTransition>
@@ -52,6 +53,7 @@ export function LibraryCard({ card, eager }: Props) {
         progress ? (
           <CardNext
             entryId={entryId}
+            name={name}
             progress={{
               nextLabel: progress.next?.label ?? null,
               caughtUp: progress.caughtUp,

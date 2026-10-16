@@ -26,7 +26,9 @@ import {
 } from "@/actions/progress";
 import type { ActionResult, EntryView, ProgressChange } from "@/data/dto";
 import type { IsoDate, Status, TitleKind } from "@/domain/types";
+import { showActionToast } from "@/components/action-toast";
 import { fetchSeason, SEASON_ERROR, SeasonLoadError } from "@/components/progress/season-api";
+import { useRatingSaveDelay } from "@/components/rating-save-delay";
 import { localToday } from "./dates";
 import {
   applyPatch,
@@ -39,8 +41,6 @@ import {
 import { WatchedStars } from "./watched-stars";
 
 const GENERIC_ERROR = "Couldn't save that. Try again.";
-const UNDO_MS = 5000;
-const OFFER_MS = 8000;
 
 export type EntrySnapshot = Pick<
   EntryView,
@@ -103,6 +103,7 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   const [seasonLoad, setSeasonLoad] = useState<Record<number, SeasonLoad>>({});
   const loadToken = useRef<Record<number, number>>({});
   const pendingCount = useRef(0);
+  const waitToSaveRating = useRatingSaveDelay();
 
   function newPendingWatchId(): string {
     pendingCount.current += 1;
@@ -114,18 +115,20 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   // so the screen falls back by itself.
   function run<T>(
     patch: Patch,
-    call: () => Promise<ActionResult<T>>,
+    call: () => Promise<ActionResult<T> | null>,
     commit: (previous: EntryModel, data: T) => EntryModel,
     after?: (data: T) => void,
   ) {
     startTransition(async () => {
       dispatch(patch);
-      let result: ActionResult<T>;
+      let result: ActionResult<T> | null;
       try {
         result = await call();
       } catch {
         result = { ok: false, error: GENERIC_ERROR };
       }
+      // Null means a newer call took over this one's job.
+      if (result === null) return;
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -153,15 +156,17 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   function rate(halfStars: number | null) {
     run(
       { type: "rating", value: halfStars },
-      () => setRating({ entryId: entry.id, ratingHalfStars: halfStars }),
+      async () =>
+        (await waitToSaveRating())
+          ? setRating({ entryId: entry.id, ratingHalfStars: halfStars })
+          : null,
       (previous, data) => ({ ...previous, ratingHalfStars: data.ratingHalfStars }),
     );
   }
 
   function showWatchedToast(message: string) {
-    toast.success(message, {
+    showActionToast("success", message, {
       id: `watched-${entry.id}`,
-      duration: OFFER_MS,
       description: <WatchedStars initial={null} onRate={rate} />,
     });
   }
@@ -233,9 +238,8 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   }
 
   function offerEarlier(seasonNumber: number, episodeNumber: number, count: number) {
-    toast(`Also mark the ${count} earlier ${count === 1 ? "episode" : "episodes"}?`, {
+    showActionToast("default", `Also mark the ${count} earlier ${count === 1 ? "episode" : "episodes"}?`, {
       id: `earlier-${entry.id}`,
-      duration: OFFER_MS,
       action: {
         label: "Mark them",
         onClick: () => markEarlierEpisodes(seasonNumber, episodeNumber),
@@ -293,9 +297,8 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
         const undo = change.undo;
         const onUndo = undo ? () => undoLast(undo, before) : undefined;
         // A tap that finishes the Series keeps the optional stars in the same toast.
-        toast.success(`Marked ${next.label} watched`, {
+        showActionToast("success", `Marked ${next.label} watched`, {
           id: `watched-${entry.id}`,
-          duration: UNDO_MS,
           description: change.addedWatch ? <WatchedStars initial={null} onRate={rate} /> : undefined,
           action: onUndo ? { label: "Undo", onClick: onUndo } : undefined,
         });
