@@ -128,6 +128,12 @@
 /* Washes the blurred poster behind the Entry page toward the page colour. It stays at least
    85 % solid from the back link down, which keeps muted and accent text at AA on any poster,
    and ends fully solid so the scrim has no visible bottom edge. */
+/* Fades the blurred poster itself, so no edge shows where the scrim ends. */
+@utility scrim-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent 100%);
+}
+
 @utility scrim-wash {
   background-image: linear-gradient(
     to bottom,

@@ -34,24 +34,16 @@ export function EntryScreen({ entry }: { entry: EntryView }) {
           <EntryHeader entryId={entry.id} title={title} />
         </div>
         {isSeries ? (
-          <div className={area.next}>
+          <div className={area.progress}>
             <NextBlock />
+            {entry.series ? <SeasonsPanel /> : null}
           </div>
         ) : null}
-        <div className={area.rating}>
+        <div className={area.details}>
           <RatingSection />
-        </div>
-        <div className={area.watches}>
           <WatchesSection />
-        </div>
-        <div className={area.note}>
           <NoteSection note={entry.note} />
         </div>
-        {isSeries && entry.series ? (
-          <div className={area.seasons}>
-            <SeasonsPanel />
-          </div>
-        ) : null}
         <div className={area.remove}>
           <RemoveEntry />
         </div>

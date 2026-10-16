@@ -16,3 +16,9 @@ Product decisions made while building v0.1, for questions the [v0.1 scope](v0.1-
 | 8 | How should v0.1 look and feel? | A cinematic, calm, dark-first design (light mode supported) with posters as the hero. Gradients and motion are used with purpose: poster scrims, glow on primary actions, tick and "Next" animations, smooth season expand, View Transitions between screens, skeleton loading, optimistic UI on every capture tap. | The owner wants a polished product, not a side project. Motion animates only transform and opacity (about 150-300 ms), respects reduced motion, and keeps WCAG AA contrast, so speed and access do not suffer. |
 | 9 | Can a Watching Series be advanced from the Library card? | Yes. The card has the same one-tap "Watched it" as the Entry page; it ticks the current "Next". A short "Undo" follows every tap. A caught-up card has no button. | It serves "losing your place" and one-tap capture with almost no extra code. Undo covers accidental taps while scrolling. |
 | 10 | Where does adding a Title start? | Search sits at the top of the Library; typing replaces the grid with results. | Capture is the worst pain, so it starts on the first screen with no extra tap. |
+
+## 2026-10-17
+
+| # | Question | Decision | Why |
+|---|---|---|---|
+| 11 | How long does the "Watched it" Undo stay? | 8 seconds, the same as the other action toasts. It pauses on hover and on keyboard focus. The tick can always be undone later by unticking the Episode on the Entry page. | 5 seconds was short for a phone. A pause and a second path to undo keep the timed toast within WCAG 2.2.1 (Timing Adjustable). |
