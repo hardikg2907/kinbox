@@ -65,7 +65,7 @@ src/
 
 - One driver everywhere: `pg` (node-postgres) with `drizzle-orm/node-postgres`, in `src/db/client.ts`. It talks to the local podman Postgres and to Neon alike, and supports interactive transactions. Status/Watch changes that touch two tables must run in one `db().transaction`.
 - `DATABASE_URL` is Neon's pooled URL for the app; `DATABASE_URL_UNPOOLED` (the direct URL) is used by drizzle-kit for migrations when set.
-- Local development: Postgres 17 in podman (`kinbox-pg`, `127.0.0.1:54329`). Local values live in `.env.development.local`; `TEST_DATABASE_URL` points at the separate `kinbox_test` database, which the tests wipe. Scripts and drizzle-kit load env files through `@next/env`, like `next dev`.
+- Local development: Postgres 17 in podman (`kinbox-pg`, `127.0.0.1:54329`). Local values live in `.env.development.local`. Tests load `.env.test.local` (Vitest sets `NODE_ENV=test`), whose `TEST_DATABASE_URL` points at the separate `kinbox_test` database that the tests wipe. Scripts and drizzle-kit load env files through `@next/env`, like `next dev`.
 - Names in the schema follow `CONTEXT.md`: `entries`, `watches`, `episode_progress`, and so on.
 
 ## TMDB

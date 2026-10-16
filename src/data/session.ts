@@ -8,7 +8,10 @@ export type Owner = { id: string; name: string };
 
 // One session lookup per request, however many components ask.
 export const getOwner = cache(async (): Promise<Owner | null> => {
-  const session = await auth().api.getSession({ headers: await headers() });
+  // Reading the request first marks the render as dynamic before auth() needs
+  // secrets, so `next build` never builds Better Auth while prerendering.
+  const requestHeaders = await headers();
+  const session = await auth().api.getSession({ headers: requestHeaders });
   if (!session) return null;
   return { id: session.user.id, name: session.user.name };
 });

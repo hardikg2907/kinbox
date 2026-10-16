@@ -5,8 +5,7 @@ import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { undoWatchedNext, watchedNext } from "@/actions/progress";
-import type { CardProgress } from "@/data/dto";
-import type { Status } from "@/domain/types";
+import type { CardProgress, WatchedNextUndo } from "@/data/dto";
 
 type Props = {
   entryId: string;
@@ -18,9 +17,6 @@ type Shown = Props["progress"] & {
   /** The Episode a tap is saving, shown at once while the server confirms. */
   marking: string | null;
 };
-
-// Passed back to the server unchanged, so it can put the Episode, Watch and Status back.
-type UndoData = { seasonNumber: number; episodeNumber: number; previousStatus: Status; addedWatchId: string | null };
 
 type Change = { type: "mark"; label: string } | { type: "restore"; label: string };
 
@@ -36,7 +32,7 @@ export function CardNext({ entryId, progress }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, change] = useOptimistic<Shown, Change>({ ...progress, marking: null }, reduce);
 
-  function undo(data: UndoData) {
+  function undo(data: WatchedNextUndo) {
     startTransition(async () => {
       change({ type: "restore", label: `S${data.seasonNumber} E${data.episodeNumber}` });
       const result = await undoWatchedNext({ entryId, ...data });

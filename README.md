@@ -25,7 +25,8 @@ Needs Node 22, pnpm 10 and podman.
    `podman run -d --name kinbox-pg -p 127.0.0.1:54329:5432 -e POSTGRES_USER=kinbox -e POSTGRES_PASSWORD=<that password> -e POSTGRES_DB=kinbox -v kinbox-pg-data:/var/lib/postgresql/data docker.io/library/postgres:17-alpine`.
 
 3. Environment files (never committed):
-   - `.env.development.local`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3100`, `TEST_DATABASE_URL`.
+   - `.env.development.local`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3100`.
+   - `.env.test.local`: `TEST_DATABASE_URL` (the `kinbox_test` database), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`.
    - `.env.local`: `TMDB_API_READ_TOKEN`. Without it, development uses the bundled TMDB fixtures. Set `TMDB_FAKE=1` to force the fixtures.
 
 4. Create the tables, then your account (it asks for your name, email and a password of 12+ characters):
