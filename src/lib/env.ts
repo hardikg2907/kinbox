@@ -31,7 +31,7 @@ export function env(): Env {
   return cached;
 }
 
-export function useTmdbFake(): boolean {
+export function isTmdbFakeEnabled(): boolean {
   const { TMDB_FAKE, TMDB_API_READ_TOKEN, NODE_ENV } = env();
   if (NODE_ENV === "production") return false;
   return TMDB_FAKE === "1" || !TMDB_API_READ_TOKEN;

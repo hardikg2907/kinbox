@@ -1,6 +1,5 @@
 import "server-only";
-// Renamed on import: its "use" prefix makes the hooks lint rule treat it as a React Hook.
-import { env, useTmdbFake as isFakeTmdbEnabled } from "@/lib/env";
+import { env, isTmdbFakeEnabled } from "@/lib/env";
 import { createFakeTmdbClient } from "./fake";
 import { createRealTmdbClient } from "./real";
 import type { TmdbClient } from "./types";
@@ -10,7 +9,7 @@ let cached: TmdbClient | undefined;
 /** The TMDB client for this process: the fixture-backed fake or the real client. */
 export function getTmdbClient(): TmdbClient {
   if (cached) return cached;
-  if (isFakeTmdbEnabled()) {
+  if (isTmdbFakeEnabled()) {
     cached = createFakeTmdbClient();
     return cached;
   }
