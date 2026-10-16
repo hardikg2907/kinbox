@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { lanAddresses } from "./src/lib/dev-origins";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -34,6 +35,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Lets a phone on the same Wi-Fi load the dev server.
+  allowedDevOrigins: isDev ? lanAddresses() : [],
   images: {
     // Vercel Hobby has a small image optimisation quota; TMDB already serves sized posters.
     unoptimized: true,

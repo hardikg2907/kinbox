@@ -2,16 +2,19 @@ import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { db } from "@/db/client";
 import * as schema from "@/db/schema";
+import { lanOrigins } from "@/lib/dev-origins";
 import { env } from "@/lib/env";
 
 // Shared by the app and the user:create script so both hash passwords and
 // store accounts the same way.
 export function createAuth(plugins: BetterAuthPlugin[] = []) {
-  const { BETTER_AUTH_SECRET, BETTER_AUTH_URL } = env();
+  const { BETTER_AUTH_SECRET, BETTER_AUTH_URL, NODE_ENV } = env();
+  const devOrigins = NODE_ENV === "development" ? lanOrigins(new URL(BETTER_AUTH_URL).port || "3100") : [];
   return betterAuth({
     appName: "Kinbox",
     secret: BETTER_AUTH_SECRET,
     baseURL: BETTER_AUTH_URL,
+    trustedOrigins: devOrigins,
     database: drizzleAdapter(db(), { provider: "pg", schema, transaction: true }),
     emailAndPassword: {
       enabled: true,
