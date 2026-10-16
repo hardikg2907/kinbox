@@ -42,7 +42,7 @@ Needs Node 22, pnpm 10 and podman.
    pnpm dev
    ```
 
-   To try it on your phone on the same Wi-Fi, open `http://<your Mac's IP>:3100`. Sign-in cookies need the address in `BETTER_AUTH_URL`, so set it to that address while you test from the phone.
+   To try it on your phone on the same Wi-Fi, open the `Network:` address that `pnpm dev` prints (for example `http://192.168.29.31:3100`). In development the Mac's own network addresses are trusted, so sign-in works there too.
 
 If TMDB calls time out at home, the network's DNS is blocking themoviedb.org: set the Mac's DNS to 1.1.1.1 or 8.8.8.8. The live site is not affected.
 
