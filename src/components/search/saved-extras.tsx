@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/rating-stars";
+import { useRatingSaveDelay } from "@/components/rating-save-delay";
 import { NativeSelect } from "@/components/search/native-select";
 import { setNote, setRating } from "@/actions/entries";
 import { setNextToWatch } from "@/actions/progress";
@@ -36,10 +37,12 @@ function InlineRating({ entryId }: { entryId: string }) {
   const [rating, setConfirmed] = useState<number | null>(null);
   const [shown, setShown] = useOptimistic<number | null, number | null>(rating, (_current, next) => next);
   const [, startTransition] = useTransition();
+  const waitToSave = useRatingSaveDelay();
 
   function onChange(next: number | null) {
     startTransition(async () => {
       setShown(next);
+      if (!(await waitToSave())) return;
       const result = await setRating({ entryId, ratingHalfStars: next });
       if (!result.ok) {
         toast.error(result.error);
@@ -126,7 +129,7 @@ function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: Non
       </fieldset>
       <div className="flex items-center gap-3">
         <Button type="submit" variant="secondary" disabled={pending}>
-          Set
+          Set next to watch
         </Button>
         <p role="status" className="tabular flex items-center gap-1.5 text-sm text-muted-foreground">
           {done ? (

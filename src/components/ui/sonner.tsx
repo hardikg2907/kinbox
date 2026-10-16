@@ -37,6 +37,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         classNames: {
           toast: "cn-toast",
         },
+        // Sonner's own button is 24 px tall, too small for a thumb.
+        actionButtonStyle: { minWidth: 44, minHeight: 44, paddingInline: 16, fontSize: 14 },
       }}
       {...props}
     />

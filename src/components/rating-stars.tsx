@@ -31,7 +31,7 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
           const fill = current >= star * 2 ? 1 : current === star * 2 - 1 ? 0.5 : 0;
           return (
             <span key={star} className="relative flex h-12 w-12 items-center justify-center">
-              <Star aria-hidden className="size-8 text-muted-foreground/45" strokeWidth={1.5} />
+              <Star aria-hidden className="size-8 text-muted-foreground" strokeWidth={1.5} />
               <span
                 aria-hidden
                 className="absolute inset-y-0 left-2 overflow-hidden"
@@ -45,7 +45,7 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
                 <label
                   key={halfStars}
                   className={cn(
-                    "absolute inset-y-0 w-6 cursor-pointer rounded-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50",
+                    "absolute inset-y-0 w-6 cursor-pointer rounded-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring",
                     half === 0 ? "left-0" : "right-0",
                     disabled && "cursor-default",
                   )}
@@ -56,9 +56,11 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
                     value={halfStars}
                     checked={value === halfStars}
                     onChange={() => onChange(halfStars)}
+                    // The name sits on the radio, not in hidden text beside it: inside a toast, hidden
+                    // text would be read out as well and every value would be announced twice.
+                    aria-label={ratingLabel(halfStars)}
                     className="sr-only"
                   />
-                  <span className="sr-only">{ratingLabel(halfStars)}</span>
                 </label>
               ))}
             </span>
@@ -69,7 +71,7 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="min-h-11 cursor-pointer rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="min-h-11 cursor-pointer rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
         >
           Clear
         </button>

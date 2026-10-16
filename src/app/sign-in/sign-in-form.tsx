@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ export function SignInForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const emailField = useRef<HTMLInputElement>(null);
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,6 +29,8 @@ export function SignInForm() {
       const { error: signInError } = await authClient.signIn.email({ email, password, rememberMe: true });
       if (signInError) {
         setError(messageFor(signInError.status));
+        // The submit button was disabled while the request ran, so focus would otherwise be lost.
+        emailField.current?.focus();
         return;
       }
       router.replace("/");
@@ -40,6 +43,7 @@ export function SignInForm() {
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
+          ref={emailField}
           id="email"
           name="email"
           type="email"
@@ -66,7 +70,7 @@ export function SignInForm() {
           aria-describedby={error ? "sign-in-error" : undefined}
         />
       </div>
-      <p id="sign-in-error" role="alert" aria-live="polite" className="min-h-5 text-sm text-destructive">
+      <p id="sign-in-error" role="alert" className="min-h-5 text-sm text-destructive">
         {error}
       </p>
       <Button id="sign-in-submit" type="submit" size="lg" disabled={pending}>

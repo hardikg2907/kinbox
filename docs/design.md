@@ -70,7 +70,7 @@ Library (/)                         Entry (/entry/[id])
 
 Only where they mean something:
 
-- Entry page: the Title's own poster, blurred and darkened, fades into the page behind the header (a scrim). Text over it must keep AA contrast: put a solid-to-transparent background gradient under text, never text straight on the image.
+- Entry page: the Title's own poster, blurred and darkened, runs edge to edge from behind the app header and fades into the page colour (a scrim), with no visible edge. Text over it must keep AA contrast: put a solid-to-transparent background gradient under text, never text straight on the image.
 - Primary action and the active tab: a soft velvet glow (`box-shadow` with the primary colour at low opacity), not a gradient fill.
 - Poster cards: a short bottom gradient on the poster only where a badge sits on it.
 - Never gradient text, rainbow gradients or gradient page backgrounds.
@@ -98,6 +98,7 @@ Glossary terms (Entry, Watch, Status, Progress) are for code. Screens use these 
 | Kind | Movie, Series |
 | Next line | "Next: S2 E4", with the button "Watched it" |
 | Caught up marker | Caught up (helper: "New episodes will show here") |
+| Count line | "461 of 466 watched", plus ", 5 not out yet" when some numbered Episodes have not aired |
 | Finished, all watched | All episodes watched |
 | A Special | Special 3 |
 | Unaired | Airs 12 Mar 2030, or "Not aired yet" with no date |
@@ -120,11 +121,11 @@ Buttons start with a verb where they act ("Remove", "Mark them"); Status buttons
 
 ## Accessibility
 
-- Every control is keyboard-reachable with a visible focus ring (`ring-ring/50`).
+- Every control is keyboard-reachable with a visible focus ring (`ring-ring`, at full strength: a faded ring fails 3:1).
 - Icon-only buttons have an `aria-label`. Status is never shown by colour alone: pair with an icon and a word.
 - Stars: a radio group of 10 half-steps with labels like "3.5 stars"; arrow keys move.
 - Episode ticks are real checkboxes with labels like "S2 E4, Ozymandias".
-- Toasts with actions are reachable by keyboard and stay at least 8 s.
+- Toasts with actions are reachable by keyboard, have buttons at least 44 px tall, and stay 8 s. The timer waits while the toast is hovered or has keyboard focus.
 - Images: posters have `alt` set to the Title name; decorative scrims have `alt=""` and `aria-hidden`.
 
 ## Performance

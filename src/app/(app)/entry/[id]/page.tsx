@@ -17,12 +17,12 @@ export async function generateMetadata({ params }: PageProps<"/entry/[id]">): Pr
 // The shell (back link and skeleton) is static; everything per Owner streams in behind it.
 export default function EntryPage({ params }: PageProps<"/entry/[id]">) {
   return (
-    <div id="entry-page" className="relative isolate overflow-x-clip">
+    <div id="entry-page">
       <div className="mx-auto w-full max-w-[72rem] px-4 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-6">
         <Link
           id="entry-back-link"
           href="/"
-          className="-ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+          className="-ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
         >
           <ChevronLeft aria-hidden className="size-4" />
           Library

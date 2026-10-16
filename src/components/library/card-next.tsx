@@ -3,12 +3,15 @@
 import { Check } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
+import { showActionToast } from "@/components/action-toast";
 import { Button } from "@/components/ui/button";
 import { undoWatchedNext, watchedNext } from "@/actions/progress";
 import type { CardProgress, WatchedNextUndo } from "@/data/dto";
 
 type Props = {
   entryId: string;
+  /** Names the button, so each card's "Watched it" is told apart by a screen reader. */
+  name: string;
   /** Narrow on purpose: only what the "Next" line and the button need. */
   progress: Pick<CardProgress, "caughtUp" | "allNumberedWatched"> & { nextLabel: string | null };
 };
@@ -21,14 +24,13 @@ type Shown = Props["progress"] & {
 type Change = { type: "mark"; label: string } | { type: "restore"; label: string };
 
 const UNDO_TOAST_ID = "watched-next-undo";
-const UNDO_MS = 5000;
 
 function reduce(current: Shown, change: Change): Shown {
   if (change.type === "mark") return { ...current, marking: change.label };
   return { ...current, nextLabel: change.label, caughtUp: false, allNumberedWatched: false, marking: null };
 }
 
-export function CardNext({ entryId, progress }: Props) {
+export function CardNext({ entryId, name, progress }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, change] = useOptimistic<Shown, Change>({ ...progress, marking: null }, reduce);
 
@@ -51,10 +53,8 @@ export function CardNext({ entryId, progress }: Props) {
         return;
       }
       const { undo: undoData } = result.data;
-      toast.success(`Marked ${label} watched`, {
+      showActionToast("success", `Marked ${label} watched`, {
         id: UNDO_TOAST_ID,
-        duration: UNDO_MS,
-        actionButtonStyle: { minHeight: 44, paddingInline: 16 },
         action: undoData ? { label: "Undo", onClick: () => undo(undoData) } : undefined,
       });
     });
@@ -88,6 +88,7 @@ export function CardNext({ entryId, progress }: Props) {
       <Button
         id={`watched-it-${entryId}`}
         type="button"
+        aria-label={`Watched it: ${name}${shown.nextLabel ? ` ${shown.nextLabel}` : ""}`}
         variant="secondary"
         onClick={markWatched}
         disabled={pending}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "cn";
 import {
   AlertDialog,
@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -45,6 +44,7 @@ function WatchStub({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchV
       ) : (
         <button
           type="button"
+          data-watch-id={watch.id}
           onClick={() => onEdit(watch)}
           aria-label={`Change watch date. ${date}`}
           className={cn(
@@ -64,12 +64,29 @@ export function WatchesSection() {
   const { model, addWatch, changeWatchDate, removeWatch } = useEntry();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirming, setConfirming] = useState<WatchView | null>(null);
+  const section = useRef<HTMLElement>(null);
+  // The stub that opened the dialog is not a Radix trigger, so Radix cannot hand focus back to it.
+  const openedFrom = useRef<string | null>(null);
 
   const onlyWatchOfWatched = (watch: WatchView) =>
     model.status === "watched" && model.watches.length === 1 && model.watches[0]?.id === watch.id;
 
   function open(watch: WatchView) {
+    openedFrom.current = watch.id;
     setEditing({ watch, draft: watch.watchedOn ?? "", today: localToday() });
+  }
+
+  // Back to the stub that was edited; when that stub is gone (the Watch was removed), to the
+  // next control in the section, so focus never drops to the page body.
+  function restoreFocus(event: Event) {
+    if (confirming !== null) return;
+    event.preventDefault();
+    const root = section.current;
+    if (!root) return;
+    const stub = openedFrom.current
+      ? root.querySelector<HTMLElement>(`[data-watch-id="${CSS.escape(openedFrom.current)}"]`)
+      : null;
+    (stub ?? root.querySelector<HTMLElement>("#watch-again-button") ?? root).focus();
   }
 
   function save(watchedOn: string | null) {
@@ -82,7 +99,13 @@ export function WatchesSection() {
   const canSave = editing !== null && editing.draft !== "" && !draftInFuture;
 
   return (
-    <section id="entry-watches" aria-labelledby="entry-watches-title">
+    <section
+      ref={section}
+      id="entry-watches"
+      aria-labelledby="entry-watches-title"
+      tabIndex={-1}
+      className="outline-none"
+    >
       <h2 id="entry-watches-title" className="text-base font-medium">
         Watches
       </h2>
@@ -102,10 +125,9 @@ export function WatchesSection() {
       ) : null}
 
       <Dialog open={editing !== null} onOpenChange={(next) => !next && setEditing(null)}>
-        <DialogContent id="watch-date-dialog">
+        <DialogContent id="watch-date-dialog" aria-describedby={undefined} onCloseAutoFocus={restoreFocus}>
           <DialogHeader>
-            <DialogTitle>Watch date</DialogTitle>
-            <DialogDescription>When did you watch it?</DialogDescription>
+            <DialogTitle>When did you watch it?</DialogTitle>
           </DialogHeader>
           {editing ? (
             <form
@@ -117,7 +139,7 @@ export function WatchesSection() {
               }}
             >
               <div className="grid gap-2">
-                <Label htmlFor="watch-date-input">Date watched</Label>
+                <Label htmlFor="watch-date-input">Date</Label>
                 <Input
                   id="watch-date-input"
                   type="date"
@@ -160,7 +182,7 @@ export function WatchesSection() {
       </Dialog>
 
       <AlertDialog open={confirming !== null} onOpenChange={(next) => !next && setConfirming(null)}>
-        <AlertDialogContent id="remove-watch-dialog">
+        <AlertDialogContent id="remove-watch-dialog" onCloseAutoFocus={restoreFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this watch?</AlertDialogTitle>
             <AlertDialogDescription>

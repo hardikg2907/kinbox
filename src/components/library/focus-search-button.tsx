@@ -12,7 +12,7 @@ export function FocusSearchButton() {
       onClick={() => document.getElementById(SEARCH_INPUT_ID)?.focus()}
     >
       <Search aria-hidden />
-      Search now
+      Search
     </Button>
   );
 }

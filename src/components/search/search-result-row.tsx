@@ -2,7 +2,7 @@
 
 import { Check, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Poster } from "@/components/poster";
@@ -28,11 +28,39 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
   // Only a save made here offers the extras; a Title that was already in the Library just links to its page.
   const justSaved = saved?.created === true || (saved === null && status !== null && item.entry === null);
 
-  function save(next: Status) {
+  const row = useRef<HTMLLIElement>(null);
+  // Set when a keyboard press removes the focused Save button: "extras" waits for the saved row,
+  // a Status names the button to bring back if the save fails.
+  const returnFocus = useRef<"extras" | Status | null>(null);
+
+  useEffect(() => {
+    const want = returnFocus.current;
+    if (want === null) return;
+    // Focus rests on the page body only while the pressed button is gone; anywhere else means the Owner moved on.
+    if (document.activeElement && document.activeElement !== document.body) {
+      returnFocus.current = null;
+      return;
+    }
+    if (want === "extras") {
+      if (saved === null) return;
+      const target =
+        row.current?.querySelector<HTMLElement>("[data-saved-extras] :is(input, select, textarea, button)") ??
+        row.current?.querySelector<HTMLElement>("a[href]");
+      target?.focus();
+    } else {
+      if (status !== null) return;
+      document.getElementById(`save-${kind}-${tmdbId}-${want}`)?.focus();
+    }
+    returnFocus.current = null;
+  }, [saved, status, kind, tmdbId]);
+
+  function save(next: Status, pressed: HTMLElement) {
+    if (pressed.matches(":focus-visible")) returnFocus.current = "extras";
     startTransition(async () => {
       setOptimisticStatus(next);
       const result = await saveTitle({ kind, tmdbId, status: next });
       if (!result.ok) {
+        if (returnFocus.current === "extras") returnFocus.current = next;
         toast.error(result.error);
         return;
       }
@@ -57,7 +85,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
     );
 
   return (
-    <li id={`result-${kind}-${tmdbId}`} className="relative rounded-xl border bg-card p-3">
+    <li ref={row} id={`result-${kind}-${tmdbId}`} className="relative rounded-xl border bg-card p-3">
       <div className="grid grid-cols-[4rem_1fr] gap-x-3 gap-y-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <Poster path={posterPath} name={name} size="w92" className="w-16" />
         <div className="min-w-0 py-0.5">
@@ -65,7 +93,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
           {entryId ? (
             <Link
               href={`/entry/${entryId}`}
-              className="line-clamp-2 rounded-sm text-base leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring/50"
+              className="line-clamp-2 rounded-sm text-base leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring"
             >
               {name}
             </Link>
@@ -91,7 +119,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
                 id={`save-${kind}-${tmdbId}-${option}`}
                 type="button"
                 variant="outline"
-                onClick={() => save(option)}
+                onClick={(event) => save(option, event.currentTarget)}
                 className="px-2 sm:px-4"
               >
                 {STATUS_LABEL[option]}
@@ -104,7 +132,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
       </div>
 
       {saved?.created === true && status !== null ? (
-        <div className="relative z-10">
+        <div data-saved-extras className="relative z-10">
           <SavedExtras entryId={saved.entryId} kind={kind} status={saved.status} seasons={saved.seasons} />
         </div>
       ) : null}

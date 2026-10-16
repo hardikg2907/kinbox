@@ -10,6 +10,9 @@ import { EpisodeRow } from "./episode-row";
 
 const itemValue = (seasonNumber: number) => `season-${seasonNumber}`;
 
+const seasonTitle = (season: SeasonSummaryView) =>
+  season.isSpecials ? "Specials" : `Season ${season.seasonNumber}`;
+
 function SeasonSkeleton({ rows }: { rows: number }) {
   return (
     <div aria-hidden className="flex flex-col gap-2 pb-2">
@@ -91,9 +94,12 @@ export function SeasonsPanel() {
       >
         {series.seasons.map((season) => (
           <AccordionItem key={season.seasonNumber} value={itemValue(season.seasonNumber)}>
-            <AccordionTrigger className="min-h-14 items-center py-2 text-base hover:no-underline">
+            <AccordionTrigger
+              aria-label={`${seasonTitle(season)}, ${season.watchedCount} of ${season.episodeCount} watched`}
+              className="min-h-14 items-center py-2 text-base hover:no-underline"
+            >
               <span className="flex flex-1 items-baseline justify-between gap-3 pr-2">
-                <span>{season.isSpecials ? "Specials" : `Season ${season.seasonNumber}`}</span>
+                <span>{seasonTitle(season)}</span>
                 <span className="tabular text-sm font-normal text-muted-foreground">
                   {season.watchedCount} of {season.episodeCount}
                 </span>
