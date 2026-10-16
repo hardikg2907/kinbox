@@ -66,7 +66,7 @@ export function NextBlock() {
     helper = "New episodes will show here";
   } else {
     headId = "none";
-    head = <p className="font-display text-4xl text-foreground sm:text-5xl">No new episodes yet</p>;
+    head = <p className="font-display text-4xl text-foreground sm:text-5xl">All aired episodes watched</p>;
   }
 
   const canWatch = next !== null || model.nextPending;
