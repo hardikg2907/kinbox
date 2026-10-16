@@ -43,15 +43,15 @@ src/
 - Default to Server Components. Add `'use client'` only for state, effects or browser APIs; keep client components small and pass them narrow props, never DB rows.
 - Always `await params`, `searchParams`, `cookies()`, `headers()`.
 - Use `proxy.ts` (export `proxy`), never `middleware.ts`.
-- Cache Components is on: wrap uncached reads in `<Suspense>`, or cache with `"use cache"` + `cacheLife`. Never read per-user data in a `"use cache"` scope unless the user id is an argument.
-- After a mutation in a Server Action, call `updateTag(tag)`. Never call `revalidateTag` with one argument.
+- Cache Components is on. TMDB reads are cached with `"use cache"` + `cacheLife` in `src/lib/tmdb/cached.ts`. Per-Owner database reads are never cached: they run per request inside `<Suspense>` with a skeleton fallback, so the static shell paints at once.
+- After a mutation, a Server Action calls `refresh()` from `next/cache` so the current screen re-renders with fresh data. Screens apply the change optimistically first. Never call `revalidateTag` with one argument.
 - Fetch independent data in parallel (`Promise.all`). Use `React.cache` for reads repeated within one request. No waterfalls.
 - Import from exact module paths; no barrel files. Lazy-load heavy client code.
 - Do not turn on experimental features (taint, etc.) unless the task says so.
 
 ## Data and security rules
 
-- Every Server Action and route handler is a public endpoint. Inside each one: get the session with `auth.api.getSession({ headers: await headers() })`, validate input with a Zod schema (unknown fields rejected), then call one `data/` function.
+- Every Server Action and route handler is a public endpoint. Inside each one: get the Owner with `requireOwner()` / `getOwner()` from `src/data/session.ts` (Better Auth's `auth().api.getSession`), validate input with a Zod `.strict()` schema, then call one `data/` function.
 - Every `data/` function starts with `import 'server-only'`, checks the session, and scopes every query by the Owner's user id. Never trust an id from the client without that ownership check.
 - Only `src/db` and `src/data` import the Drizzle client. Use the query builder; never build SQL from strings.
 - Return only the fields the UI needs. Errors to the client are generic; log details on the server without tokens, passwords or emails.

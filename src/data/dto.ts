@@ -123,4 +123,13 @@ export type ProgressChange = {
   progress: SeriesProgressView;
 };
 
+export type SaveResult = {
+  entryId: string;
+  status: Status;
+  /** False when the Title was already in the Library (a double tap, or two tabs). */
+  created: boolean;
+  /** A Series saved as Watching: its numbered Seasons, for the optional "next to watch" picker. */
+  seasons: { seasonNumber: number; name: string; episodeCount: number }[] | null;
+};
+
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
