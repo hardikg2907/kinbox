@@ -111,6 +111,13 @@ export type SeasonView = {
   episodes: EpisodeView[];
 };
 
+/** What "Watched it" changed, so "Undo" can put it back. The screen passes it back unchanged. */
+export type WatchedNextUndo = EpisodeKey & {
+  previousStatus: Status;
+  /** The Watch the tap added (finishing a finished Series), or null. */
+  addedWatchId: string | null;
+};
+
 /** What a tap on the Series progress path changed, so the screen can confirm it. */
 export type ProgressChange = {
   status: Status;
@@ -121,6 +128,8 @@ export type ProgressChange = {
   /** After ticking one Episode: unwatched numbered Episodes before it, for the "also mark" offer. */
   earlierUnwatchedCount: number;
   progress: SeriesProgressView;
+  /** Filled only by "Watched it"; null after every other tap. */
+  undo: WatchedNextUndo | null;
 };
 
 export type SaveResult = {
