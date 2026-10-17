@@ -29,12 +29,14 @@ Needs Node 22, pnpm 10 and podman.
    - `.env.test.local`: `TEST_DATABASE_URL` (the `kinbox_test` database), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`.
    - `.env.local`: `TMDB_API_READ_TOKEN`. Without it, development uses the bundled TMDB fixtures. Set `TMDB_FAKE=1` to force the fixtures.
 
-4. Create the tables, then your account (it asks for your name, email and a password of 12+ characters):
+4. Create the tables, then your account. It asks for your name, email and a password of 12+ characters, and hides the password as you type:
 
    ```sh
    pnpm db:migrate
    pnpm user:create
    ```
+
+   `OWNER_NAME`, `OWNER_EMAIL` and `OWNER_PASSWORD` can replace the prompts, but only for CI, where they come from a secret store. Never put a password on a command line: it stays in your shell history.
 
 5. Start the app and open <http://localhost:3100> (port 3000 is taken on this Mac):
 
@@ -56,6 +58,10 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 ## Deploying (later)
 
-Vercel Hobby with Neon Postgres (Vercel → Storage sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`). Add `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the site's URL) and `TMDB_API_READ_TOKEN` in the Vercel project settings, run `pnpm db:migrate` against Neon once, then `pnpm user:create` with the Neon URL.
+Vercel Hobby with Neon Postgres (Vercel → Storage sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`). Add `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the site's `https://` URL; plain http is refused in production) and `TMDB_API_READ_TOKEN` in the Vercel project settings.
+
+- `vercel.json` sets the Next.js preset and the build command `pnpm db:migrate:deploy && pnpm build`. Production deploys apply the database migrations first, through `DATABASE_URL_UNPOOLED`; preview deploys skip them, so a preview never changes the production schema. A failed migration fails the deploy.
+- Node 22 (`engines.node`), the same as local.
+- After the first production deploy, create your account against Neon: run `pnpm user:create` with `DATABASE_URL` set to the Neon URL in that shell only (for example from `vercel env pull`).
 
 Vercel Hobby and TMDB's free tier are non-commercial. Both need paid plans once Kinbox earns money.
