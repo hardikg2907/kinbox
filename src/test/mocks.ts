@@ -5,6 +5,7 @@ import { vi } from "vitest";
 import type { Owner } from "@/data/session";
 import { createFakeTmdbClient } from "@/lib/tmdb/fake";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
+import type { TmdbClient } from "@/lib/tmdb/types";
 
 export const OWNER_A: Owner = { id: "owner-a", name: "Owner A" };
 export const OWNER_B: Owner = { id: "owner-b", name: "Owner B" };
@@ -74,29 +75,32 @@ export function nextServerModule() {
   };
 }
 
-export function tmdbCachedModule() {
+// Stands in for the TMDB client, not the cached layer, so tests go through the same
+// wrap and unwrap of TMDB failures that production does.
+export function tmdbClientModule() {
   const fake = createFakeTmdbClient();
   const guard = (tmdbId?: number) => {
     if (testState.tmdbDown || (tmdbId !== undefined && testState.tmdbDownFor.has(tmdbId))) {
       throw new TmdbUnavailableError({ status: 503 });
     }
   };
-  return {
-    searchTitles: async (query: string) => {
+  const client: TmdbClient = {
+    searchMulti: async (query) => {
       guard();
       return fake.searchMulti(query);
     },
-    getMovie: async (tmdbId: number) => {
+    getMovie: async (tmdbId) => {
       guard(tmdbId);
       return fake.getMovie(tmdbId);
     },
-    getSeries: async (tmdbId: number) => {
+    getSeries: async (tmdbId) => {
       guard(tmdbId);
       return fake.getSeries(tmdbId);
     },
-    getSeasons: async (tmdbId: number, seasonNumbers: number[]) => {
+    getSeasons: async (tmdbId, seasonNumbers) => {
       guard(tmdbId);
       return fake.getSeasons(tmdbId, seasonNumbers);
     },
   };
+  return { getTmdbClient: () => client };
 }

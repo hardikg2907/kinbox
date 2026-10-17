@@ -2,7 +2,7 @@ import "server-only";
 import { refresh } from "next/cache";
 import type { z } from "zod";
 import type { ActionResult } from "@/data/dto";
-import { MESSAGES, userMessage } from "@/data/errors";
+import { MESSAGES, UserError, userMessage } from "@/data/errors";
 import { requireOwner, type Owner } from "@/data/session";
 
 /**
@@ -25,6 +25,9 @@ export async function runAction<S extends z.ZodType, T>(
   try {
     data = await write(owner, parsed.data);
   } catch (error) {
+    // A refused write usually means the screen is out of date (the title was removed in
+    // another tab, say), so it re-renders from the server too.
+    if (error instanceof UserError) refresh();
     return { ok: false, error: userMessage(error, tag) };
   }
   refresh();

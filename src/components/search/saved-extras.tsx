@@ -11,7 +11,7 @@ import { useRatingSaveDelay } from "@/components/rating-save-delay";
 import { NativeSelect } from "@/components/search/native-select";
 import { setNote, setRating } from "@/actions/entries";
 import { setNextToWatch } from "@/actions/progress";
-import type { SaveResult } from "@/data/dto";
+import type { SaveResult, SeriesProgressView } from "@/data/dto";
 import type { Status, TitleKind } from "@/domain/types";
 
 type Props = {
@@ -60,6 +60,13 @@ function InlineRating({ entryId }: { entryId: string }) {
   );
 }
 
+// From the server's answer, not the pick: an unaired pick or a second tab can leave a different place.
+function placeLine(progress: SeriesProgressView): string {
+  if (progress.next) return `Next: ${progress.next.label}`;
+  if (progress.caughtUp) return "Caught up";
+  return progress.allNumberedWatched ? "All episodes watched" : "All aired episodes watched";
+}
+
 function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: NonNullable<SaveResult["seasons"]> }) {
   const uid = useId();
   const [seasonNumber, setSeasonNumber] = useState(seasons[0].seasonNumber);
@@ -77,7 +84,8 @@ function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: Non
         toast.error(result.error);
         return;
       }
-      startTransition(() => setDone(`S${seasonNumber} E${episodeNumber}`));
+      const line = placeLine(result.data.progress);
+      startTransition(() => setDone(line));
     });
   }
 
@@ -135,7 +143,7 @@ function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: Non
           {done ? (
             <>
               <Check aria-hidden className="size-4 text-primary" />
-              Next: {done}
+              {done}
             </>
           ) : null}
         </p>

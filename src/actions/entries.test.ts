@@ -20,7 +20,7 @@ import {
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
-vi.mock("@/lib/tmdb/cached", async () => (await import("@/test/mocks")).tmdbCachedModule());
+vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
 vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
 
@@ -151,6 +151,14 @@ describe("saveTitle", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("re-renders the screen when the write is refused, so a stale screen catches up", async () => {
+    const { entryId } = await save("movie", TMDB.inception, "to_watch");
+    ok(await deleteEntry({ entryId }));
+    vi.mocked(refresh).mockClear();
+
+    expect(failure(await setStatus({ entryId, status: "watching" }))).toBe(MESSAGES.entryNotFound);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
   it("sends a signed-out caller to sign in", async () => {
     signInAs(null);
     await expect(

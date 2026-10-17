@@ -7,7 +7,9 @@ import {
   useOptimistic,
   useRef,
   useState,
+  useTransition,
   type ReactNode,
+  type TransitionStartFunction,
 } from "react";
 import { toast } from "sonner";
 import {
@@ -25,6 +27,7 @@ import {
   watchedNext,
 } from "@/actions/progress";
 import type { ActionResult, EntryView, ProgressChange } from "@/data/dto";
+import { formatEpisode } from "@/domain/series";
 import type { IsoDate, Status, TitleKind } from "@/domain/types";
 import { showActionToast } from "@/components/action-toast";
 import { fetchSeason, SEASON_ERROR, SeasonLoadError } from "@/components/progress/season-api";
@@ -55,6 +58,9 @@ type EntryContextValue = {
   kind: TitleKind;
   tmdbUnavailable: boolean;
   model: EntryModel;
+  /** "Watched it" and "Watched again" each add something per tap, so a second tap waits for the first. */
+  watchNextPending: boolean;
+  addWatchPending: boolean;
   seasonLoad: Record<number, SeasonLoad>;
   changeStatus: (status: Status) => void;
   addWatch: () => void;
@@ -100,6 +106,8 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   }
 
   const [model, dispatch] = useOptimistic(base, applyPatch);
+  const [watchNextPending, startWatchNext] = useTransition();
+  const [addWatchPending, startAddWatch] = useTransition();
   const [seasonLoad, setSeasonLoad] = useState<Record<number, SeasonLoad>>({});
   const loadToken = useRef<Record<number, number>>({});
   const pendingCount = useRef(0);
@@ -118,8 +126,9 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
     call: () => Promise<ActionResult<T> | null>,
     commit: (previous: EntryModel, data: T) => EntryModel,
     after?: (data: T) => void,
+    start: TransitionStartFunction = startTransition,
   ) {
-    startTransition(async () => {
+    start(async () => {
       dispatch(patch);
       let result: ActionResult<T> | null;
       try {
@@ -197,6 +206,8 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
           watch.id === pendingWatchId ? data.watch : watch,
         ),
       }),
+      undefined,
+      startAddWatch,
     );
   }
 
@@ -278,7 +289,7 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
   function watchNext() {
     const series = model.series;
     const next = series?.next;
-    if (!series || !next || model.nextPending) return;
+    if (!series || !next || model.nextPending || watchNextPending) return;
     const season = series.seasons.find((candidate) => candidate.seasonNumber === next.seasonNumber);
     const pendingId = newPendingWatchId();
     const today = localToday();
@@ -296,13 +307,19 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
       (change) => {
         const undo = change.undo;
         const onUndo = undo ? () => undoLast(undo, before) : undefined;
+        // The server ticks its own Next, which differs from this screen's when another tab moved on.
+        const marked = undo ?? next;
+        if (marked.seasonNumber !== next.seasonNumber || marked.episodeNumber !== next.episodeNumber) {
+          reloadOpenSeasons();
+        }
         // A tap that finishes the Series keeps the optional stars in the same toast.
-        showActionToast("success", `Marked ${next.label} watched`, {
+        showActionToast("success", `Marked ${formatEpisode(marked)} watched`, {
           id: `watched-${entry.id}`,
           description: change.addedWatch ? <WatchedStars initial={null} onRate={rate} /> : undefined,
           action: onUndo ? { label: "Undo", onClick: onUndo } : undefined,
         });
       },
+      startWatchNext,
     );
   }
 
@@ -353,6 +370,8 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
     kind: entry.kind,
     tmdbUnavailable: entry.tmdbUnavailable,
     model,
+    watchNextPending,
+    addWatchPending,
     seasonLoad,
     changeStatus,
     addWatch,

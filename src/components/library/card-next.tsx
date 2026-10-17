@@ -7,6 +7,7 @@ import { showActionToast } from "@/components/action-toast";
 import { Button } from "@/components/ui/button";
 import { undoWatchedNext, watchedNext } from "@/actions/progress";
 import type { CardProgress, WatchedNextUndo } from "@/data/dto";
+import { formatEpisode } from "@/domain/series";
 
 type Props = {
   entryId: string;
@@ -53,7 +54,8 @@ export function CardNext({ entryId, name, progress }: Props) {
         return;
       }
       const { undo: undoData } = result.data;
-      showActionToast("success", `Marked ${label} watched`, {
+      // The server ticks its own Next, which differs from this card's when another tab moved on.
+      showActionToast("success", `Marked ${undoData ? formatEpisode(undoData) : label} watched`, {
         id: UNDO_TOAST_ID,
         action: undoData ? { label: "Undo", onClick: () => undo(undoData) } : undefined,
       });
@@ -63,13 +65,16 @@ export function CardNext({ entryId, name, progress }: Props) {
   if (shown.marking === null && shown.nextLabel === null) {
     return (
       <div className="px-0.5">
-        {shown.allNumberedWatched ? (
-          <p className="text-sm font-medium">All episodes watched</p>
-        ) : (
+        {/* Same lines as the Entry page: only a Series that is not finished can be caught up. */}
+        {shown.caughtUp ? (
           <>
             <p className="text-sm font-medium">Caught up</p>
             <p className="text-xs text-muted-foreground">New episodes will show here</p>
           </>
+        ) : (
+          <p className="text-sm font-medium">
+            {shown.allNumberedWatched ? "All episodes watched" : "All aired episodes watched"}
+          </p>
         )}
       </div>
     );

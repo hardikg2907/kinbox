@@ -7,7 +7,8 @@ import { resetTestState, testState, TMDB } from "@/test/mocks";
 import { MESSAGES } from "./errors";
 import { ensureTitle, refreshStaleTitle } from "./titles";
 
-vi.mock("@/lib/tmdb/cached", async () => (await import("@/test/mocks")).tmdbCachedModule());
+vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
+vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 
 const LONG_AGO = new Date("2025-01-01T00:00:00Z");
 

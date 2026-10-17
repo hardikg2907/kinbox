@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, gt, gte, or } from "drizzle-orm";
 import { cache } from "react";
 import { z } from "zod";
 import {
@@ -14,7 +14,7 @@ import {
 import { afterEpisodeTicked, statusAfterWatchDeleted } from "@/domain/status";
 import type { Episode, IsoDate, Status } from "@/domain/types";
 import { db } from "@/db/client";
-import { episodeProgress, watches } from "@/db/schema";
+import { entries, episodeProgress, watches } from "@/db/schema";
 import type { ProgressChange, SeasonView, WatchedNextUndo } from "./dto";
 import {
   applyStatusChange,
@@ -42,7 +42,8 @@ import { getToday } from "./today";
 // --- Input schemas ---
 
 const seasonNumberSchema = z.int().min(0).max(1000);
-const episodeNumberSchema = z.int().min(1).max(10000);
+// TMDB numbers some pilots 0 inside a numbered Season; they are ordinary Episodes.
+const episodeNumberSchema = z.int().min(0).max(10000);
 
 export const tickEpisodeInput = z.strictObject({
   entryId: idSchema,
@@ -60,6 +61,14 @@ export const markSeasonInput = z.strictObject({
   seasonNumber: seasonNumberSchema,
   watched: z.boolean(),
 });
+// The stamps come from the database clock, which can run a little ahead of this server's.
+const CLOCK_SKEW_MS = 60_000;
+
+// A time from the client only puts back what the server handed out; a future one would pin the card to the top.
+const pastTimeSchema = z.iso
+  .datetime({ offset: true })
+  .refine((value) => Date.parse(value) <= Date.now() + CLOCK_SKEW_MS);
+
 export const watchedNextInput = z.strictObject({ entryId: idSchema });
 export const undoWatchedNextInput = z.strictObject({
   entryId: idSchema,
@@ -67,6 +76,8 @@ export const undoWatchedNextInput = z.strictObject({
   episodeNumber: episodeNumberSchema,
   previousStatus: statusSchema,
   addedWatchId: idSchema.nullable(),
+  previousProgressMovedAt: pastTimeSchema.nullable(),
+  previousStatusChangedAt: pastTimeSchema,
 });
 
 export type TickEpisodeInput = z.infer<typeof tickEpisodeInput>;
@@ -239,6 +250,8 @@ export async function watchedNext(owner: Owner, input: WatchedNextInput): Promis
         episodeNumber: next.episodeNumber,
         previousStatus: locked.status,
         addedWatchId: outcome.addedWatchId,
+        previousProgressMovedAt: locked.progressMovedAt?.toISOString() ?? null,
+        previousStatusChangedAt: locked.statusChangedAt.toISOString(),
       },
     });
   });
@@ -269,18 +282,51 @@ export async function undoWatchedNext(
       status,
       addWatch: null,
     });
+    // Last, because the untick and the Status change above both stamp now(). A Status that
+    // could not go back to the old one really changed, so it keeps that stamp.
+    await tx
+      .update(entries)
+      .set({
+        progressMovedAt: input.previousProgressMovedAt ? new Date(input.previousProgressMovedAt) : null,
+        ...(status === input.previousStatus
+          ? { statusChangedAt: new Date(input.previousStatusChangedAt) }
+          : {}),
+      })
+      .where(eq(entries.id, locked.id));
     return toChange(prepared, { status, statusChanged, addedWatchId: null, watched });
   });
 }
 
+// The pick sets the place rather than adding to it, so a corrected pick right after saving
+// leaves no ticks behind from the earlier one. Specials are never touched.
 export async function setNextToWatch(owner: Owner, input: EpisodeInput): Promise<ProgressChange> {
   const prepared = await prepare(owner, input.entryId);
   const target = requireEpisode(prepared.series, input.seasonNumber, input.episodeNumber);
   // The picker offers numbered Seasons only; Specials never count toward "Next".
   if (isSpecial(target)) throw new UserError(MESSAGES.episodeNotFound);
+  const aired = airedKeys(prepared.series.episodes, prepared.today);
+  const toTick = episodesBefore(prepared.series.episodes, target).filter((episode) =>
+    aired.has(episodeKey(episode)),
+  );
   return db().transaction(async (tx) => {
     const locked = await lockEntry(tx, owner.id, prepared.entry.id);
-    const toTick = episodesBefore(prepared.series.episodes, target);
+    const unticked = await tx
+      .delete(episodeProgress)
+      .where(
+        and(
+          eq(episodeProgress.entryId, locked.id),
+          gte(episodeProgress.seasonNumber, 1),
+          or(
+            gt(episodeProgress.seasonNumber, target.seasonNumber),
+            and(
+              eq(episodeProgress.seasonNumber, target.seasonNumber),
+              gte(episodeProgress.episodeNumber, target.episodeNumber),
+            ),
+          ),
+        ),
+      )
+      .returning({ episodeNumber: episodeProgress.episodeNumber });
+    if (unticked.length > 0) await markProgressMoved(tx, locked.id);
     return toChange(prepared, await tickAndAdvance(tx, locked, prepared, toTick));
   });
 }
