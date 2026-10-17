@@ -4,6 +4,7 @@ import { createInterface } from "node:readline/promises";
 import { z } from "zod";
 import { closeDb } from "@/db/client";
 import { createAuth } from "@/lib/auth-config";
+import { env } from "@/lib/env";
 
 const input = z.object({
   name: z.string().trim().min(1).max(100),
@@ -27,6 +28,10 @@ async function ask(question: string, hidden = false): Promise<string> {
 }
 
 async function main(): Promise<void> {
+  // Names the target (host and database only, never credentials) so an account is
+  // never created in the local database by mistake when production was meant.
+  const target = new URL(env().DATABASE_URL);
+  stdout.write(`Creating the account in database "${target.pathname.slice(1)}" on ${target.hostname}.\n`);
   // Env vars allow non-interactive runs; they are never echoed.
   const parsed = input.safeParse({
     name: process.env.OWNER_NAME ?? (await ask("Name: ")),
