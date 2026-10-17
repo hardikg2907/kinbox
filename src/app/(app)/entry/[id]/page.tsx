@@ -15,22 +15,25 @@ export async function generateMetadata({ params }: PageProps<"/entry/[id]">): Pr
 }
 
 // The shell (back link and skeleton) is static; everything per Owner streams in behind it.
+// The page pulls itself up under the app header (3.5 rem plus the top inset) so the hero poster
+// runs to the top of the screen, and down over the main area's bottom padding so the sheet ends at the edge.
 export default function EntryPage({ params }: PageProps<"/entry/[id]">) {
   return (
-    <div id="entry-page">
-      <div className="mx-auto w-full max-w-[72rem] px-4 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-6">
-        <Link
-          id="entry-back-link"
-          href="/"
-          className="-ml-2 mb-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <ChevronLeft aria-hidden className="size-4" />
-          Library
-        </Link>
-        <Suspense fallback={<EntrySkeleton />}>
-          <EntryContent params={params} />
-        </Suspense>
-      </div>
+    <div
+      id="entry-page"
+      className="relative -mt-[calc(3.5rem+env(safe-area-inset-top))] -mb-[max(2rem,env(safe-area-inset-bottom))] lg:-mb-0"
+    >
+      <Link
+        id="entry-back-link"
+        href="/"
+        className="glass-strong absolute top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] left-[max(1rem,env(safe-area-inset-left))] z-20 inline-flex min-h-11 items-center gap-1 rounded-full border py-2 pr-5 pl-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none sm:left-6"
+      >
+        <ChevronLeft aria-hidden className="size-4" />
+        Library
+      </Link>
+      <Suspense fallback={<EntrySkeleton />}>
+        <EntryContent params={params} />
+      </Suspense>
     </div>
   );
 }

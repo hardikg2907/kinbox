@@ -64,15 +64,15 @@ export function CardNext({ entryId, name, progress }: Props) {
 
   if (shown.marking === null && shown.nextLabel === null) {
     return (
-      <div className="px-0.5">
+      <div>
         {/* Same lines as the Entry page: only a Series that is not finished can be caught up. */}
         {shown.caughtUp ? (
           <>
-            <p className="text-sm font-medium">Caught up</p>
+            <p className="text-sm font-semibold">Caught up</p>
             <p className="text-xs text-muted-foreground">New episodes will show here</p>
           </>
         ) : (
-          <p className="text-sm font-medium">
+          <p className="text-sm font-semibold">
             {shown.allNumberedWatched ? "All episodes watched" : "All aired episodes watched"}
           </p>
         )}
@@ -83,10 +83,10 @@ export function CardNext({ entryId, name, progress }: Props) {
   const line = shown.marking !== null ? `Marked ${shown.marking}` : `Next: ${shown.nextLabel}`;
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="tabular flex min-h-5 items-center gap-1.5 overflow-hidden px-0.5 text-sm font-semibold" aria-live="polite">
+    <div className="relative z-10 flex flex-col gap-2">
+      <p className="tabular flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-semibold" aria-live="polite">
         <span key={line} className="inline-flex animate-in items-center gap-1.5 duration-200 fade-in slide-in-from-bottom-2">
-          {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0 text-primary" /> : null}
+          {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0" /> : null}
           {line}
         </span>
       </p>
@@ -97,7 +97,7 @@ export function CardNext({ entryId, name, progress }: Props) {
         variant="secondary"
         onClick={markWatched}
         disabled={pending}
-        className="w-full"
+        className="w-full font-semibold"
       >
         <Check aria-hidden />
         Watched it

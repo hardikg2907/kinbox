@@ -4,6 +4,7 @@ import { Check, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
+import { NotOutYetMock } from "@/components/not-out-yet-mock";
 import { Button } from "@/components/ui/button";
 import { Poster } from "@/components/poster";
 import { KindBadge, STATUS_LABEL, StatusLabel } from "@/components/status";
@@ -71,11 +72,11 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
   const statusLine: ReactNode =
     status === null ? null : (
       <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1">
-        <StatusLabel status={status} className="text-foreground" />
+        <StatusLabel status={status} className="h-9 rounded-full bg-primary px-3.5 font-semibold text-primary-foreground" />
         <span role="status" className="inline-flex items-center text-sm text-muted-foreground">
           {justSaved ? (
             <span className="inline-flex animate-in items-center gap-1 duration-200 fade-in slide-in-from-bottom-1">
-              <Check aria-hidden className="size-4 text-primary" />
+              <Check aria-hidden className="size-4 text-foreground" />
               Saved
             </span>
           ) : null}
@@ -85,7 +86,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
     );
 
   return (
-    <li ref={row} id={`result-${kind}-${tmdbId}`} className="relative rounded-xl border bg-card p-3">
+    <li ref={row} id={`result-${kind}-${tmdbId}`} className="relative p-3 not-last:border-b">
       <div className="grid grid-cols-[4rem_1fr] gap-x-3 gap-y-3 sm:grid-cols-[4rem_1fr_auto] sm:items-center">
         <Poster path={posterPath} name={name} size="w92" className="w-16" />
         <div className="min-w-0 py-0.5">
@@ -93,16 +94,17 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
           {entryId ? (
             <Link
               href={`/entry/${entryId}`}
-              className="line-clamp-2 rounded-sm text-base leading-snug font-medium outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-3 focus-visible:after:ring-ring"
+              className="line-clamp-2 rounded-sm text-base leading-snug font-semibold outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-3 focus-visible:after:ring-ring"
             >
               {name}
             </Link>
           ) : (
-            <p className="line-clamp-2 text-base leading-snug font-medium">{name}</p>
+            <p className="line-clamp-2 text-base leading-snug font-semibold">{name}</p>
           )}
-          <div className="mt-1.5 flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
             {year !== null ? <span className="tabular">{year}</span> : null}
             <KindBadge kind={kind} />
+            <NotOutYetMock name={name} />
           </div>
           {statusLine ? <div className="mt-1 sm:hidden">{statusLine}</div> : null}
         </div>

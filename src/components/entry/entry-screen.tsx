@@ -1,19 +1,19 @@
 import { NextBlock } from "@/components/progress/next-block";
 import { SeasonsPanel } from "@/components/progress/seasons-panel";
 import type { EntryView } from "@/data/dto";
-import { ENTRY_GRID, ENTRY_GRID_MOVIE, ENTRY_GRID_SERIES, entryAreas } from "./entry-layout";
+import { ENTRY_SHEET, ENTRY_SHELL } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
-import { EntryHeader, EntryScrim } from "./entry-header";
+import { EntryHeader } from "./entry-header";
 import { NoteSection } from "./note-section";
+import { Overview } from "./overview";
 import { RatingSection } from "./rating-section";
 import { RemoveEntry } from "./remove-entry";
 import { WatchesSection } from "./watches-section";
-import { cn } from "cn";
 
 export function EntryScreen({ entry }: { entry: EntryView }) {
   const { title } = entry;
   const isSeries = title.kind === "series";
-  const area = entryAreas(isSeries);
+  const overview = title.overview ? <Overview text={title.overview} /> : null;
 
   return (
     <EntryProvider
@@ -28,23 +28,16 @@ export function EntryScreen({ entry }: { entry: EntryView }) {
         tmdbUnavailable: entry.tmdbUnavailable,
       }}
     >
-      <EntryScrim posterPath={title.posterPath} />
-      <div id="entry-content" className={cn(ENTRY_GRID, isSeries ? ENTRY_GRID_SERIES : ENTRY_GRID_MOVIE)}>
-        <div className={area.header}>
-          <EntryHeader entryId={entry.id} title={title} />
-        </div>
-        {isSeries ? (
-          <div className={area.progress}>
-            <NextBlock />
-            {entry.series ? <SeasonsPanel /> : null}
-          </div>
-        ) : null}
-        <div className={area.details}>
+      <div id="entry-content" className={ENTRY_SHELL}>
+        <EntryHeader entryId={entry.id} title={title} />
+        <div className={ENTRY_SHEET}>
+          {/* A Series opens with its Next block, the one thing to tap; a Movie opens with its overview. */}
+          {isSeries ? <NextBlock /> : overview}
+          {isSeries ? overview : null}
+          {isSeries && entry.series ? <SeasonsPanel /> : null}
           <RatingSection />
           <WatchesSection />
           <NoteSection note={entry.note} />
-        </div>
-        <div className={area.remove}>
           <RemoveEntry />
         </div>
       </div>

@@ -27,7 +27,7 @@ export function Overview({ text }: { text: string }) {
       <p
         id={id}
         ref={paragraph}
-        className={cn("text-base text-foreground/90", !expanded && "line-clamp-3")}
+        className={cn("text-base leading-relaxed text-foreground/90", !expanded && "line-clamp-3")}
       >
         {text}
       </p>
@@ -37,7 +37,7 @@ export function Overview({ text }: { text: string }) {
         aria-controls={id}
         onClick={() => setExpanded((value) => !value)}
         className={cn(
-          "relative mt-1 flex h-6 cursor-pointer items-center rounded-md px-1 text-sm font-medium text-primary underline-offset-4 after:absolute after:-inset-x-2 after:-inset-y-2.5 after:content-[''] hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none",
+          "relative mt-1 flex h-6 cursor-pointer items-center rounded-full px-1 text-sm font-semibold text-foreground underline underline-offset-4 after:absolute after:-inset-x-2 after:-inset-y-2.5 after:content-[''] hover:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none",
           !clipped && !expanded && "invisible",
         )}
       >

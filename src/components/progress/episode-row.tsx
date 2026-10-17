@@ -29,7 +29,7 @@ export function EpisodeRow({ episode, onToggle }: EpisodeRowProps) {
 
   return (
     <li
-      className={cn("rounded-lg", settling && "animate-in zoom-in-95 duration-200 ease-out")}
+      className={cn("rounded-xl", settling && "animate-in zoom-in-95 duration-200 ease-out")}
       onAnimationEnd={(event) => {
         if (event.target === event.currentTarget) setSettling(false);
       }}
@@ -37,7 +37,7 @@ export function EpisodeRow({ episode, onToggle }: EpisodeRowProps) {
       <label
         htmlFor={id}
         className={cn(
-          "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/60",
+          "flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 transition-colors hover:bg-secondary",
           unaired && "text-muted-foreground",
         )}
       >
@@ -46,7 +46,7 @@ export function EpisodeRow({ episode, onToggle }: EpisodeRowProps) {
           checked={episode.watched}
           aria-label={accessibleName}
           data-settling={settling ? "" : undefined}
-          className="size-6 overflow-hidden rounded-md data-settling:data-checked:before:absolute data-settling:data-checked:before:inset-0 data-settling:data-checked:before:animate-out data-settling:data-checked:before:bg-primary data-settling:data-checked:before:duration-200 data-settling:data-checked:before:ease-out data-settling:data-checked:before:slide-out-to-right-full data-settling:data-checked:before:fill-mode-forwards data-settling:data-checked:before:content-['']"
+          className="size-6 overflow-hidden rounded-full data-settling:data-checked:before:absolute data-settling:data-checked:before:inset-0 data-settling:data-checked:before:animate-out data-settling:data-checked:before:bg-primary data-settling:data-checked:before:duration-200 data-settling:data-checked:before:ease-out data-settling:data-checked:before:slide-out-to-right-full data-settling:data-checked:before:fill-mode-forwards data-settling:data-checked:before:content-['']"
           onCheckedChange={(checked) => {
             const watched = checked === true;
             setSettling(watched);

@@ -142,7 +142,7 @@ function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: Non
         <p role="status" className="tabular flex items-center gap-1.5 text-sm text-muted-foreground">
           {done ? (
             <>
-              <Check aria-hidden className="size-4 text-primary" />
+              <Check aria-hidden className="size-4 text-foreground" />
               {done}
             </>
           ) : null}
@@ -218,7 +218,7 @@ function NoteField({ entryId }: { entryId: string }) {
         <p role="status" className="flex items-center gap-1.5 text-sm text-muted-foreground">
           {saved ? (
             <>
-              <Check aria-hidden className="size-4 text-primary" />
+              <Check aria-hidden className="size-4 text-foreground" />
               Note saved
             </>
           ) : null}

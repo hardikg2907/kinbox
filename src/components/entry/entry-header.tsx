@@ -1,9 +1,9 @@
 import { ViewTransition } from "react";
+import { NotOutYetMock } from "@/components/not-out-yet-mock";
 import { KindBadge } from "@/components/status";
 import { Poster } from "@/components/poster";
 import type { EntryView } from "@/data/dto";
-import { posterUrl } from "@/lib/tmdb/images";
-import { Overview } from "./overview";
+import { ENTRY_HERO } from "./entry-layout";
 import { StatusMenu } from "./status-menu";
 
 function formatRuntime(minutes: number): string {
@@ -13,61 +13,39 @@ function formatRuntime(minutes: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
-// The Title's own poster, blurred and washed toward the page colour. No ancestor is
-// positioned, so it measures against the page itself: it runs edge to edge from behind the
-// app header and fades out at the bottom. The wash keeps text at AA contrast on any poster.
-export function EntryScrim({ posterPath }: { posterPath: string | null }) {
-  const src = posterUrl(posterPath, "w342");
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[28rem] overflow-hidden scrim-fade"
-    >
-      {src ? (
-        // TMDB serves sized posters, so next/image optimisation would only spend quota.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt=""
-          decoding="async"
-          className="absolute inset-0 size-full scale-125 object-cover opacity-60 blur-2xl saturate-150"
-        />
-      ) : null}
-      <div className="absolute inset-0 scrim-wash" />
-    </div>
-  );
-}
-
+// The hero: the Title's own poster, uncropped but for its foot, runs edge to edge from behind the
+// app header. Two scrims keep text at AA over any poster: one under the header, and one at the foot
+// that turns into the page colour, where the name and the Status sit.
 export function EntryHeader({ entryId, title }: { entryId: string; title: EntryView["title"] }) {
   return (
-    <header id="entry-header" className="flex flex-col gap-4">
-      <div className="flex gap-4">
+    <header id="entry-header" className="relative lg:self-stretch">
+      <div className={ENTRY_HERO}>
         <ViewTransition name={`poster-${entryId}`} share="auto" default="none">
           <Poster
             path={title.posterPath}
             name={title.name}
             size="w500"
             eager
-            className="w-28 shrink-0 self-start shadow-lg ring-1 ring-foreground/10 sm:w-36"
+            className="absolute inset-0 aspect-auto rounded-none"
+            imageClassName="object-top"
           />
         </ViewTransition>
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          <h1 className="font-display text-3xl wrap-break-word text-foreground sm:text-4xl">
-            {title.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        <div aria-hidden className="absolute inset-x-0 top-0 h-36 scrim-top" />
+        <div className="scrim-hero absolute inset-x-0 bottom-0 flex flex-col gap-3 px-4 pt-28 pb-10 sm:px-6">
+          <h1 className="font-display text-4xl wrap-break-word text-foreground sm:text-5xl">{title.name}</h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-base text-muted-foreground">
             {title.year ? <span className="tabular">{title.year}</span> : null}
             <KindBadge kind={title.kind} />
             {title.kind === "movie" && title.runtimeMinutes ? (
               <span className="tabular">{formatRuntime(title.runtimeMinutes)}</span>
             ) : null}
+            <NotOutYetMock name={title.name} />
           </div>
           <div className="mt-1 flex">
             <StatusMenu />
           </div>
         </div>
       </div>
-      {title.overview ? <Overview text={title.overview} /> : null}
     </header>
   );
 }

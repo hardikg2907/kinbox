@@ -34,18 +34,25 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button id="account-menu-trigger" variant="ghost" size="icon" aria-label="Account" disabled={pending}>
-          <CircleUserRound className="size-6 md:size-5" aria-hidden />
+        <Button
+          id="account-menu-trigger"
+          variant="ghost"
+          size="icon"
+          aria-label="Account"
+          disabled={pending}
+          className="glass-strong border hover:bg-secondary"
+        >
+          <CircleUserRound className="size-6" aria-hidden />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuItem asChild className="min-h-11 gap-2 px-3 text-base md:min-h-9 md:text-sm">
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem asChild className="min-h-11 gap-2 px-3 text-base md:min-h-10 md:text-sm">
           <Link href="/about">
             <Info aria-hidden />
             About
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={signOut} className="min-h-11 gap-2 px-3 text-base md:min-h-9 md:text-sm">
+        <DropdownMenuItem onSelect={signOut} className="min-h-11 gap-2 px-3 text-base md:min-h-10 md:text-sm">
           <LogOut aria-hidden />
           Sign out
         </DropdownMenuItem>
