@@ -85,9 +85,14 @@ export async function lockEntry(
   tx: Tx,
   ownerId: string,
   entryId: string,
-): Promise<{ id: string; status: Status }> {
+): Promise<{ id: string; status: Status; progressMovedAt: Date | null; statusChangedAt: Date }> {
   const [row] = await tx
-    .select({ id: entries.id, status: entries.status })
+    .select({
+      id: entries.id,
+      status: entries.status,
+      progressMovedAt: entries.progressMovedAt,
+      statusChangedAt: entries.statusChangedAt,
+    })
     .from(entries)
     .where(and(eq(entries.id, entryId), eq(entries.userId, ownerId)))
     .for("update");

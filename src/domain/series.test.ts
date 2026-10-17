@@ -515,3 +515,22 @@ describe("earlierUnwatched", () => {
     expect(earlierUnwatched(s, new Set(), { seasonNumber: 5, episodeNumber: 1 })).toEqual([]);
   });
 });
+
+describe("Episode 0 of a numbered Season", () => {
+  const pilot = series({ finished: true, seasons: [{ n: 1, eps: [[1], [2], [0]] }] });
+
+  it("is a numbered Episode, not a Special, and comes first", () => {
+    expect(isSpecial({ seasonNumber: 1, episodeNumber: 0 })).toBe(false);
+    expect(formatEpisode({ seasonNumber: 1, episodeNumber: 0 })).toBe("S1 E0");
+    expect(keys(numberedEpisodes(pilot))).toEqual(["1:0", "1:1", "1:2"]);
+    expect(keys(episodesBefore(pilot, { seasonNumber: 1, episodeNumber: 1 }))).toEqual(["1:0"]);
+  });
+
+  it("is Next first, and the Series is not all watched without it", () => {
+    expect(summarizeProgress(pilot, new Set(), TODAY).next?.episodeNumber).toBe(0);
+    const withoutPilot = summarizeProgress(pilot, new Set(["1:1", "1:2"]), TODAY);
+    expect(withoutPilot).toMatchObject({ allNumberedWatched: false, watchedCount: 2, totalCount: 3 });
+    expect(withoutPilot.next?.episodeNumber).toBe(0);
+    expect(summarizeProgress(pilot, new Set(["1:0", "1:1", "1:2"]), TODAY).allNumberedWatched).toBe(true);
+  });
+});

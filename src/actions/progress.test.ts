@@ -1,9 +1,10 @@
 import { refresh } from "next/cache";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActionResult, ProgressChange } from "@/data/dto";
 import { MESSAGES } from "@/data/errors";
 import type { Status } from "@/domain/types";
 import { closeDb } from "@/db/client";
+import { getTmdbClient } from "@/lib/tmdb/client";
 import { entryRow, resetDatabase, setEntryTimes, tickKeys, watchRows } from "@/test/db";
 import { OWNER_B, resetTestState, signInAs, testState, TMDB, TODAY } from "@/test/mocks";
 import { saveTitle, setStatus } from "./entries";
@@ -18,7 +19,7 @@ import {
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
-vi.mock("@/lib/tmdb/cached", async () => (await import("@/test/mocks")).tmdbCachedModule());
+vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
 vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
 
@@ -202,7 +203,7 @@ describe("tickEpisode", () => {
   });
 
   it.each([
-    { seasonNumber: 1, episodeNumber: 0, watched: true },
+    { seasonNumber: 1, episodeNumber: -1, watched: true },
     { seasonNumber: -1, episodeNumber: 1, watched: true },
     { seasonNumber: 1001, episodeNumber: 1, watched: true },
     { seasonNumber: 1, episodeNumber: 10001, watched: true },
@@ -267,17 +268,22 @@ describe("watchedNext", () => {
   it("ticks Next, moves Next on, and returns what Undo needs", async () => {
     const entryId = await saveSeries(TMDB.breakingBad, "watching");
 
+    await setEntryTimes(entryId, { statusChangedAt: OLD });
+
     const first = ok(await watchedNext({ entryId }));
     expect(first.undo).toEqual({
       seasonNumber: 1,
       episodeNumber: 1,
       previousStatus: "watching",
       addedWatchId: null,
+      previousProgressMovedAt: null,
+      previousStatusChangedAt: OLD.toISOString(),
     });
     expect(first.progress.next?.label).toBe("S1 E2");
 
     const second = ok(await watchedNext({ entryId }));
     expect(second.undo).toMatchObject({ seasonNumber: 1, episodeNumber: 2 });
+    expect(Date.parse(second.undo!.previousProgressMovedAt!)).toBeGreaterThan(OLD.getTime());
     expect(await tickKeys(entryId)).toEqual(["1:1", "1:2"]);
   });
 
@@ -306,6 +312,8 @@ describe("watchedNext", () => {
       episodeNumber: 10,
       previousStatus: "watching",
       addedWatchId: watch!.id,
+      previousProgressMovedAt: expect.any(String),
+      previousStatusChangedAt: expect.any(String),
     });
   });
 });
@@ -325,26 +333,42 @@ describe("undoWatchedNext", () => {
     expect(await tickKeys(entryId)).toEqual([]);
   });
 
-  it("puts a To watch Entry back to To watch", async () => {
+  it("puts a To watch Entry back to To watch, with its old times", async () => {
     const entryId = await saveSeries(TMDB.breakingBad, "to_watch");
     await setEntryTimes(entryId, { statusChangedAt: OLD });
     const change = await undoOf(entryId);
     expect(change).toMatchObject({ status: "to_watch", statusChanged: true });
-    const row = await entryRow(entryId);
-    expect(row?.status).toBe("to_watch");
-    expect(row?.statusChangedAt.getTime()).toBeGreaterThan(OLD.getTime());
+    expect(await entryRow(entryId)).toMatchObject({
+      status: "to_watch",
+      statusChangedAt: OLD,
+      progressMovedAt: null,
+    });
+  });
+
+  it("puts back when progress last moved, so the card keeps its place in Watching", async () => {
+    const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await tick(entryId, 1, 1));
+    await setEntryTimes(entryId, { statusChangedAt: OLD, progressMovedAt: OLD });
+
+    await undoOf(entryId);
+
+    expect(await entryRow(entryId)).toMatchObject({ statusChangedAt: OLD, progressMovedAt: OLD });
+    expect(await tickKeys(entryId)).toEqual(["1:1"]);
   });
 
   it("removes the Watch and restores the Status after finishing a finished Series", async () => {
     const entryId = await westworldOneLeft();
+    await setEntryTimes(entryId, { statusChangedAt: OLD, progressMovedAt: OLD });
     const change = await undoOf(entryId);
     expect(change).toMatchObject({ status: "watching", statusChanged: true, addedWatch: false });
     expect(await watchRows(entryId)).toEqual([]);
     expect(await tickKeys(entryId)).toHaveLength(19);
+    expect(await entryRow(entryId)).toMatchObject({ statusChangedAt: OLD, progressMovedAt: OLD });
   });
 
-  it("never restores Watched when no Watch is left", async () => {
+  it("never restores Watched when no Watch is left, and dates that Status change now", async () => {
     const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await tick(entryId, 1, 1));
     const change = ok(
       await undoWatchedNext({
         entryId,
@@ -352,19 +376,56 @@ describe("undoWatchedNext", () => {
         episodeNumber: 1,
         previousStatus: "watched",
         addedWatchId: null,
+        previousProgressMovedAt: OLD.toISOString(),
+        previousStatusChangedAt: OLD.toISOString(),
       }),
     );
     expect(change.status).toBe("to_watch");
+    const row = await entryRow(entryId);
+    expect(row?.statusChangedAt.getTime()).toBeGreaterThan(OLD.getTime());
+    expect(row?.progressMovedAt).toEqual(OLD);
   });
 
   it.each([
-    { previousStatus: "done", addedWatchId: null },
-    { previousStatus: "watching", addedWatchId: "not-a-uuid" },
-    { previousStatus: "watching", addedWatchId: null, extra: 1 },
+    { previousStatus: "done" },
+    { addedWatchId: "not-a-uuid" },
+    { extra: 1 },
+    { previousStatusChangedAt: null },
+    { previousStatusChangedAt: "2020-01-01" },
+    { previousStatusChangedAt: "yesterday" },
+    { previousStatusChangedAt: "2999-01-01T00:00:00.000Z" },
+    { previousProgressMovedAt: "2999-01-01T00:00:00+05:30" },
+    { previousProgressMovedAt: 1_600_000_000_000 },
   ])("rejects malformed input %j", async (fields) => {
     const entryId = await saveSeries(TMDB.breakingBad, "watching");
-    const input = { entryId, seasonNumber: 1, episodeNumber: 1, ...fields };
+    const input = {
+      entryId,
+      seasonNumber: 1,
+      episodeNumber: 1,
+      previousStatus: "watching",
+      addedWatchId: null,
+      previousProgressMovedAt: null,
+      previousStatusChangedAt: OLD.toISOString(),
+      ...fields,
+    };
     expect(failure(await undoWatchedNext(input as never))).toBe(MESSAGES.invalid);
+  });
+
+  it("accepts times with a time zone offset", async () => {
+    const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await tick(entryId, 1, 1));
+    ok(
+      await undoWatchedNext({
+        entryId,
+        seasonNumber: 1,
+        episodeNumber: 1,
+        previousStatus: "watching",
+        addedWatchId: null,
+        previousProgressMovedAt: "2020-01-01T05:30:00+05:30",
+        previousStatusChangedAt: OLD.toISOString(),
+      }),
+    );
+    expect((await entryRow(entryId))?.progressMovedAt).toEqual(OLD);
   });
 
   it("does not let Owner B undo on Owner A's Entry or delete Owner A's Watch", async () => {
@@ -412,6 +473,101 @@ describe("setNextToWatch", () => {
       MESSAGES.episodeNotFound,
     );
   });
+
+  it("sets the place when the pick moves back: Episodes from the new pick onward are unticked", async () => {
+    const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await tick(entryId, 0, 2));
+    ok(await setNextToWatch({ entryId, seasonNumber: 2, episodeNumber: 4 }));
+
+    const change = ok(await setNextToWatch({ entryId, seasonNumber: 1, episodeNumber: 3 }));
+
+    expect(change.progress.next?.label).toBe("S1 E3");
+    expect(await tickKeys(entryId)).toEqual(["0:2", "1:1", "1:2"]);
+    expect(change.status).toBe("watching");
+  });
+
+  it("sets the place when the pick moves forward", async () => {
+    const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await setNextToWatch({ entryId, seasonNumber: 1, episodeNumber: 3 }));
+
+    const change = ok(await setNextToWatch({ entryId, seasonNumber: 2, episodeNumber: 2 }));
+
+    expect(change.progress.next?.label).toBe("S2 E2");
+    expect(await tickKeys(entryId)).toEqual(["1:1", "1:2", "1:3", "1:4", "1:5", "1:6", "1:7", "2:1"]);
+  });
+
+  it("unticks the picked Episode itself when it was ticked", async () => {
+    const entryId = await saveSeries(TMDB.breakingBad, "watching");
+    ok(await tick(entryId, 1, 1));
+    ok(await tick(entryId, 1, 2));
+
+    const change = ok(await setNextToWatch({ entryId, seasonNumber: 1, episodeNumber: 2 }));
+
+    expect(change.progress.next?.label).toBe("S1 E2");
+    expect(await tickKeys(entryId)).toEqual(["1:1"]);
+  });
+
+  it("ticks only aired Episodes before the pick", async () => {
+    const entryId = await saveSeries(TMDB.thePitt, "watching");
+    ok(await setNextToWatch({ entryId, seasonNumber: 2, episodeNumber: 13 }));
+    const ticks = await tickKeys(entryId);
+    expect(ticks).toHaveLength(25);
+    expect(ticks).not.toContain("2:11");
+  });
+});
+
+describe("Episode 0 of a numbered Season", () => {
+  // TMDB lists some pilots as E0. Here Westworld gets one before S1 E1.
+  beforeEach(() => {
+    const client = getTmdbClient();
+    const fixture = client.getSeasons.bind(client);
+    vi.spyOn(client, "getSeasons").mockImplementation(async (tmdbId, seasonNumbers) => {
+      const seasons = await fixture(tmdbId, seasonNumbers);
+      if (tmdbId !== TMDB.westworld) return seasons;
+      return seasons.map((season) =>
+        season.seasonNumber !== 1
+          ? season
+          : {
+              ...season,
+              episodes: [
+                { seasonNumber: 1, episodeNumber: 0, tmdbEpisodeId: 990_001, name: "Pilot", airDate: "2016-09-01" },
+                ...season.episodes,
+              ],
+            },
+      );
+    });
+  });
+
+  afterEach(() => {
+    vi.mocked(getTmdbClient().getSeasons).mockRestore();
+  });
+
+  it("comes first, and can be ticked, unticked and undone", async () => {
+    const entryId = await saveSeries(TMDB.westworld, "watching");
+
+    const marked = ok(await watchedNext({ entryId }));
+    expect(marked.undo).toMatchObject({ seasonNumber: 1, episodeNumber: 0 });
+    expect(marked.progress.next?.label).toBe("S1 E1");
+    expect(ok(await undoWatchedNext({ entryId, ...marked.undo! })).progress.next?.label).toBe("S1 E0");
+    expect(await tickKeys(entryId)).toEqual([]);
+
+    ok(await tick(entryId, 1, 0));
+    expect(await tickKeys(entryId)).toEqual(["1:0"]);
+    ok(await tick(entryId, 1, 0, false));
+    expect(await tickKeys(entryId)).toEqual([]);
+  });
+
+  it("counts toward finishing the Series", async () => {
+    const entryId = await saveSeries(TMDB.westworld, "watching");
+    for (let episode = 1; episode <= 10; episode += 1) ok(await tick(entryId, 1, episode));
+    ok(await markSeason({ entryId, seasonNumber: 2, watched: true }));
+    expect((await entryRow(entryId))?.status).toBe("watching");
+
+    const change = ok(await tick(entryId, 1, 0));
+
+    expect(change).toMatchObject({ status: "watched", addedWatch: true });
+    expect(change.progress).toMatchObject({ watchedCount: 21, totalCount: 21 });
+  });
 });
 
 describe("Owner B", () => {
@@ -435,6 +591,8 @@ describe("Owner B", () => {
         episodeNumber: 1,
         previousStatus: "to_watch",
         addedWatchId: null,
+        previousProgressMovedAt: null,
+        previousStatusChangedAt: OLD.toISOString(),
       }),
     ];
     for (const attempt of attempts) expect(failure(attempt)).toBe(MESSAGES.entryNotFound);

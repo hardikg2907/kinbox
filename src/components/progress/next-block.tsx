@@ -31,7 +31,7 @@ function NextName({ name, helper }: { name: string | null; helper: string | null
 
 // The bold element of the page: the next Episode and one tap to mark it watched.
 export function NextBlock() {
-  const { model, watchNext } = useEntry();
+  const { model, watchNext, watchNextPending } = useEntry();
   const series = model.series;
 
   if (!series) {
@@ -94,7 +94,7 @@ export function NextBlock() {
         <Button
           id="watched-it-button"
           size="lg"
-          disabled={model.nextPending}
+          disabled={model.nextPending || watchNextPending}
           onClick={watchNext}
           className="mt-5 w-full shadow-[0_10px_28px_-10px] shadow-primary/45 sm:w-auto sm:min-w-44"
         >

@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { after } from "next/server";
 import { z } from "zod";
 import { episodeKey } from "@/domain/series";
 import { STATUSES, type Status } from "@/domain/types";
@@ -11,6 +12,7 @@ import { statusSchema } from "./entries";
 import { logUnexpected } from "./errors";
 import { cardProgress, loadSeriesEpisodes } from "./series";
 import { requireOwner, type Owner } from "./session";
+import { refreshStaleTitlesFor } from "./titles";
 import { getToday } from "./today";
 
 const libraryInput = z.strictObject({
@@ -122,6 +124,7 @@ async function safeCardProgress(
 export async function getLibraryFor(owner: Owner, input: LibraryInput): Promise<LibraryView> {
   const { tab, kind } = libraryInput.parse(input);
   const kindFilter = kind === "all" ? undefined : eq(titles.kind, kind);
+  after(() => refreshStaleTitlesFor(owner.id));
 
   const [counts, rows] = await Promise.all([
     loadCounts(owner.id, kindFilter),

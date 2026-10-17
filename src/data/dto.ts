@@ -116,6 +116,9 @@ export type WatchedNextUndo = EpisodeKey & {
   previousStatus: Status;
   /** The Watch the tap added (finishing a finished Series), or null. */
   addedWatchId: string | null;
+  /** ISO timestamps from before the tap, so Undo also puts the card back in its place. */
+  previousProgressMovedAt: string | null;
+  previousStatusChangedAt: string;
 };
 
 /** What a tap on the Series progress path changed, so the screen can confirm it. */

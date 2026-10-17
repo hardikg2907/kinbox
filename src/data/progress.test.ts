@@ -8,7 +8,8 @@ import { getSeason, tickEpisode } from "./progress";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
-vi.mock("@/lib/tmdb/cached", async () => (await import("@/test/mocks")).tmdbCachedModule());
+vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
+vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
 
 async function seriesEntry(tmdbId: number): Promise<string> {

@@ -61,7 +61,7 @@ function WatchStub({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchV
 }
 
 export function WatchesSection() {
-  const { model, addWatch, changeWatchDate, removeWatch } = useEntry();
+  const { model, addWatch, addWatchPending, changeWatchDate, removeWatch } = useEntry();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirming, setConfirming] = useState<WatchView | null>(null);
   const section = useRef<HTMLElement>(null);
@@ -119,7 +119,13 @@ export function WatchesSection() {
         </ul>
       )}
       {model.watches.length > 0 ? (
-        <Button id="watch-again-button" variant="outline" className="mt-3" onClick={addWatch}>
+        <Button
+          id="watch-again-button"
+          variant="outline"
+          className="mt-3"
+          onClick={addWatch}
+          disabled={addWatchPending}
+        >
           Watched again
         </Button>
       ) : null}

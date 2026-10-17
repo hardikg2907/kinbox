@@ -1,15 +1,17 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { asc, eq } from "drizzle-orm";
 import { closeDb, db } from "@/db/client";
-import { watches } from "@/db/schema";
+import { titles, watches } from "@/db/schema";
 import { insertEntry, resetDatabase } from "@/test/db";
-import { OWNER_A, OWNER_B, resetTestState, signInAs, testState, TMDB } from "@/test/mocks";
+import { flushAfter, OWNER_A, OWNER_B, resetTestState, signInAs, testState, TMDB } from "@/test/mocks";
 import { saveTitle } from "./entries";
 import { getLibrary } from "./library";
 import { markEarlier, tickEpisode } from "./progress";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
-vi.mock("@/lib/tmdb/cached", async () => (await import("@/test/mocks")).tmdbCachedModule());
+vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
+vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
 
 const at = (iso: string) => new Date(`${iso}T12:00:00Z`);
@@ -179,5 +181,70 @@ describe("getLibrary Watching cards", () => {
     expect(byName.get("Westworld")).toBeNull();
     expect(byName.get("Inception")).toBeNull();
     expect(view.cards.every((card) => card.latestWatchOn === null)).toBe(true);
+  });
+});
+
+describe("getLibrary stale Titles", () => {
+  const ALL = [
+    { kind: "movie", tmdbId: TMDB.inception, status: "to_watch" },
+    { kind: "series", tmdbId: TMDB.westworld, status: "watched" },
+    { kind: "movie", tmdbId: TMDB.matrix, status: "dropped" },
+    { kind: "series", tmdbId: TMDB.breakingBad, status: "watched" },
+    { kind: "movie", tmdbId: TMDB.dune, status: "watched" },
+    { kind: "series", tmdbId: TMDB.thePitt, status: "to_watch" },
+  ] as const;
+
+  /** TMDB ids of the Titles still holding the old snapshot. */
+  async function notRefreshed(): Promise<number[]> {
+    const rows = await db()
+      .select({ tmdbId: titles.tmdbId })
+      .from(titles)
+      .where(eq(titles.name, "Old name"))
+      .orderBy(asc(titles.tmdbId));
+    return rows.map((row) => row.tmdbId);
+  }
+
+  it("refreshes the five stalest Titles of the Owner's Library after the response, from any tab", async () => {
+    for (const [index, title] of ALL.entries()) {
+      const { titleId } = await insertEntry({ owner: OWNER_A, ...title, name: "Old name" });
+      const refreshedAt = new Date(Date.UTC(2025, 0, index + 1));
+      await db().update(titles).set({ refreshedAt }).where(eq(titles.id, titleId));
+    }
+
+    await getLibrary({ tab: "to_watch", kind: "movie" });
+    await flushAfter();
+
+    // The Pitt was refreshed last, so it waits for the next read.
+    expect(await notRefreshed()).toEqual([TMDB.thePitt]);
+    const [westworld] = await db().select().from(titles).where(eq(titles.tmdbId, TMDB.westworld));
+    expect(westworld).toMatchObject({ name: "Westworld", tmdbStatus: "Canceled" });
+
+    await getLibrary({ tab: "to_watch", kind: "all" });
+    await flushAfter();
+    expect(await notRefreshed()).toEqual([]);
+  });
+
+  it("leaves fresh Titles, and other Owners' Titles, alone", async () => {
+    await insertEntry({ owner: OWNER_A, kind: "movie", tmdbId: TMDB.inception, status: "to_watch", name: "Old name" });
+    const other = await insertEntry({ owner: OWNER_B, kind: "movie", tmdbId: TMDB.matrix, status: "to_watch", name: "Old name" });
+    await db().update(titles).set({ refreshedAt: new Date("2025-01-01T00:00:00Z") }).where(eq(titles.id, other.titleId));
+
+    await getLibrary({ tab: "to_watch", kind: "all" });
+    await flushAfter();
+
+    expect(await notRefreshed()).toEqual([TMDB.matrix, TMDB.inception]);
+  });
+
+  it("still shows the Library when TMDB is down", async () => {
+    const { titleId } = await insertEntry({ owner: OWNER_A, kind: "movie", tmdbId: TMDB.inception, status: "to_watch", name: "Old name" });
+    await db().update(titles).set({ refreshedAt: new Date("2025-01-01T00:00:00Z") }).where(eq(titles.id, titleId));
+    testState.tmdbDown = true;
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect((await getLibrary({ tab: "to_watch", kind: "all" })).cards).toHaveLength(1);
+    await flushAfter();
+
+    log.mockRestore();
+    expect(await notRefreshed()).toEqual([TMDB.inception]);
   });
 });

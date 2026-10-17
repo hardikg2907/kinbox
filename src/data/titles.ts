@@ -1,14 +1,16 @@
 import "server-only";
-import { and, eq, lt } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
 import type { TitleKind } from "@/domain/types";
 import { db } from "@/db/client";
-import { titles } from "@/db/schema";
+import { entries, titles } from "@/db/schema";
 import { getMovie, getSeries } from "@/lib/tmdb/cached";
 import type { MovieDetails, SeriesDetails } from "@/lib/tmdb/types";
 import { logUnexpected, MESSAGES, UserError } from "./errors";
 
 // TMDB allows a stored snapshot for six months at most; a month keeps names and posters fresh.
 const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+// Keeps one Library read from fanning out into a burst of TMDB calls; later reads catch up.
+const MAX_REFRESHES_PER_READ = 5;
 
 export type TitleDetails = MovieDetails | SeriesDetails;
 
@@ -74,5 +76,25 @@ export async function refreshStaleTitle(titleId: string): Promise<void> {
       .where(eq(titles.id, titleId));
   } catch (error) {
     logUnexpected(error, "refreshStaleTitle");
+  }
+}
+
+/**
+ * Refreshes the stalest Title snapshots in the Owner's Library, oldest first, so Titles the
+ * Owner never opens still stay within TMDB's limit. Never throws: it runs after the response.
+ */
+export async function refreshStaleTitlesFor(ownerId: string): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - STALE_AFTER_MS);
+    const stale = await db()
+      .select({ id: titles.id })
+      .from(titles)
+      .innerJoin(entries, eq(entries.titleId, titles.id))
+      .where(and(eq(entries.userId, ownerId), lt(titles.refreshedAt, cutoff)))
+      .orderBy(asc(titles.refreshedAt), asc(titles.id))
+      .limit(MAX_REFRESHES_PER_READ);
+    await Promise.all(stale.map((title) => refreshStaleTitle(title.id)));
+  } catch (error) {
+    logUnexpected(error, "refreshStaleTitlesFor");
   }
 }
