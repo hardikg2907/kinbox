@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "user:create": "tsx --conditions=react-server scripts/user-create.ts"
+    "user:create": "tsx --conditions=react-server scripts/user-create.ts",
+    "db:migrate:deploy": "tsx --conditions=react-server scripts/migrate-on-deploy.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.10",
@@ -49,6 +50,6 @@
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   }
 }
