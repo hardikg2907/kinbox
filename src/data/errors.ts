@@ -1,5 +1,6 @@
 import "server-only";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
+import { describeError } from "@/lib/log";
 
 export const MESSAGES = {
   invalid: "Something in that request wasn't valid.",
@@ -27,7 +28,7 @@ export class UserError extends Error {
 
 /**
  * The sentence to show for a failed request. Unexpected errors are logged by
- * name and message only, so inputs, cookies and emails never reach the logs.
+ * name and database error code only, so inputs, cookies and emails never reach the logs.
  */
 export function userMessage(error: unknown, tag: string): string {
   if (error instanceof UserError) return error.message;
@@ -51,6 +52,5 @@ export function errorResponse(error: unknown, tag: string): Response {
 }
 
 export function logUnexpected(error: unknown, tag: string): void {
-  if (error instanceof Error) console.error(`[${tag}] ${error.name}: ${error.message}`);
-  else console.error(`[${tag}] non-error thrown`);
+  console.error(`[${tag}] ${describeError(error)}`);
 }

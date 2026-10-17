@@ -24,5 +24,6 @@ Ideas that are not part of v1. Each one waits for a later effort. Add new ideas 
 - **A Rating on each Watch** (v1 keeps one Rating per Entry: the Owner's current opinion).
 - **A "like" or favourite mark** separate from the Rating. Its value is unclear while the Rating covers it.
 - **An episode diary**: a date on each watched Episode that the Owner can see and edit.
+- **Stronger abuse limits**: a failed-login limit per account (on top of the per-IP limit), and per-user limits on search and actions so one account cannot exhaust the TMDB quota. Matters once sign-up is public.
 - **An installable app** (PWA) for the phone home screen.
 - **User wishes from market research.** Items marked "future" in the ranked list in [market voice findings](../.scratch/kinbox-v1/research/market-voice.md#d-wished-for-features-ranked).

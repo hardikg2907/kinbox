@@ -74,7 +74,7 @@ describe("refreshStaleTitle", () => {
     await expect(refreshStaleTitle(titleId)).resolves.toBeUndefined();
 
     expect((await titleRow(titleId))?.name).toBe("Old name");
-    expect(log).toHaveBeenCalledWith("[refreshStaleTitle] TmdbUnavailableError: TMDB could not be reached");
+    expect(log).toHaveBeenCalledWith("[refreshStaleTitle] TmdbUnavailableError");
     log.mockRestore();
   });
 });
