@@ -189,12 +189,13 @@ body::before {
   );
 }
 
-/* Keeps the app header legible when the hero poster runs behind it. */
+/* Keeps the app header legible when the hero poster runs behind it: at least 85 % solid down to
+   the header's foot. */
 @utility scrim-top {
   background-image: linear-gradient(
     to bottom,
-    color-mix(in oklab, var(--background) 88%, transparent) 0,
-    color-mix(in oklab, var(--background) 70%, transparent) 55%,
+    color-mix(in oklab, var(--background) 92%, transparent) 0,
+    color-mix(in oklab, var(--background) 85%, transparent) 45%,
     transparent 100%
   );
 }
