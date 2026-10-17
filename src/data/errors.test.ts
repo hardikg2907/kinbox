@@ -16,13 +16,17 @@ describe("userMessage", () => {
     expect(userMessage(new TmdbUnavailableError({ status: 429 }), "t")).toBe(MESSAGES.tmdbDown);
   });
 
-  it("logs only the tag, name and message of anything else, and shows the generic sentence", () => {
+  it("logs only the tag and error name of anything else, and shows the generic sentence", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const error = Object.assign(new TypeError("bad thing"), { input: "owner@example.com" });
+    // A failed query puts its parameters in the message, so the message must never be logged.
+    const error = Object.assign(new TypeError("params: owner@example.com, my private note"), {
+      input: "owner@example.com",
+    });
 
     expect(userMessage(error, "saveTitle")).toBe(MESSAGES.generic);
-    expect(log).toHaveBeenCalledWith("[saveTitle] TypeError: bad thing");
+    expect(log).toHaveBeenCalledWith("[saveTitle] TypeError");
     expect(JSON.stringify(log.mock.calls)).not.toContain("owner@example.com");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private note");
   });
 });
 

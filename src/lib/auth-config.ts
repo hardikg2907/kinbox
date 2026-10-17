@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import * as schema from "@/db/schema";
 import { lanOrigins } from "@/lib/dev-origins";
 import { env } from "@/lib/env";
+import { describeError } from "@/lib/log";
 
 // Shared by the app and the user:create script so both hash passwords and
 // store accounts the same way.
@@ -40,7 +41,22 @@ export function createAuth(plugins: BetterAuthPlugin[] = []) {
       },
     },
     advanced: {
-      ipAddress: { ipAddressHeaders: ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"] },
+      ipAddress: {
+        // Vercel overwrites x-vercel-forwarded-for, so a client cannot spoof it; the
+        // other headers are client-settable and would let anyone reset the sign-in limit.
+        ipAddressHeaders:
+          NODE_ENV === "production" ? ["x-vercel-forwarded-for"] : ["x-real-ip", "x-forwarded-for"],
+      },
+    },
+    logger: {
+      level: "warn",
+      // Better Auth passes raw errors as extra arguments, and some carry the session
+      // token or query parameters, so only a short, one-line message is kept.
+      log: (level, message) => {
+        const text =
+          typeof message === "string" ? message.replace(/[\r\n]+/g, " ").slice(0, 200) : describeError(message);
+        (level === "error" ? console.error : console.warn)(`[auth] ${level}: ${text}`);
+      },
     },
     telemetry: { enabled: false },
     plugins,

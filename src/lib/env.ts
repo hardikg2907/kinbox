@@ -27,6 +27,10 @@ export function env(): Env {
   if (parsed.data.NODE_ENV === "production" && !parsed.data.TMDB_API_READ_TOKEN) {
     throw new Error("TMDB_API_READ_TOKEN is required in production");
   }
+  // Better Auth sets the Secure cookie flag only for an https base URL.
+  if (parsed.data.NODE_ENV === "production" && !parsed.data.BETTER_AUTH_URL.startsWith("https://")) {
+    throw new Error("BETTER_AUTH_URL must use https in production");
+  }
   cached = parsed.data;
   return cached;
 }
