@@ -57,28 +57,27 @@ One family: **Figtree** (`next/font/google`, variable weight, `--font-figtree`).
 Mobile first at 375 px; desktop is a bigger view of the same screens (content max width 80 rem). Respect safe areas (`env(safe-area-inset-*)`). Touch targets at least 44 px, with 8 px between them.
 
 ```
-Library (375)                          Entry (375)
-+-------------------------------+      +-------------------------------+
-| Kinbox                  (o)   |      |  full-bleed poster (w500),     |
-| [ Search a movie or series ]  |      |  68 % of the screen height     |
-|###############################|glass |                               |
-|# To watch  Watching  Watched #|sticky| Kinbox                  (o)   |
-|###############################|bar   | < Library (glass pill)        |
-|  All  Movies  Series          |      |                               |
-|  (Under 2 h v)(Genre v)(Movie|Series)  |▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓| <- scrim
-+---------------+---------------+      | Breaking Bad (display)        |
-|               |               |      | 2008  Series  [Watching v]    |
-|    poster     |    poster     |      +-------------------------------+
-|               |               |      |  glass sheet, rounded top     |
-|▓Name 2019 ▓▓▓▓|▓Name ▓▓▓▓▓▓▓▓▓|      |  Next: S2 E4   (Watched it)   |
-+---------------+---------------+      |  10 of 62 watched             |
-|    poster     |    poster     |      |  Overview / Seasons           |
-|▓Next: S2 E4 ▓▓|               |      |  Rating ★★★½☆                 |
-|▓(Watched it)▓▓|               |      |  Watches  [date tiles]        |
-+---------------+---------------+      |  Note / Remove                |
-                                       +-------------------------------+
+Library (375)                        Entry (375)
++-------------------------------+    +-------------------------------+
+| Kinbox                  (o)   |    | Kinbox                  (o)   |
+| [ Search a movie or series ]  |    | < Library                     |
+|###############################|    |                               |
+|# To watch Watching Watched  # |    |  full-bleed poster (w500),    |
+|###############################|    |  68 % of the screen height    |
+| All  Movies  Series           |    |                               |
+| Under 2 h  Genre  Movie Series|    |                               |
++-------------------------------+    | Breaking Bad (display)        |
+|    poster  |    poster        |    | 2008  Series  [Watching v]    |
+|            |                  |    +-------------------------------+
+| Name 2019  | Name             |    |  glass sheet, rounded top     |
++-------------------------------+    |  Next: S2 E4   (Watched it)   |
+|    poster  |    poster        |    |  10 of 62 watched             |
+| Next: S2 E4|                  |    |  Overview / Seasons           |
+| (Watched it)|                 |    |  Rating                       |
++-------------------------------+    |  Watches  [date tiles]        |
+                                     |  Note / Remove                |
+                                     +-------------------------------+
 ```
-
 - **Header:** the wordmark and the account menu sit above everything, not sticky. On an Entry page they float over the hero, on a top scrim.
 - **Library:** the search field, then one sticky glass bar holding the Status tabs (the active one is a solid `primary` pill, each with its count). The wall slides under the bar. Below the bar: the kind filter (All, Movies, Series) and the tonight row. The glow behind them comes from the first four posters (see Ambient glow).
 - **Tonight row (preview):** a row of glass chips for length, genre, and Movie or Series, with a "Preview" tag. It is inert and hidden from assistive tech. It shows where the choosing-tonight filters live; nothing behind it works yet.
