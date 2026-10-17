@@ -39,9 +39,11 @@ export function SignInForm() {
   }
 
   return (
-    <form id="sign-in-form" onSubmit={onSubmit} className="mt-10 flex flex-col gap-5" noValidate>
+    <form id="sign-in-form" onSubmit={onSubmit} className="glass mt-10 border flex flex-col gap-5 rounded-3xl p-5" noValidate>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="pl-1">
+          Email
+        </Label>
         <Input
           ref={emailField}
           id="email"
@@ -58,7 +60,9 @@ export function SignInForm() {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="pl-1">
+          Password
+        </Label>
         <Input
           id="password"
           name="password"
@@ -70,7 +74,7 @@ export function SignInForm() {
           aria-describedby={error ? "sign-in-error" : undefined}
         />
       </div>
-      <p id="sign-in-error" role="alert" className="min-h-5 text-sm text-destructive">
+      <p id="sign-in-error" role="alert" className="min-h-5 px-1 text-sm text-destructive">
         {error}
       </p>
       <Button id="sign-in-submit" type="submit" size="lg" disabled={pending}>

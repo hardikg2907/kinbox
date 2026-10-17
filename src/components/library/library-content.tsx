@@ -1,9 +1,11 @@
 import { ViewTransition } from "react";
 import { getLibrary } from "@/data/library";
+import { AmbientGlow } from "@/components/library/ambient-glow";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryFilters } from "@/components/library/library-filters";
 import { LibraryGrid } from "@/components/library/library-grid";
 import { parseKind, parseTab } from "@/components/library/params";
+import { TonightFiltersMock } from "@/components/library/tonight-filters-mock";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,7 +20,10 @@ export async function LibraryContent({ searchParams }: Props) {
 
   return (
     <>
-      <LibraryFilters tab={tab} kind={kind} counts={view.counts} />
+      <AmbientGlow posterPaths={view.cards.map((card) => card.posterPath)} />
+      <LibraryFilters tab={tab} kind={kind} counts={view.counts}>
+        <TonightFiltersMock />
+      </LibraryFilters>
       {/* Tabs crossfade in place: same page, different content. */}
       <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="auto" default="none">
         <div className="mt-4">

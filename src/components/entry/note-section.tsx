@@ -63,7 +63,7 @@ export function NoteSection({ note }: { note: string | null }) {
 
   return (
     <section id="entry-note" aria-labelledby="entry-note-label">
-      <Label id="entry-note-label" htmlFor="entry-note-input" className="text-base">
+      <Label id="entry-note-label" htmlFor="entry-note-input" className="text-lg font-bold">
         Note
       </Label>
       <p id="entry-note-help" className="mt-1 text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export function NoteSection({ note }: { note: string | null }) {
           setJustSaved(false);
         }}
         aria-describedby="entry-note-help entry-note-count"
-        className="mt-2 min-h-24 whitespace-pre-wrap"
+        className="mt-3 min-h-24 whitespace-pre-wrap"
       />
       <div className="mt-2 flex items-center justify-between gap-3">
         <Button

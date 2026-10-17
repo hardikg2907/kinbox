@@ -8,7 +8,7 @@ export function RatingSection() {
   const { model, rate } = useEntry();
   return (
     <section id="entry-rating" aria-labelledby="entry-rating-title">
-      <h2 id="entry-rating-title" className="text-base font-medium">
+      <h2 id="entry-rating-title" className="text-lg font-bold">
         Rating
       </h2>
       {canRate(model.status) ? (

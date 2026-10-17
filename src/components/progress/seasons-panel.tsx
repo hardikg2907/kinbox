@@ -15,10 +15,10 @@ const seasonTitle = (season: SeasonSummaryView) =>
 
 function SeasonSkeleton({ rows }: { rows: number }) {
   return (
-    <div aria-hidden className="flex flex-col gap-2 pb-2">
-      <Skeleton className="h-11 w-44 rounded-lg" />
+    <div aria-hidden className="flex flex-col gap-3">
+      <Skeleton className="h-11 w-44 rounded-full" />
       {Array.from({ length: rows }, (_, index) => (
-        <Skeleton key={index} className="h-11 w-full rounded-lg" />
+        <Skeleton key={index} className="h-11 w-full rounded-xl" />
       ))}
     </div>
   );
@@ -31,7 +31,7 @@ function SeasonBody({ season }: { season: SeasonSummaryView }) {
 
   if (load?.state === "error") {
     return (
-      <div className="flex flex-col items-start gap-2 pb-2" role="alert">
+      <div className="flex flex-col items-start gap-2" role="alert">
         <p className="text-sm text-muted-foreground">{load.message}</p>
         <Button variant="outline" onClick={() => loadSeason(season.seasonNumber, true)}>
           Try again
@@ -45,7 +45,7 @@ function SeasonBody({ season }: { season: SeasonSummaryView }) {
   const allAiredWatched = aired.length > 0 && aired.every((episode) => episode.watched);
 
   return (
-    <div className="flex flex-col gap-2 pb-2">
+    <div className="flex flex-col gap-3">
       {aired.length > 0 ? (
         <Button
           variant="outline"
@@ -55,7 +55,7 @@ function SeasonBody({ season }: { season: SeasonSummaryView }) {
           {allAiredWatched ? "Unmark season" : "Mark season watched"}
         </Button>
       ) : null}
-      <ul role="list" className="flex flex-col gap-2">
+      <ul role="list" className="flex flex-col rounded-2xl border bg-card p-1">
         {opened.episodes.map((episode) => (
           <EpisodeRow
             key={episode.episodeNumber}
@@ -90,13 +90,17 @@ export function SeasonsPanel() {
             if (!open.includes(value)) loadSeason(Number(value.replace("season-", "")));
           }
         }}
-        className="rounded-2xl bg-card px-4 ring-1 ring-foreground/10"
+        className="gap-2"
       >
         {series.seasons.map((season) => (
-          <AccordionItem key={season.seasonNumber} value={itemValue(season.seasonNumber)}>
+          <AccordionItem
+            key={season.seasonNumber}
+            value={itemValue(season.seasonNumber)}
+            className="rounded-2xl border bg-secondary not-last:border-b"
+          >
             <AccordionTrigger
               aria-label={`${seasonTitle(season)}, ${season.watchedCount} of ${season.episodeCount} watched`}
-              className="min-h-14 items-center py-2 text-base hover:no-underline"
+              className="min-h-14 items-center rounded-2xl px-4 py-2 text-base font-semibold hover:no-underline focus-visible:ring-inset"
             >
               <span className="flex flex-1 items-baseline justify-between gap-3 pr-2">
                 <span>{seasonTitle(season)}</span>
@@ -105,7 +109,7 @@ export function SeasonsPanel() {
                 </span>
               </span>
             </AccordionTrigger>
-            <AccordionContent className="h-auto">
+            <AccordionContent className="h-auto px-3 pb-3">
               <SeasonBody season={season} />
             </AccordionContent>
           </AccordionItem>

@@ -27,12 +27,12 @@ import { formatIsoDate, localToday } from "./dates";
 import { isPendingWatch } from "./entry-model";
 import { useEntry } from "./entry-state";
 
-// The ticket cut-outs mask everything outside the border box, so focus rings sit inside it.
-const STUB = "bg-stub text-stub-foreground stub-edge rounded-md px-5";
+// A Watch is a small flat-glass tile; the date leads and "Change" trails.
+const TILE = "tabular flex min-h-11 items-center rounded-2xl border bg-secondary px-4 text-sm font-semibold";
 
 type Editing = { watch: WatchView; draft: string; today: string };
 
-function WatchStub({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchView) => void }) {
+function WatchTile({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchView) => void }) {
   const pending = isPendingWatch(watch);
   const date = watch.watchedOn ? formatIsoDate(watch.watchedOn) : "Date unknown";
   return (
@@ -40,7 +40,7 @@ function WatchStub({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchV
       className={cn(pending && "animate-in fade-in-0 slide-in-from-top-2 duration-200 ease-out")}
     >
       {pending ? (
-        <p className={cn(STUB, "tabular flex min-h-12 items-center text-sm font-medium")}>{date}</p>
+        <p className={TILE}>{date}</p>
       ) : (
         <button
           type="button"
@@ -48,12 +48,12 @@ function WatchStub({ watch, onEdit }: { watch: WatchView; onEdit: (watch: WatchV
           onClick={() => onEdit(watch)}
           aria-label={`Change watch date. ${date}`}
           className={cn(
-            STUB,
-            "tabular flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 text-left text-sm font-medium transition-[filter] hover:brightness-110 focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none",
+            TILE,
+            "cursor-pointer gap-4 text-left transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none",
           )}
         >
           <span>{date}</span>
-          <span className="text-xs font-normal opacity-80">Change</span>
+          <span className="text-xs font-normal text-muted-foreground">Change</span>
         </button>
       )}
     </li>
@@ -65,7 +65,7 @@ export function WatchesSection() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [confirming, setConfirming] = useState<WatchView | null>(null);
   const section = useRef<HTMLElement>(null);
-  // The stub that opened the dialog is not a Radix trigger, so Radix cannot hand focus back to it.
+  // The tile that opened the dialog is not a Radix trigger, so Radix cannot hand focus back to it.
   const openedFrom = useRef<string | null>(null);
 
   const onlyWatchOfWatched = (watch: WatchView) =>
@@ -76,17 +76,17 @@ export function WatchesSection() {
     setEditing({ watch, draft: watch.watchedOn ?? "", today: localToday() });
   }
 
-  // Back to the stub that was edited; when that stub is gone (the Watch was removed), to the
+  // Back to the tile that was edited; when that tile is gone (the Watch was removed), to the
   // next control in the section, so focus never drops to the page body.
   function restoreFocus(event: Event) {
     if (confirming !== null) return;
     event.preventDefault();
     const root = section.current;
     if (!root) return;
-    const stub = openedFrom.current
+    const tile = openedFrom.current
       ? root.querySelector<HTMLElement>(`[data-watch-id="${CSS.escape(openedFrom.current)}"]`)
       : null;
-    (stub ?? root.querySelector<HTMLElement>("#watch-again-button") ?? root).focus();
+    (tile ?? root.querySelector<HTMLElement>("#watch-again-button") ?? root).focus();
   }
 
   function save(watchedOn: string | null) {
@@ -106,15 +106,15 @@ export function WatchesSection() {
       tabIndex={-1}
       className="outline-none"
     >
-      <h2 id="entry-watches-title" className="text-base font-medium">
+      <h2 id="entry-watches-title" className="text-lg font-bold">
         Watches
       </h2>
       {model.watches.length === 0 ? (
         <p className="mt-1 text-sm text-muted-foreground">Watches show up here once you mark it watched.</p>
       ) : (
-        <ul role="list" className="mt-2 flex flex-col gap-2">
+        <ul role="list" className="mt-3 flex flex-wrap gap-2">
           {model.watches.map((watch) => (
-            <WatchStub key={watch.id} watch={watch} onEdit={open} />
+            <WatchTile key={watch.id} watch={watch} onEdit={open} />
           ))}
         </ul>
       )}
@@ -122,7 +122,7 @@ export function WatchesSection() {
         <Button
           id="watch-again-button"
           variant="outline"
-          className="mt-3"
+          className="mt-4"
           onClick={addWatch}
           disabled={addWatchPending}
         >

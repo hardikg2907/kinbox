@@ -38,7 +38,7 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
                 style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)` }}
               >
                 <span className="flex h-12 w-8 items-center">
-                  <Star className="size-8 fill-gold text-gold" strokeWidth={1.5} />
+                  <Star className="size-8 fill-stars text-stars" strokeWidth={1.5} />
                 </span>
               </span>
               {[star * 2 - 1, star * 2].map((halfStars, half) => (
@@ -71,7 +71,7 @@ export function RatingStars({ value, onChange, label = "Rating", disabled = fals
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="min-h-11 cursor-pointer rounded-md px-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+          className="min-h-11 cursor-pointer rounded-full px-3 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
         >
           Clear
         </button>

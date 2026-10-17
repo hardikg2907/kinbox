@@ -25,11 +25,11 @@ export function StatusMenu() {
         <Button
           id="entry-status-button"
           variant="outline"
-          className="justify-between gap-2 self-start"
+          className="h-12 justify-between gap-2 self-start border-input px-5 text-base font-semibold md:h-11"
           aria-label={`Status: ${STATUS_LABEL[model.status]}. Change status`}
         >
-          <StatusLabel status={model.status} />
-          <ChevronDown aria-hidden className="text-muted-foreground" />
+          <StatusLabel status={model.status} className="text-base font-semibold" />
+          <ChevronDown aria-hidden className="size-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
@@ -40,7 +40,7 @@ export function StatusMenu() {
           }}
         >
           {STATUSES.map((status) => (
-            <DropdownMenuRadioItem key={status} value={status} className="min-h-11 text-base md:min-h-9">
+            <DropdownMenuRadioItem key={status} value={status} className="min-h-11 text-base md:min-h-10">
               <StatusLabel status={status} className="text-base md:text-sm" />
             </DropdownMenuRadioItem>
           ))}

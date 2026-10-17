@@ -10,8 +10,8 @@ import { SlideSwap } from "./slide-swap";
 
 const TMDB_DOWN = "Can't reach the movie database right now. Try again in a minute.";
 
-// From `lg` the card is as tall as the header beside it, with the count pinned to its foot, so the Seasons below start level with the Rating.
-const CARD = "rounded-2xl bg-card p-5 ring-1 ring-foreground/10 lg:flex lg:h-full lg:flex-col lg:items-start";
+// A flat-glass tile inside the sheet: the Next line is the biggest type on the screen after the name.
+const CARD = "rounded-3xl border bg-secondary p-5";
 
 function NextName({ name, helper }: { name: string | null; helper: string | null }) {
   const [first] = useState(name);
@@ -20,7 +20,7 @@ function NextName({ name, helper }: { name: string | null; helper: string | null
     <p
       key={text ?? ""}
       className={cn(
-        "mt-1.5 min-h-6 text-base text-muted-foreground",
+        "mt-2 min-h-6 text-base text-muted-foreground",
         name !== first && "animate-in fade-in-0 duration-200",
       )}
     >
@@ -53,7 +53,7 @@ export function NextBlock() {
 
   if (model.nextPending) {
     headId = "pending";
-    head = <Skeleton className="h-9 w-48 sm:h-12" />;
+    head = <Skeleton className="h-10 w-48 sm:h-12" />;
   } else if (next) {
     headId = `next-${next.label}`;
     head = <p className="font-display text-4xl text-foreground sm:text-5xl">Next: {next.label}</p>;
@@ -96,17 +96,17 @@ export function NextBlock() {
           size="lg"
           disabled={model.nextPending || watchNextPending}
           onClick={watchNext}
-          className="mt-5 w-full shadow-[0_10px_28px_-10px] shadow-primary/45 sm:w-auto sm:min-w-44"
+          className="mt-5 w-full sm:w-auto sm:min-w-44"
         >
           <Check aria-hidden />
           Watched it
         </Button>
       ) : null}
-      <div className={cn(canWatch ? "mt-5 lg:pt-5" : "mt-4 lg:pt-4", "lg:mt-auto lg:w-full")}>
+      <div className={canWatch ? "mt-5" : "mt-4"}>
         <p id="series-progress-count" className="tabular text-sm text-muted-foreground">
           {countLine}
         </p>
-        <div aria-hidden className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+        <div aria-hidden className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/15">
           <div
             className="h-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
             style={{ transform: `scaleX(${ratio})` }}

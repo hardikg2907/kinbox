@@ -1,4 +1,6 @@
+import { cn } from "cn";
 import type { KindFilter } from "@/data/dto";
+import { GUTTER } from "@/components/gutter";
 import type { Status } from "@/domain/types";
 import { STATUS_ICON } from "@/components/status";
 import { FocusSearchButton } from "@/components/library/focus-search-button";
@@ -27,12 +29,17 @@ function message(tab: Status, kind: KindFilter): string {
 export function LibraryEmpty({ tab, kind }: { tab: Status; kind: KindFilter }) {
   const Icon = STATUS_ICON[tab];
   return (
-    <div id="library-empty" className="mx-auto flex max-w-sm flex-col items-center gap-4 px-2 py-14 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon aria-hidden className="size-6" />
-      </span>
-      <p className="text-base text-pretty">{message(tab, kind)}</p>
-      {tab === "to_watch" ? <FocusSearchButton /> : null}
+    <div className={cn(GUTTER, "pt-2")}>
+      <div
+        id="library-empty"
+        className="glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl border px-6 py-12 text-center"
+      >
+        <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-foreground">
+          <Icon aria-hidden className="size-6" />
+        </span>
+        <p className="text-lg text-pretty">{message(tab, kind)}</p>
+        {tab === "to_watch" ? <FocusSearchButton /> : null}
+      </div>
     </div>
   );
 }

@@ -42,14 +42,14 @@ export function RemoveEntry() {
   }
 
   return (
-    <div id="entry-remove" className="flex justify-center lg:justify-start">
+    <div id="entry-remove" className="flex">
       <AlertDialog>
         <AlertDialogTrigger asChild>
           <Button
             id="remove-entry-button"
             variant="ghost"
             disabled={pending}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+            className="-ml-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Trash2 aria-hidden />
             Remove from library
