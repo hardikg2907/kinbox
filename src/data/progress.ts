@@ -23,6 +23,7 @@ import {
   insertTicks,
   lockEntry,
   markProgressMoved,
+  pastTimeSchema,
   statusSchema,
   type OwnedEntry,
 } from "./entries";
@@ -61,14 +62,6 @@ export const markSeasonInput = z.strictObject({
   seasonNumber: seasonNumberSchema,
   watched: z.boolean(),
 });
-// The stamps come from the database clock, which can run a little ahead of this server's.
-const CLOCK_SKEW_MS = 60_000;
-
-// A time from the client only puts back what the server handed out; a future one would pin the card to the top.
-const pastTimeSchema = z.iso
-  .datetime({ offset: true })
-  .refine((value) => Date.parse(value) <= Date.now() + CLOCK_SKEW_MS);
-
 export const watchedNextInput = z.strictObject({ entryId: idSchema });
 export const undoWatchedNextInput = z.strictObject({
   entryId: idSchema,

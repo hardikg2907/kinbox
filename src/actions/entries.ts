@@ -1,7 +1,13 @@
 "use server";
 
 import type { Status } from "@/domain/types";
-import type { ActionResult, SaveResult, WatchView } from "@/data/dto";
+import type {
+  ActionResult,
+  SaveResult,
+  StatusMove,
+  WatchAgainMove,
+  WatchView,
+} from "@/data/dto";
 import * as data from "@/data/entries";
 import { runAction } from "./run";
 
@@ -9,16 +15,18 @@ export async function saveTitle(input: data.SaveTitleInput): Promise<ActionResul
   return runAction("saveTitle", data.saveTitleInput, input, data.saveTitle);
 }
 
-export async function setStatus(
-  input: data.SetStatusInput,
-): Promise<ActionResult<{ status: Status; addedWatch: boolean }>> {
+export async function setStatus(input: data.SetStatusInput): Promise<ActionResult<StatusMove>> {
   return runAction("setStatus", data.setStatusInput, input, data.setStatus);
 }
 
-export async function watchAgain(
-  input: data.EntryIdInput,
-): Promise<ActionResult<{ watch: WatchView }>> {
+export async function watchAgain(input: data.EntryIdInput): Promise<ActionResult<WatchAgainMove>> {
   return runAction("watchAgain", data.entryIdInput, input, data.watchAgain);
+}
+
+export async function undoStatusMove(
+  input: data.UndoStatusMoveInput,
+): Promise<ActionResult<{ status: Status }>> {
+  return runAction("undoStatusMove", data.undoStatusMoveInput, input, data.undoStatusMove);
 }
 
 export async function setWatchDate(

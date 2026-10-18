@@ -1,8 +1,9 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ActionResult } from "@/data/dto";
+import type { ActionResult, StatusMoveUndo } from "@/data/dto";
 import { MESSAGES } from "@/data/errors";
+import { STATUSES, type Status } from "@/domain/types";
 import { closeDb, db } from "@/db/client";
 import { entries, titles } from "@/db/schema";
 import { entryRow, insertEntry, resetDatabase, setEntryTimes, tickKeys, watchRows } from "@/test/db";
@@ -15,8 +16,10 @@ import {
   setRating,
   setStatus,
   setWatchDate,
+  undoStatusMove,
   watchAgain,
 } from "./entries";
+import { tickEpisode } from "./progress";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
@@ -174,7 +177,13 @@ describe("setStatus", () => {
 
     const data = ok(await setStatus({ entryId, status: "watched" }));
 
-    expect(data).toEqual({ status: "watched", addedWatch: true });
+    expect(data).toMatchObject({
+      status: "watched",
+      previousStatus: "to_watch",
+      addedWatch: true,
+      tickedCount: 0,
+    });
+    expect(data.undo).not.toBeNull();
     expect(await watchRows(entryId)).toEqual([{ id: expect.any(String), watchedOn: TODAY }]);
     expect((await entryRow(entryId))?.statusChangedAt.getTime()).toBeGreaterThan(OLD.getTime());
   });
@@ -185,7 +194,10 @@ describe("setStatus", () => {
 
     expect(ok(await setStatus({ entryId, status: "watched" }))).toEqual({
       status: "watched",
+      previousStatus: "watched",
       addedWatch: false,
+      tickedCount: 0,
+      undo: null,
     });
     expect(await watchRows(entryId)).toHaveLength(1);
     expect((await entryRow(entryId))?.statusChangedAt).toEqual(OLD);
@@ -202,9 +214,11 @@ describe("setStatus", () => {
 
   it("keeps the Watches when the Entry moves away from Watched", async () => {
     const { entryId } = await save("movie", TMDB.inception, "watched");
-    expect(ok(await setStatus({ entryId, status: "dropped" }))).toEqual({
+    expect(ok(await setStatus({ entryId, status: "dropped" }))).toMatchObject({
       status: "dropped",
+      previousStatus: "watched",
       addedWatch: false,
+      tickedCount: 0,
     });
     expect(await watchRows(entryId)).toHaveLength(1);
     expect((await entryRow(entryId))?.status).toBe("dropped");
@@ -221,6 +235,363 @@ describe("watchAgain", () => {
     expect(watch).toEqual({ id: expect.any(String), watchedOn: TODAY });
     expect((await watchRows(entryId)).map((row) => row.watchedOn)).toEqual([null, TODAY]);
     expect((await entryRow(entryId))?.status).toBe("watched");
+  });
+});
+
+describe("undoStatusMove", () => {
+  /** Everything a Status move can change, with times to the microsecond. */
+  async function snapshot(entryId: string) {
+    const [row] = await db()
+      .select({
+        status: entries.status,
+        statusChangedAt: sql<string>`${entries.statusChangedAt}::text`,
+        progressMovedAt: sql<string | null>`${entries.progressMovedAt}::text`,
+      })
+      .from(entries)
+      .where(eq(entries.id, entryId));
+    return { ...row, watches: await watchRows(entryId), ticks: await tickKeys(entryId) };
+  }
+
+  /** An Entry in the given Status, with the Watches and ticks that real use leaves behind. */
+  async function entryIn(kind: "movie" | "series", status: Status): Promise<string> {
+    if (kind === "movie") {
+      if (status !== "dropped") return (await save("movie", TMDB.inception, status)).entryId;
+      const { entryId } = await save("movie", TMDB.inception, "watched");
+      ok(await setStatus({ entryId, status: "dropped" }));
+      return entryId;
+    }
+    if (status === "watched") return (await save("series", TMDB.breakingBad, "watched")).entryId;
+    const { entryId } = await save("series", TMDB.breakingBad, "watching");
+    ok(await tickEpisode({ entryId, seasonNumber: 1, episodeNumber: 1, watched: true }));
+    ok(await tickEpisode({ entryId, seasonNumber: 0, episodeNumber: 2, watched: true }));
+    if (status !== "watching") ok(await setStatus({ entryId, status }));
+    return entryId;
+  }
+
+  function undoOf(move: { undo: StatusMoveUndo | null }): StatusMoveUndo {
+    if (!move.undo) throw new Error("The move returned no undo");
+    return move.undo;
+  }
+
+  async function expectRefused(entryId: string, undo: StatusMoveUndo) {
+    const before = await snapshot(entryId);
+    expect(failure(await undoStatusMove(undo))).toBe(MESSAGES.changedSince);
+    expect(await snapshot(entryId)).toEqual(before);
+  }
+
+  const MOVES = STATUSES.flatMap((from) =>
+    STATUSES.filter((to) => to !== from).map((to) => [from, to] as const),
+  );
+
+  describe.each(["movie", "series"] as const)("on a %s", (kind) => {
+    it.each(MOVES)("puts everything back after %s to %s", async (from, to) => {
+      const entryId = await entryIn(kind, from);
+      const before = await snapshot(entryId);
+
+      const move = ok(await setStatus({ entryId, status: to }));
+      expect(move).toMatchObject({ status: to, previousStatus: from });
+      expect(await snapshot(entryId)).not.toEqual(before);
+
+      // The screen gets the payload through a Server Action, so it arrives as plain JSON.
+      const undo = JSON.parse(JSON.stringify(undoOf(move))) as StatusMoveUndo;
+      expect(ok(await undoStatusMove(undo))).toEqual({ status: from });
+      expect(await snapshot(entryId)).toEqual(before);
+    });
+
+    it.each(STATUSES)("puts everything back after Watched again from %s", async (from) => {
+      const entryId = await entryIn(kind, from);
+      const before = await snapshot(entryId);
+
+      const move = ok(await watchAgain({ entryId }));
+      expect(move).toMatchObject({
+        status: "watched",
+        previousStatus: from,
+        addedWatch: true,
+        tickedCount: 0,
+        watch: { watchedOn: TODAY },
+      });
+
+      expect(ok(await undoStatusMove(undoOf(move)))).toEqual({ status: from });
+      expect(await snapshot(entryId)).toEqual(before);
+    });
+  });
+
+  it("offers no Undo for a move that changed nothing", async () => {
+    const movie = await entryIn("movie", "watching");
+    expect(ok(await setStatus({ entryId: movie, status: "watching" }))).toEqual({
+      status: "watching",
+      previousStatus: "watching",
+      addedWatch: false,
+      tickedCount: 0,
+      undo: null,
+    });
+    const series = await entryIn("series", "watched");
+    expect(ok(await setStatus({ entryId: series, status: "watched" })).undo).toBeNull();
+  });
+
+  it("removes exactly the ticks and the Watch that Mark as watched added to a Series", async () => {
+    const entryId = await entryIn("series", "watching");
+    const before = await snapshot(entryId);
+    expect(before.ticks).toEqual(["0:2", "1:1"]);
+
+    const move = ok(await setStatus({ entryId, status: "watched" }));
+
+    expect(move).toMatchObject({
+      status: "watched",
+      previousStatus: "watching",
+      addedWatch: true,
+      tickedCount: 19,
+    });
+    const ticks = await tickKeys(entryId);
+    expect(ticks).toHaveLength(21);
+    expect(ticks.filter((key) => key.startsWith("0:"))).toEqual(["0:2"]);
+    expect(await watchRows(entryId)).toEqual([{ id: undoOf(move).addedWatchId, watchedOn: TODAY }]);
+
+    ok(await undoStatusMove(undoOf(move)));
+
+    expect(await snapshot(entryId)).toEqual(before);
+  });
+
+  it("leaves unaired Episodes out of Mark as watched and its Undo", async () => {
+    const { entryId } = await save("series", TMDB.thePitt, "to_watch");
+    const before = await snapshot(entryId);
+
+    const move = ok(await setStatus({ entryId, status: "watched" }));
+    expect(move.tickedCount).toBe(25);
+    expect(await tickKeys(entryId)).not.toContain("2:11");
+
+    ok(await undoStatusMove(undoOf(move)));
+    expect(await snapshot(entryId)).toEqual(before);
+  });
+
+  it("keeps every tick when a Watched Series starts again, and Undo restores only Status and times", async () => {
+    const entryId = await entryIn("series", "watched");
+    const before = await snapshot(entryId);
+
+    const move = ok(await setStatus({ entryId, status: "watching" }));
+    expect(move).toMatchObject({ status: "watching", addedWatch: false, tickedCount: 0 });
+    expect(await tickKeys(entryId)).toEqual(before.ticks);
+
+    ok(await undoStatusMove(undoOf(move)));
+    expect(await snapshot(entryId)).toEqual(before);
+  });
+
+  it("removes only the Watch that Watched again added", async () => {
+    const entryId = await entryIn("movie", "watched");
+    const before = await snapshot(entryId);
+
+    const move = ok(await watchAgain({ entryId }));
+    expect(undoOf(move)).toMatchObject({ addedWatchId: move.watch.id, watchCount: 2 });
+    expect(await watchRows(entryId)).toHaveLength(2);
+
+    ok(await undoStatusMove(undoOf(move)));
+    expect(await snapshot(entryId)).toEqual(before);
+  });
+
+  it("undoes two moves in reverse order", async () => {
+    const entryId = await entryIn("series", "watching");
+    const before = await snapshot(entryId);
+    const first = ok(await setStatus({ entryId, status: "dropped" }));
+    const second = ok(await setStatus({ entryId, status: "watched" }));
+
+    await expectRefused(entryId, undoOf(first));
+    ok(await undoStatusMove(undoOf(second)));
+    ok(await undoStatusMove(undoOf(first)));
+
+    expect(await snapshot(entryId)).toEqual(before);
+  });
+
+  it("needs no TMDB call and re-renders the screen", async () => {
+    const entryId = await entryIn("series", "to_watch");
+    const before = await snapshot(entryId);
+    const move = ok(await setStatus({ entryId, status: "watched" }));
+    testState.tmdbDown = true;
+    vi.mocked(refresh).mockClear();
+
+    ok(await undoStatusMove(undoOf(move)));
+
+    expect(await snapshot(entryId)).toEqual(before);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("still undoes after a Rating or a Note, and keeps them", async () => {
+    const entryId = await entryIn("movie", "watching");
+    const before = await snapshot(entryId);
+    const move = ok(await setStatus({ entryId, status: "watched" }));
+    ok(await setRating({ entryId, ratingHalfStars: 8 }));
+    ok(await setNote({ entryId, note: "Loved it" }));
+
+    ok(await undoStatusMove(undoOf(move)));
+
+    expect(await snapshot(entryId)).toEqual(before);
+    expect(await entryRow(entryId)).toMatchObject({ ratingHalfStars: 8, note: "Loved it" });
+  });
+
+  describe("refuses, and changes nothing, after a later change", () => {
+    it("a second move", async () => {
+      const entryId = await entryIn("movie", "watching");
+      const first = ok(await setStatus({ entryId, status: "dropped" }));
+      ok(await setStatus({ entryId, status: "to_watch" }));
+      await expectRefused(entryId, undoOf(first));
+    });
+
+    it("a second move that ends on the same Status", async () => {
+      const entryId = await entryIn("movie", "watching");
+      const first = ok(await setStatus({ entryId, status: "dropped" }));
+      ok(await setStatus({ entryId, status: "watching" }));
+      ok(await setStatus({ entryId, status: "dropped" }));
+      await expectRefused(entryId, undoOf(first));
+    });
+
+    it("a tick", async () => {
+      const entryId = await entryIn("series", "to_watch");
+      const start = ok(await setStatus({ entryId, status: "watching" }));
+      ok(await tickEpisode({ entryId, seasonNumber: 1, episodeNumber: 2, watched: true }));
+      await expectRefused(entryId, undoOf(start));
+    });
+
+    it("an untick", async () => {
+      const { entryId } = await save("series", TMDB.westworld, "to_watch");
+      const marked = ok(await setStatus({ entryId, status: "watched" }));
+      ok(await tickEpisode({ entryId, seasonNumber: 1, episodeNumber: 1, watched: false }));
+      await expectRefused(entryId, undoOf(marked));
+    });
+
+    it("Watched again, which moves no Status", async () => {
+      const entryId = await entryIn("movie", "dropped");
+      const marked = ok(await setStatus({ entryId, status: "watched" }));
+      ok(await watchAgain({ entryId }));
+      await expectRefused(entryId, undoOf(marked));
+    });
+
+    it("deleting the Watch the move added", async () => {
+      const entryId = await entryIn("movie", "watched");
+      const again = ok(await watchAgain({ entryId }));
+      ok(await deleteWatch({ watchId: again.watch.id }));
+      await expectRefused(entryId, undoOf(again));
+    });
+  });
+
+  describe("refuses a replayed Undo", () => {
+    it("after a Status move", async () => {
+      const entryId = await entryIn("series", "watching");
+      const before = await snapshot(entryId);
+      const move = ok(await setStatus({ entryId, status: "watched" }));
+      ok(await undoStatusMove(undoOf(move)));
+      await expectRefused(entryId, undoOf(move));
+      expect(await snapshot(entryId)).toEqual(before);
+    });
+
+    it("after Watched again, where only the Watches tell", async () => {
+      const entryId = await entryIn("movie", "watched");
+      const before = await snapshot(entryId);
+      const move = ok(await watchAgain({ entryId }));
+      ok(await undoStatusMove(undoOf(move)));
+      await expectRefused(entryId, undoOf(move));
+      expect(await snapshot(entryId)).toEqual(before);
+    });
+
+    it("when both arrive at once", async () => {
+      const entryId = await entryIn("movie", "watched");
+      const before = await snapshot(entryId);
+      const move = ok(await watchAgain({ entryId }));
+
+      const results = await Promise.all([
+        undoStatusMove(undoOf(move)),
+        undoStatusMove(undoOf(move)),
+      ]);
+
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
+      expect(results.filter((result) => !result.ok).map(failure)).toEqual([MESSAGES.changedSince]);
+      expect(await snapshot(entryId)).toEqual(before);
+    });
+  });
+
+  describe("refuses a forged payload", () => {
+    it("for another Owner's Entry, or with another Owner's Watch", async () => {
+      const entryId = await entryIn("series", "watching");
+      const move = ok(await setStatus({ entryId, status: "watched" }));
+      const after = await snapshot(entryId);
+
+      signInAs(OWNER_B);
+      expect(failure(await undoStatusMove(undoOf(move)))).toBe(MESSAGES.entryNotFound);
+      const own = (await save("movie", TMDB.inception, "to_watch")).entryId;
+      const ownMove = ok(await setStatus({ entryId: own, status: "watched" }));
+      const forged = { ...undoOf(ownMove), addedWatchId: undoOf(move).addedWatchId };
+      expect(failure(await undoStatusMove(forged))).toBe(MESSAGES.changedSince);
+
+      expect(await snapshot(entryId)).toEqual(after);
+    });
+
+    it("with a Watch id the move did not add, or with none", async () => {
+      const entryId = await entryIn("movie", "dropped");
+      const [older] = await watchRows(entryId);
+      const move = ok(await setStatus({ entryId, status: "watched" }));
+      const after = await snapshot(entryId);
+
+      for (const addedWatchId of [older!.id, "00000000-0000-4000-8000-000000000000", null]) {
+        expect(failure(await undoStatusMove({ ...undoOf(move), addedWatchId }))).toBe(
+          MESSAGES.changedSince,
+        );
+      }
+      expect(await snapshot(entryId)).toEqual(after);
+    });
+
+    it("that points at the ticks of another Entry", async () => {
+      const marked = await entryIn("series", "watching");
+      const markedMove = ok(await setStatus({ entryId: marked, status: "watched" }));
+      const { entryId: other } = await save("series", TMDB.westworld, "to_watch");
+      const otherMove = ok(await setStatus({ entryId: other, status: "watching" }));
+      const markedAfter = await snapshot(marked);
+
+      const borrowed = { ...undoOf(markedMove), entryId: other };
+      const stamped = {
+        ...undoOf(otherMove),
+        movedAt: undoOf(markedMove).movedAt,
+        tickedCount: undoOf(markedMove).tickedCount,
+      };
+      await expectRefused(other, borrowed);
+      await expectRefused(other, stamped);
+      expect(await snapshot(marked)).toEqual(markedAfter);
+    });
+
+    it("that miscounts the ticks the move added", async () => {
+      const entryId = await entryIn("series", "watching");
+      const move = ok(await setStatus({ entryId, status: "watched" }));
+      await expectRefused(entryId, { ...undoOf(move), tickedCount: 18 });
+      await expectRefused(entryId, {
+        ...undoOf(move),
+        tickedCount: 0,
+        previousProgressMovedAt: undoOf(move).movedAt,
+      });
+    });
+
+    it.each([
+      { movedAt: "2999-01-01T00:00:00.000000Z" },
+      { previousStatusChangedAt: "2999-01-01T00:00:00.000000Z" },
+      { previousProgressMovedAt: "2999-01-01T00:00:00.000000Z" },
+      { movedAt: "2026-10-16T10:00:00.000Z" },
+      { movedAt: "2026-10-16T10:00:00.000000+05:30" },
+      { movedAt: "yesterday" },
+      { movedAt: 1_600_000_000_000 },
+      { previousStatusChangedAt: null },
+      { status: "done" },
+      { addedWatchId: "not-a-uuid" },
+      { entryId: "1 or 1=1" },
+      { tickedCount: -1 },
+      { tickedCount: 1.5 },
+      { watchCount: "1" },
+      { watchCount: undefined },
+      { extra: 1 },
+    ])("with malformed input %j", async (fields) => {
+      const entryId = await entryIn("movie", "watching");
+      const move = ok(await setStatus({ entryId, status: "watched" }));
+      const after = await snapshot(entryId);
+
+      const input = { ...undoOf(move), ...fields };
+      expect(failure(await undoStatusMove(input as never))).toBe(MESSAGES.invalid);
+      expect(await snapshot(entryId)).toEqual(after);
+    });
   });
 });
 

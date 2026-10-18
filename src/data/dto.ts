@@ -135,6 +135,41 @@ export type ProgressChange = {
   undo: WatchedNextUndo | null;
 };
 
+/**
+ * What a Status move changed, so "Undo" can put it back. The screen passes it back unchanged.
+ * Times are exact database stamps, to the microsecond.
+ */
+export type StatusMoveUndo = {
+  entryId: string;
+  /** Where the move left the Entry. */
+  status: Status;
+  previousStatus: Status;
+  /** Times from before the move, so Undo also puts the card back in its place. */
+  previousStatusChangedAt: string;
+  previousProgressMovedAt: string | null;
+  /** The database time of the move. The Watch and ticks it added carry it, which is how Undo finds them. */
+  movedAt: string;
+  addedWatchId: string | null;
+  tickedCount: number;
+  /** The Entry's Watches right after the move; another count means something changed since. */
+  watchCount: number;
+};
+
+/** What a Status move did, so the screen can name it ("Now watching") and offer Undo. */
+export type StatusMove = {
+  status: Status;
+  previousStatus: Status;
+  /** "Mark as watched" or "Watched again" added a Watch dated today. */
+  addedWatch: boolean;
+  /** Episodes ticked by "Mark as watched" on a Series; 0 for every other move. */
+  tickedCount: number;
+  /** Null when the move changed nothing, so there is nothing to undo. */
+  undo: StatusMoveUndo | null;
+};
+
+/** "Watched again" always adds a Watch, and the screen shows it at once. */
+export type WatchAgainMove = StatusMove & { watch: WatchView };
+
 export type SaveResult = {
   entryId: string;
   status: Status;

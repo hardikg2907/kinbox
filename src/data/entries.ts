@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql, type SQLWrapper } from "drizzle-orm";
 import { after } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
@@ -9,18 +9,31 @@ import { canRate } from "@/domain/rating";
 import { airedNumberedEpisodes } from "@/domain/series";
 import {
   changeStatus,
+  isUnchangedSinceMove,
   markSeriesWatched,
+  moveChangedAnything,
+  statusAfterUndo,
   statusAfterWatchDeleted,
   statusOnSave,
   watchAgain as watchAgainRule,
+  type MovedEntry,
   type StatusChange,
+  type StatusMoveRecord,
 } from "@/domain/status";
 import type { Episode, Status } from "@/domain/types";
 import { db } from "@/db/client";
 import { entries, episodeProgress, titles, watches } from "@/db/schema";
 import { getMovie } from "@/lib/tmdb/cached";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
-import type { EntryView, SaveResult, SeriesProgressView, WatchView } from "./dto";
+import type {
+  EntryView,
+  SaveResult,
+  SeriesProgressView,
+  StatusMove,
+  StatusMoveUndo,
+  WatchAgainMove,
+  WatchView,
+} from "./dto";
 import { MESSAGES, UserError } from "./errors";
 import { loadSeriesEpisodes, loadTicks, progressView, type Executor, type Tx } from "./series";
 import { requireOwner, type Owner } from "./session";
@@ -54,6 +67,29 @@ export const setRatingInput = z.strictObject({
 // A generous transport cap; the 1,000-character rule applies after normalising.
 export const setNoteInput = z.strictObject({ entryId: idSchema, note: z.string().max(4000) });
 
+// The stamps come from the database clock, which can run a little ahead of this server's.
+const CLOCK_SKEW_MS = 60_000;
+
+// A time from the client only puts back what the server handed out; a future one would pin the card to the top.
+export const pastTimeSchema = z.iso
+  .datetime({ offset: true })
+  .refine((value) => Date.parse(value) <= Date.now() + CLOCK_SKEW_MS);
+
+// Undo compares these for equality as text, so only the one form the server hands out is accepted.
+const stampSchema = pastTimeSchema.pipe(z.iso.datetime({ precision: 6 }));
+
+export const undoStatusMoveInput = z.strictObject({
+  entryId: idSchema,
+  status: statusSchema,
+  previousStatus: statusSchema,
+  previousStatusChangedAt: stampSchema,
+  previousProgressMovedAt: stampSchema.nullable(),
+  movedAt: stampSchema,
+  addedWatchId: idSchema.nullable(),
+  tickedCount: z.int().min(0).max(100_000),
+  watchCount: z.int().min(0).max(100_000),
+});
+
 export type SaveTitleInput = z.infer<typeof saveTitleInput>;
 export type SetStatusInput = z.infer<typeof setStatusInput>;
 export type EntryIdInput = z.infer<typeof entryIdInput>;
@@ -61,6 +97,7 @@ export type WatchIdInput = z.infer<typeof watchIdInput>;
 export type SetWatchDateInput = z.infer<typeof setWatchDateInput>;
 export type SetRatingInput = z.infer<typeof setRatingInput>;
 export type SetNoteInput = z.infer<typeof setNoteInput>;
+export type UndoStatusMoveInput = z.infer<typeof undoStatusMoveInput>;
 
 // --- Shared Entry primitives ---
 
@@ -155,6 +192,63 @@ export async function markProgressMoved(executor: Executor, entryId: string): Pr
     .where(eq(entries.id, entryId));
 }
 
+// Postgres keeps microseconds and a JS Date only milliseconds. Undo matches stamps exactly,
+// so they leave the database as text in one fixed UTC form.
+function stampText<T extends string | null>(value: SQLWrapper) {
+  return sql<T>`to_char(${value} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+}
+
+/**
+ * What a Status move writes on a locked Entry, plus the transaction's clock. Every row the move
+ * writes is stamped with that clock, since now() is fixed for the whole transaction.
+ */
+async function readMovedEntry(
+  tx: Tx,
+  ownerId: string,
+  entryId: string,
+): Promise<MovedEntry & { now: string }> {
+  const [row] = await tx
+    .select({
+      status: entries.status,
+      statusChangedAt: stampText<string>(entries.statusChangedAt),
+      progressMovedAt: stampText<string | null>(entries.progressMovedAt),
+      watchCount: tx.$count(watches, eq(watches.entryId, entries.id)),
+      now: stampText<string>(sql`now()`),
+    })
+    .from(entries)
+    .where(and(eq(entries.id, entryId), eq(entries.userId, ownerId)));
+  if (!row) throw new UserError(MESSAGES.entryNotFound);
+  return row;
+}
+
+function statusMove(
+  entryId: string,
+  before: MovedEntry & { now: string },
+  status: Status,
+  addedWatchId: string | null,
+  tickedCount: number,
+): StatusMove {
+  const record: StatusMoveRecord = {
+    status,
+    previousStatus: before.status,
+    previousStatusChangedAt: before.statusChangedAt,
+    previousProgressMovedAt: before.progressMovedAt,
+    movedAt: before.now,
+    addedWatch: addedWatchId !== null,
+    tickedCount,
+    watchCount: before.watchCount + (addedWatchId === null ? 0 : 1),
+  };
+  const { addedWatch, ...undoFields } = record;
+  const undo: StatusMoveUndo = { entryId, ...undoFields, addedWatchId };
+  return {
+    status,
+    previousStatus: before.status,
+    addedWatch,
+    tickedCount,
+    undo: moveChangedAnything(record) ? undo : null,
+  };
+}
+
 // --- Writes ---
 
 function pickerSeasons(details: { seasons: { seasonNumber: number; name: string; episodeCount: number }[] }) {
@@ -202,10 +296,7 @@ export async function saveTitle(owner: Owner, input: SaveTitleInput): Promise<Sa
   });
 }
 
-export async function setStatus(
-  owner: Owner,
-  input: SetStatusInput,
-): Promise<{ status: Status; addedWatch: boolean }> {
+export async function setStatus(owner: Owner, input: SetStatusInput): Promise<StatusMove> {
   const entry = await findOwnedEntry(owner.id, input.entryId);
   const today = await getToday();
   const series =
@@ -215,25 +306,84 @@ export async function setStatus(
 
   return db().transaction(async (tx) => {
     const locked = await lockEntry(tx, owner.id, entry.id);
+    const before = await readMovedEntry(tx, owner.id, locked.id);
     const change = series
       ? markSeriesWatched(locked.status, today)
       : changeStatus(locked.status, input.status, today);
     const { addedWatchId } = await applyStatusChange(tx, locked.id, locked.status, change);
-    if (series && locked.status !== "watched") {
-      await insertTicks(tx, locked.id, airedNumberedEpisodes(series.episodes, today));
-    }
-    return { status: change.status, addedWatch: addedWatchId !== null };
+    const tickedCount =
+      series && locked.status !== "watched"
+        ? await insertTicks(tx, locked.id, airedNumberedEpisodes(series.episodes, today))
+        : 0;
+    return statusMove(locked.id, before, change.status, addedWatchId, tickedCount);
   });
 }
 
-export async function watchAgain(owner: Owner, input: EntryIdInput): Promise<{ watch: WatchView }> {
+export async function watchAgain(owner: Owner, input: EntryIdInput): Promise<WatchAgainMove> {
   const today = await getToday();
   return db().transaction(async (tx) => {
     const locked = await lockEntry(tx, owner.id, input.entryId);
+    const before = await readMovedEntry(tx, owner.id, locked.id);
     const change = watchAgainRule(today);
     const { addedWatchId } = await applyStatusChange(tx, locked.id, locked.status, change);
     if (addedWatchId === null) throw new Error("Watched again added no Watch");
-    return { watch: { id: addedWatchId, watchedOn: today } };
+    return {
+      ...statusMove(locked.id, before, change.status, addedWatchId, 0),
+      watch: { id: addedWatchId, watchedOn: today },
+    };
+  });
+}
+
+/** Reverses one Status move or "Watched again", or refuses when the Entry changed since. Needs no TMDB call. */
+export async function undoStatusMove(
+  owner: Owner,
+  input: UndoStatusMoveInput,
+): Promise<{ status: Status }> {
+  const move: StatusMoveRecord = { ...input, addedWatch: input.addedWatchId !== null };
+  const movedAt = sql`${input.movedAt}::timestamptz`;
+
+  // Any refusal below throws, so the transaction rolls back and nothing changes.
+  return db().transaction(async (tx) => {
+    const locked = await lockEntry(tx, owner.id, input.entryId);
+    const current = await readMovedEntry(tx, owner.id, locked.id);
+    if (!isUnchangedSinceMove(move, current)) throw new UserError(MESSAGES.changedSince);
+
+    // The Watch and ticks the move added carry its time; rows from before it keep their own.
+    // Undo removes exactly the rows with that time on this Entry, and only if they are what
+    // the move reported, so a forged Watch id or count removes nothing.
+    const removed = await tx
+      .delete(watches)
+      .where(and(eq(watches.entryId, locked.id), eq(watches.createdAt, movedAt)))
+      .returning({ id: watches.id });
+    const watchMatches =
+      input.addedWatchId === null
+        ? removed.length === 0
+        : removed.length === 1 && removed[0]?.id === input.addedWatchId;
+    if (!watchMatches) throw new UserError(MESSAGES.changedSince);
+
+    const unticked = await tx
+      .delete(episodeProgress)
+      .where(and(eq(episodeProgress.entryId, locked.id), eq(episodeProgress.createdAt, movedAt)))
+      .returning({ episodeNumber: episodeProgress.episodeNumber });
+    if (unticked.length !== input.tickedCount) throw new UserError(MESSAGES.changedSince);
+
+    const status = statusAfterUndo(move);
+    await tx
+      .update(entries)
+      .set({
+        status,
+        // A Status that cannot go back to the old one really changed, so it is dated now.
+        statusChangedAt:
+          status === input.previousStatus
+            ? sql`${input.previousStatusChangedAt}::timestamptz`
+            : sql`now()`,
+        progressMovedAt:
+          input.previousProgressMovedAt === null
+            ? null
+            : sql`${input.previousProgressMovedAt}::timestamptz`,
+      })
+      .where(eq(entries.id, locked.id));
+    return { status };
   });
 }
 
