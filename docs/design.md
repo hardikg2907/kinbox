@@ -82,7 +82,7 @@ Library (375)                        Title drawer (375)                Full view
 
 ### Library
 
-- **Top:** the wordmark on the left and a round account button on the right (it opens the account menu: About, Sign out). Both scroll away with the wall.
+- **Top:** the wordmark on the left and a round account button on the right (it opens the account menu: About, Import a list, Sign out). Both scroll away with the wall.
 - **The wall:** a grid with the name under each poster, not on it. Under the name: for a watching Series "Next: S2 E4" and a compact "Watched it" button; "Caught up" with its helper; for Watched the date; the not-out-yet label when it applies. 2 columns by default at 375 px.
 - **Lead tile:** on the Watching tab only, the most recent Series spans the whole row as a wide 16:9 crop of its poster (top-aligned), at most about 40 % of the screen, with the name, Next, the episode name and "Watched it" on a strong bottom scrim. Other tabs are a plain grid.
 - **Layout:** a view setting, not a filter. On a phone: 2 columns, 3 columns or List; pinch the wall to switch between 2 and 3 columns. On desktop: 4 columns and wider grids too, and Ctrl/⌘ + wheel switches them. The filter sheet has the same choice in its own Layout section. The choice belongs to the device, not the account: it is saved in a cookie (`kb_layout`, like the time-zone cookie), so the server renders the right grid and nothing shifts on load. At 3 columns and more, names drop to one line and the "Watched it" button becomes an icon button with the same accessible name.
@@ -91,7 +91,7 @@ Library (375)                        Title drawer (375)                Full view
 - **Active filters** show as removable chips above the wall, only when any are set.
 - **Search sheet:** the search button grows up into a full-height glass sheet. The field sits at the bottom, in thumb reach; results fill the sheet above it. Each result: poster (w92), name, year, kind badge, the not-out-yet label when it applies, and three save buttons: To watch, Watching, Watched. A Title already in the Library shows its status instead. After a save the row confirms in place and offers the optional Note, the "next to watch" picker and, after Watched, the stars.
 - **Filter sheet:** the filter button grows up into a glass sheet titled "Filters". The "Show" section holds kind (All, Movies, Series); length and genre join it when the tonight filters are built. Below a divider, the "Layout" section holds the layout choice. "Clear filters" (only when a filter is set) and "Done" close it. Layout never counts in the filter badge, never becomes a chip, and "Clear filters" leaves it alone.
-- **Empty tabs** say what lands there, centred in the space above the dock.
+- **Empty tabs** say what lands there, centred in the space above the dock. When the Library has no Titles at all, the To watch empty text adds the link "Have a list somewhere? Paste it", which opens Import a list.
 
 ### Title: one set of sections, two containers
 
@@ -112,6 +112,20 @@ The Title is built from sections written once: hero, status pill, Next block, ra
 ### Desktop (1280)
 
 A left glass sidebar (about 296 px) replaces the dock: the wordmark, the search field, the four status tabs as a vertical list with counts, the kind filter and the layout choice. The wall fills the rest (up to 8 columns at the default size). The drawer opens from the right as a side panel; pulling up is not needed there, so the panel simply scrolls, and a direct link opens the page in the content area.
+
+### Import a list
+
+A focused full page (`/import`) outside the dock: nothing on it competes with the one job. The flow, rules and words are in `docs/paste-import.md`; this section is how it looks.
+
+- **Top bar:** a round Close button on the left (back to the Library) and the title "Import a list". It stays put while the page scrolls, as slim glass.
+- **Bottom action bar:** pinned at the bottom in thumb reach, in the dock's shape (inset glass, 28 px radius, above the safe area), holding the one main action as a full-width primary button: "Check list", then "Add 238 titles". A progress line can sit above the button.
+- **Paste step:** one large text field on glass (16 px text) with its label and helper above it; the count ("248 titles") under it.
+- **Match row:** the search result row layout (w92 poster, name, year, kind badge), with the original pasted line under the name in small muted text, so the Owner can see what it was read from. On the right, the To watch / Watched choice uses the save-button style (two status-name pills, the chosen one filled); it never looks like the dock's tabs. Row states replace the choice with a muted helper and, where there is one, a button: "Already in your library"; "Skipped" with "Include"; "Not found"; "Couldn't check" with "Try again". Tapping the poster or name opens the pick sheet.
+- **Groups:** problem groups come first, each a heading with its rows ("Check these", "Not found", "Couldn't check"). The rows that look right fold into one row ("198 look right") that opens in place, like a Season.
+- **Pick sheet:** the search sheet in a "pick" variant: title "Pick the right title", the top 3 candidates as result rows, the search field at the bottom, and "Skip this line" at the end. One tap on a result picks it and closes the sheet; there are no save buttons.
+- **Progress line:** the Title page's progress line ("Checking 120 of 248" with a thin bar).
+- **Result:** the summary lines, the rows that could not be added, "Copy the 14 lines not added", and "Undo this import" as a quiet button with its confirmation dialog.
+- **Desktop:** a centred column of about 640 px on the page colour, with no sidebar; the top bar and the action bar span that column.
 
 ### Sign-in and About
 
