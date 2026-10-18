@@ -2,6 +2,8 @@
 
 An Owner pastes a list they already keep somewhere else (a Google Keep note, a notes app, a chat message) and Kinbox turns it into Entries. It is the fastest way to move an existing list into Kinbox. File import (Letterboxd, IMDb, Trakt exports) stays in [future scope](future-scope.md).
 
+**Status: draft.** The product rules below are a first proposal. They are refined with the owner, and a technical design is added, before any build starts.
+
 Terms follow [CONTEXT.md](../CONTEXT.md). Screen words come from `ux-writing` and must make sense in 2 seconds.
 
 ## Flow
