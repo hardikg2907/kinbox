@@ -432,7 +432,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
           role="dialog"
           aria-modal="true"
           className={cn(
-            "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden bg-background shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
+            "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden title-tint shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
             "lg:inset-x-auto lg:top-3 lg:right-3 lg:bottom-3 lg:h-auto lg:w-[430px] lg:rounded-sheet lg:border lg:shadow-[0_22px_54px_-18px_rgb(0_0_0/0.6)]",
             atFull ? "rounded-none" : "rounded-t-sheet border border-b-0",
           )}

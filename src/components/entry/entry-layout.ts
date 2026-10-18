@@ -24,16 +24,16 @@ export const TITLE_LAYOUT: Record<TitleContainer, Layout> = {
   page: {
     hero: `relative ${HERO_HEIGHT} w-full overflow-hidden lg:sticky lg:top-0 lg:h-dvh`,
     media: "absolute inset-0",
-    body: "relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-background px-5 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-6 lg:mt-0 lg:px-10 lg:pt-20 lg:pb-12",
-    fade: "pointer-events-none absolute inset-x-0 bottom-full h-40 scrim-title lg:hidden",
+    body: "relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-[var(--title-bg,var(--background))] px-5 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-6 lg:mt-0 lg:px-10 lg:pt-20 lg:pb-12",
+    fade: "pointer-events-none absolute inset-x-0 bottom-full h-56 scrim-title lg:hidden",
     name: "font-display text-[44px] text-balance wrap-break-word text-foreground",
   },
   drawer: {
     hero: `relative ${HERO_HEIGHT} w-full overflow-hidden select-none [-webkit-touch-callout:none] lg:h-[250px]`,
     // As tall as the hero, not the window around it, so cutting the window never moves the poster.
     media: `absolute inset-x-0 top-0 ${HERO_HEIGHT} title-parallax lg:h-[250px]`,
-    body: "title-follow relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-background px-5 pb-[max(5rem,env(safe-area-inset-bottom))]",
-    fade: "pointer-events-none absolute inset-x-0 bottom-full h-16 title-fade-grow scrim-title",
+    body: "title-follow relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-[var(--title-bg,var(--background))] px-5 pb-[max(5rem,env(safe-area-inset-bottom))]",
+    fade: "pointer-events-none absolute inset-x-0 bottom-full h-16 title-fade-tall scrim-title",
     name: "title-name-grow max-w-[80%] font-display text-[30px] text-balance wrap-break-word text-foreground",
   },
 };

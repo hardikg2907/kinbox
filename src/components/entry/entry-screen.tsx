@@ -1,5 +1,6 @@
 import type { EntryView } from "@/data/dto";
 import { posterUrl } from "@/lib/tmdb/images";
+import { TitleTint } from "@/components/poster-colour/title-tint";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
 import { NameBar } from "./name-bar";
@@ -32,6 +33,7 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
         tmdbUnavailable: entry.tmdbUnavailable,
       }}
     >
+      <TitleTint posterPath={title.posterPath} />
       <StatusPillHost name={title.name} posterPath={title.posterPath}>
         <TitleHero
           entryId={entry.id}

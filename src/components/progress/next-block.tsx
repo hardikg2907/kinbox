@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { inheritedBloomColour, playBloom } from "@/components/poster-colour/bloom";
 import { useEntry } from "@/components/entry/entry-state";
 import { SlideSwap } from "./slide-swap";
 
@@ -94,7 +95,10 @@ export function NextBlock() {
           id="watched-it-button"
           size="lg"
           disabled={model.nextPending || watchNextPending}
-          onClick={watchNext}
+          onClick={(event) => {
+            playBloom(event.currentTarget, inheritedBloomColour(event.currentTarget));
+            watchNext();
+          }}
           className="h-12 shrink-0 px-5 text-base font-bold"
         >
           <Check aria-hidden />

@@ -203,16 +203,17 @@ body::before {
   transform: scaleY(calc(1 + var(--p, 1) * 1.5));
 }
 
-/* Washes the foot of the Title hero into the page colour above the name. Every line of text sits
-   below it on the solid page colour, and the last third of the wash is solid too: a poster's own
-   printed title usually sits just there, and it must not show through above the name. */
+/* Washes the foot of the Title hero into the Title's colour (the page colour, tinted by the poster
+   once it is read) above the name. Every line of text sits below it on the solid colour, and the
+   last half of the wash is solid or nearly so: a poster's own printed title usually sits just
+   there, and it must not ghost through above the name, least of all in light mode. */
 @utility scrim-title {
   background-image: linear-gradient(
     to bottom,
     transparent 0,
-    color-mix(in oklab, var(--background) 55%, transparent) 30%,
-    color-mix(in oklab, var(--background) 92%, transparent) 52%,
-    var(--background) 68%
+    color-mix(in oklab, var(--title-bg, var(--background)) 50%, transparent) 15%,
+    color-mix(in oklab, var(--title-bg, var(--background)) 99%, transparent) 33%,
+    var(--title-bg, var(--background)) 38%
   );
 }
 
@@ -395,5 +396,41 @@ html[data-drawer="full"] [data-sonner-toaster] {
   ::view-transition-new(*) {
     animation-duration: 0s !important;
     animation-delay: 0s !important;
+  }
+}
+
+/* The Title's tint. The container (the drawer's panel or the page) holds --title-bg, the page
+   colour mixed with the poster's calm colour, so the body, the scrim and the panel share one
+   colour and no seam shows. --tint-amount is registered so the mix can fade in; until the colours
+   are read it is 0 and the page colour shows. */
+@property --tint-amount {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+/* The scrim taller at full height than title-fade-grow, so the wash is long enough to hide a
+   printed title and still fades gently. */
+@utility title-fade-tall {
+  transform-origin: 50% 100%;
+  transform: scaleY(calc(1 + var(--p, 1) * 2.5));
+  /* The side panel's hero is only 250px tall, so its wash stays at the shorter length. */
+  @media (min-width: 1024px) {
+    transform: scaleY(2.5);
+  }
+}
+@utility title-tint {
+  --tint-source: var(--tint-light, var(--background));
+  --tint-amount: var(--tint-mix-light, 0%);
+  --title-bg: color-mix(in oklab, var(--background), var(--tint-source) var(--tint-amount));
+  background-color: var(--title-bg);
+  transition: --tint-amount 700ms ease-out;
+  /* A tinted light page is darker than the plain one, so the stars' outline needs a deeper amber
+     to keep 3:1 against it. */
+  @media (not (prefers-color-scheme: dark)) {
+    --stars: #8a5700;
+  }
+  @media (prefers-color-scheme: dark) {
+    --tint-source: var(--tint-dark, var(--background));
+    --tint-amount: var(--tint-mix-dark, 0%);
   }
 }

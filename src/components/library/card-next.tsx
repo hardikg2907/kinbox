@@ -5,6 +5,8 @@ import { useOptimistic, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { showActionToast } from "@/components/action-toast";
+import { playBloom } from "@/components/poster-colour/bloom";
+import { cachedPalette, readPalette } from "@/components/poster-colour/palette";
 import { Button } from "@/components/ui/button";
 import { undoWatchedNext, watchedNext } from "@/actions/progress";
 import type { CardProgress, WatchedNextUndo } from "@/data/dto";
@@ -18,6 +20,8 @@ type Props = {
   heading: ReactNode;
   /** The wide tile: text left, button right, on a scrim. */
   lead?: boolean;
+  /** Where the bloom gets its colour. */
+  posterPath: string | null;
   /** Narrow on purpose: only what the "Next" line and the button need. */
   progress: Pick<CardProgress, "caughtUp" | "allNumberedWatched"> & {
     nextLabel: string | null;
@@ -39,7 +43,7 @@ function reduce(current: Shown, change: Change): Shown {
   return { ...current, nextLabel: change.label, episodeName: null, caughtUp: false, allNumberedWatched: false, marking: null };
 }
 
-export function CardNext({ entryId, name, heading, lead = false, progress }: Props) {
+export function CardNext({ entryId, name, heading, lead = false, posterPath, progress }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, change] = useOptimistic<Shown, Change>({ ...progress, marking: null }, reduce);
 
@@ -110,7 +114,11 @@ export function CardNext({ entryId, name, heading, lead = false, progress }: Pro
         type="button"
         aria-label={`Watched it: ${name}${shown.nextLabel ? ` ${shown.nextLabel}` : ""}`}
         variant={lead ? "default" : "secondary"}
-        onClick={markWatched}
+        onPointerDown={() => void readPalette(posterPath)}
+        onClick={(event) => {
+          playBloom(event.currentTarget, cachedPalette(posterPath)?.vivid ?? null);
+          markWatched();
+        }}
         disabled={pending}
         className={cn(
           "relative z-10 font-semibold after:absolute after:-inset-y-1 after:inset-x-0",
