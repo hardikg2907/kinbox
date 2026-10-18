@@ -63,6 +63,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
         name={name}
         heading={nameLink}
         lead={lead}
+        posterPath={posterPath}
         progress={{
           nextLabel: progress.next?.label ?? null,
           episodeName: progress.next?.name ?? null,

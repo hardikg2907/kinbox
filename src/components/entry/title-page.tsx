@@ -8,7 +8,7 @@ export function TitlePage({ children }: { children: ReactNode }) {
   return (
     <article
       id="entry-page"
-      className="relative lg:grid lg:grid-cols-[minmax(22rem,5fr)_minmax(0,7fr)] lg:items-start lg:pl-80"
+      className="title-tint relative min-h-dvh lg:grid lg:grid-cols-[minmax(22rem,5fr)_minmax(0,7fr)] lg:items-start lg:pl-80"
     >
       <Link
         id="entry-close"
