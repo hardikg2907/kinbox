@@ -179,8 +179,8 @@ Glossary terms (Entry, Watch, Status, Progress) are for code. Screens use these 
 | Status pill (accessible name) | Change from Watching |
 | Status sheet line | On your To watch list / You're watching this / You've watched this / You dropped this |
 | Move to To watch | Watch later (helper from a watching Series: "Keeps your progress"; from Watched: "Keeps when you watched it") |
-| Move to Watching | Start watching (helper from a dropped Series with progress: "Picks up at S2 E4"; from a Watched Series: "Keeps your ticks") |
-| Move to Watched | Mark as watched (Series helper: "Ticks all 62 aired episodes"); on a Watched Title, "Watched again" takes its place |
+| Move to Watching | Start watching (helper from a dropped Series: "Picks up at S2 E4", or "Picks up where you left off" where the next Episode is not known, such as a Library card; from a Watched Series: "Keeps your ticks") |
+| Move to Watched | Mark as watched (Series helper: "Ticks all 62 aired episodes", or "Ticks all aired episodes" where the count is not known, such as a Library card); on a Watched Title, "Watched again" takes its place |
 | Not out yet, in the sheet | "Start watching" and "Mark as watched" carry the helper "Not out yet" |
 | Move to Dropped | Drop it (helper for a Series with progress: "Keeps your progress") |
 | Status toasts | Saved to To watch / Now watching / Marked as watched / Watched again, today / Dropped (each with Undo) |
