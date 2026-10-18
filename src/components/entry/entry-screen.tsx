@@ -1,19 +1,22 @@
-import { NextBlock } from "@/components/progress/next-block";
-import { SeasonsPanel } from "@/components/progress/seasons-panel";
 import type { EntryView } from "@/data/dto";
-import { ENTRY_SHEET, ENTRY_SHELL } from "./entry-layout";
+import { posterUrl } from "@/lib/tmdb/images";
+import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
-import { EntryHeader } from "./entry-header";
-import { NoteSection } from "./note-section";
-import { Overview } from "./overview";
-import { RatingSection } from "./rating-section";
-import { RemoveEntry } from "./remove-entry";
-import { WatchesSection } from "./watches-section";
+import { NameBar } from "./name-bar";
+import { TitleHero } from "./title-hero";
+import { TitleHead, TitleMore, type TitleFacts } from "./title-sections";
 
-export function EntryScreen({ entry }: { entry: EntryView }) {
+// The Title's sections, written once. The page and the drawer each wrap them in their own container.
+export function EntryScreen({ entry, container }: { entry: EntryView; container: TitleContainer }) {
   const { title } = entry;
-  const isSeries = title.kind === "series";
-  const overview = title.overview ? <Overview text={title.overview} /> : null;
+  const facts: TitleFacts = {
+    name: title.name,
+    year: title.year,
+    kind: title.kind,
+    runtimeMinutes: title.runtimeMinutes,
+    overview: title.overview,
+  };
+  const layout = TITLE_LAYOUT[container];
 
   return (
     <EntryProvider
@@ -28,18 +31,18 @@ export function EntryScreen({ entry }: { entry: EntryView }) {
         tmdbUnavailable: entry.tmdbUnavailable,
       }}
     >
-      <div id="entry-content" className={ENTRY_SHELL}>
-        <EntryHeader entryId={entry.id} title={title} />
-        <div className={ENTRY_SHEET}>
-          {/* A Series opens with its Next block, the one thing to tap; a Movie opens with its overview. */}
-          {isSeries ? <NextBlock /> : overview}
-          {isSeries ? overview : null}
-          {isSeries && entry.series ? <SeasonsPanel /> : null}
-          <RatingSection />
-          <WatchesSection />
-          <NoteSection note={entry.note} />
-          <RemoveEntry />
-        </div>
+      <TitleHero
+        entryId={entry.id}
+        low={posterUrl(title.posterPath, "w342")}
+        high={posterUrl(title.posterPath, "w500")}
+        alt={container === "page" ? title.name : ""}
+        container={container}
+      />
+      <NameBar name={title.name} container={container} />
+      <div id="entry-content" data-title-body className={layout.body}>
+        <div aria-hidden className={layout.fade} />
+        <TitleHead facts={facts} container={container} />
+        <TitleMore facts={facts} note={entry.note} />
       </div>
     </EntryProvider>
   );

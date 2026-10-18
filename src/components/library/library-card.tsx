@@ -1,7 +1,7 @@
 import { CalendarCheck } from "lucide-react";
 import Link from "next/link";
-import { ViewTransition } from "react";
 import { cn } from "cn";
+import { TilePosterTransition } from "@/components/entry/tile-poster-transition";
 import { Poster } from "@/components/poster";
 import { CardNext } from "@/components/library/card-next";
 import { formatWatchDate } from "@/components/library/format-date";
@@ -36,8 +36,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   );
 
   const poster = (
-    // Named for the poster on the Entry page hero; default="none" keeps it still unless it has a partner to morph into.
-    <ViewTransition name={`poster-${entryId}`} share="auto" default="none">
+    <TilePosterTransition entryId={entryId}>
       <Poster
         path={posterPath}
         name={name}
@@ -52,7 +51,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
         )}
         imageClassName={lead ? "object-top" : undefined}
       />
-    </ViewTransition>
+    </TilePosterTransition>
   );
 
   const next =

@@ -10,8 +10,7 @@ import { SlideSwap } from "./slide-swap";
 
 const TMDB_DOWN = "Can't reach the movie database right now. Try again in a minute.";
 
-// A flat-glass tile inside the sheet: the Next line is the biggest type on the screen after the name.
-const CARD = "rounded-3xl border bg-secondary p-5";
+const DONE = "font-display text-3xl text-foreground";
 
 function NextName({ name, helper }: { name: string | null; helper: string | null }) {
   const [first] = useState(name);
@@ -20,7 +19,7 @@ function NextName({ name, helper }: { name: string | null; helper: string | null
     <p
       key={text ?? ""}
       className={cn(
-        "mt-2 min-h-6 text-base text-muted-foreground",
+        "mt-1 min-h-6 truncate text-base text-muted-foreground",
         name !== first && "animate-in fade-in-0 duration-200",
       )}
     >
@@ -29,14 +28,14 @@ function NextName({ name, helper }: { name: string | null; helper: string | null
   );
 }
 
-// The bold element of the page: the next Episode and one tap to mark it watched.
+// The bold element of the Title: the next Episode, and one tap to mark it watched beside it.
 export function NextBlock() {
   const { model, watchNext, watchNextPending } = useEntry();
   const series = model.series;
 
   if (!series) {
     return (
-      <section id="series-progress" aria-labelledby="series-progress-title" className={CARD}>
+      <section id="series-progress" aria-labelledby="series-progress-title">
         <h2 id="series-progress-title" className="sr-only">
           Series progress
         </h2>
@@ -53,26 +52,66 @@ export function NextBlock() {
 
   if (model.nextPending) {
     headId = "pending";
-    head = <Skeleton className="h-10 w-48 sm:h-12" />;
+    head = <Skeleton className="h-11 w-40" />;
   } else if (next) {
     headId = `next-${next.label}`;
-    head = <p className="font-display text-4xl text-foreground sm:text-5xl">Next: {next.label}</p>;
+    head = (
+      <p className="flex items-baseline gap-2.5 font-display">
+        <span className="text-xl text-muted-foreground">Next:</span>
+        <span className="tabular text-[44px] leading-none whitespace-nowrap text-foreground">{next.label}</span>
+      </p>
+    );
     name = next.name;
   } else if (series.finished && series.allNumberedWatched) {
     headId = "all-watched";
-    head = <p className="font-display text-4xl text-foreground sm:text-5xl">All episodes watched</p>;
+    head = <p className={DONE}>All episodes watched</p>;
   } else if (series.caughtUp) {
     headId = "caught-up";
-    head = <p className="font-display text-4xl text-foreground sm:text-5xl">Caught up</p>;
+    head = <p className={DONE}>Caught up</p>;
     helper = "New episodes will show here";
   } else {
     headId = "none";
-    head = <p className="font-display text-4xl text-foreground sm:text-5xl">All aired episodes watched</p>;
+    head = <p className={DONE}>All aired episodes watched</p>;
   }
 
   const canWatch = next !== null || model.nextPending;
-  const ratio =
-    series.totalCount > 0 ? Math.min(1, Math.max(0, series.watchedCount / series.totalCount)) : 0;
+
+  return (
+    <section
+      id="series-progress"
+      aria-labelledby="series-progress-title"
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3"
+    >
+      <h2 id="series-progress-title" className="sr-only">
+        Series progress
+      </h2>
+      <div className="min-w-0 flex-1">
+        <SlideSwap id={headId}>{head}</SlideSwap>
+        {model.nextPending ? <Skeleton className="mt-1 h-6 w-40" /> : <NextName name={name} helper={helper} />}
+      </div>
+      {canWatch ? (
+        <Button
+          id="watched-it-button"
+          size="lg"
+          disabled={model.nextPending || watchNextPending}
+          onClick={watchNext}
+          className="h-12 shrink-0 px-5 text-base font-bold"
+        >
+          <Check aria-hidden />
+          Watched it
+        </Button>
+      ) : null}
+    </section>
+  );
+}
+
+// "10 of 62 watched" and a thin bar, under the rating.
+export function ProgressLine() {
+  const { model } = useEntry();
+  const series = model.series;
+  if (!series) return null;
+
+  const ratio = series.totalCount > 0 ? Math.min(1, Math.max(0, series.watchedCount / series.totalCount)) : 0;
   // Without this, "Caught up" beside "461 of 466 watched" reads as a mistake.
   const notOutYet = Math.max(0, series.totalCount - series.airedCount);
   const countLine = `${series.watchedCount} of ${series.totalCount} watched${
@@ -80,39 +119,16 @@ export function NextBlock() {
   }`;
 
   return (
-    <section id="series-progress" aria-labelledby="series-progress-title" className={CARD}>
-      <h2 id="series-progress-title" className="sr-only">
-        Series progress
-      </h2>
-      <SlideSwap id={headId}>{head}</SlideSwap>
-      {model.nextPending ? (
-        <Skeleton className="mt-2 h-5 w-56" />
-      ) : (
-        <NextName name={name} helper={helper} />
-      )}
-      {canWatch ? (
-        <Button
-          id="watched-it-button"
-          size="lg"
-          disabled={model.nextPending || watchNextPending}
-          onClick={watchNext}
-          className="mt-5 w-full sm:w-auto sm:min-w-44"
-        >
-          <Check aria-hidden />
-          Watched it
-        </Button>
-      ) : null}
-      <div className={canWatch ? "mt-5" : "mt-4"}>
-        <p id="series-progress-count" className="tabular text-sm text-muted-foreground">
-          {countLine}
-        </p>
-        <div aria-hidden className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/15">
-          <div
-            className="h-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
-            style={{ transform: `scaleX(${ratio})` }}
-          />
-        </div>
+    <div id="entry-progress">
+      <p id="series-progress-count" className="tabular text-sm text-muted-foreground">
+        {countLine}
+      </p>
+      <div aria-hidden className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/15">
+        <div
+          className="h-full origin-left rounded-full bg-primary transition-transform duration-300 ease-out"
+          style={{ transform: `scaleX(${ratio})` }}
+        />
       </div>
-    </section>
+    </div>
   );
 }

@@ -3,9 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { cn } from "cn";
 
-// Three lines, then "More". Whether the text is cut off is measured, and the
+// A few lines, then "More". Whether the text is cut off is measured, and the
 // button's row is always reserved, so the page does not jump when it shows.
-export function Overview({ text }: { text: string }) {
+export function Overview({ text, lines = 3 }: { text: string; lines?: 2 | 3 }) {
   const id = useId();
   const paragraph = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -27,7 +27,10 @@ export function Overview({ text }: { text: string }) {
       <p
         id={id}
         ref={paragraph}
-        className={cn("text-base leading-relaxed text-foreground/90", !expanded && "line-clamp-3")}
+        className={cn(
+          "text-base leading-relaxed text-foreground/90",
+          !expanded && (lines === 2 ? "line-clamp-2" : "line-clamp-3"),
+        )}
       >
         {text}
       </p>
