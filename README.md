@@ -56,6 +56,8 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 `pnpm test` runs the domain and TMDB unit tests and the data-layer tests against the separate `kinbox_test` database (it wipes that database, never the main one).
 
+Git hooks run the same checks for you. `pnpm install` installs them. Before a commit they lint the staged files, typecheck, and stop code commits on `main`, `.env*` files and secret-looking values. Before a push they run lint, typecheck and the tests.
+
 ## Deploying (later)
 
 Vercel Hobby with Neon Postgres (Vercel → Storage sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`). Add `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the site's `https://` URL; plain http is refused in production) and `TMDB_API_READ_TOKEN` in the Vercel project settings.
