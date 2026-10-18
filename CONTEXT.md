@@ -95,3 +95,21 @@ _Avoid_: viewer, follower
 **Share link**:
 A secret, read-only address that shows one List, live, to anyone who has it. Its Owner can turn it off or reset it.
 _Avoid_: public link, invite, profile
+
+### Import
+
+**Import**:
+One paste of a list that Kinbox turns into Entries in one go. An Import remembers the Entries it created, so it can be undone; it never changes an Entry that was already in the Library.
+_Avoid_: upload, sync, batch
+
+**Import line**:
+One line of pasted text that names a Title (or tries to). Headings, blank lines and URLs are not Import lines.
+_Avoid_: row, item, entry
+
+**Watched mark**:
+A sign in an Import line, such as ✔, that says the Owner has watched that Title.
+_Avoid_: tick (ticks are for Episodes), check, done mark
+
+**Match**:
+The Title Kinbox picks for an Import line from the movie database. The Owner can change or skip it before anything is added.
+_Avoid_: result, hit, guess
