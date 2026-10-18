@@ -26,3 +26,9 @@ Product decisions made while building v0.1, for questions the [v0.1 scope](v0.1-
 | 13 | How is an Episode numbered 0 inside a numbered Season handled? | As a normal Episode that comes first in its Season. It can be ticked, unticked and undone. | TMDB lists some pilots as E0. If it cannot be ticked, the Series can never move to Watched by itself. |
 | 14 | When does stored Title data refresh if the Owner never opens the Entry page? | Reading the Library also refreshes stale Titles, in the background after the response. | TMDB's terms allow 6 months at most. Refreshing only on the Entry page misses Titles saved straight as Watched. |
 | 15 | What happens with a Title that is not out yet (for example a film releasing in December)? | It shows "Out <date>" (a Series: "Premieres <date>") in results, on cards and on the Entry page. Saving offers To watch only. The Entry page's Status menu still allows Watching or Watched. "Tonight" filters leave it out. The label goes away on release day. | Saving an upcoming Title is common; logging it as watched is almost always a mistake. Premieres and festivals still need a way, as unaired Episodes do. |
+
+## 2026-10-18
+
+| # | Question | Decision | Why |
+|---|---|---|---|
+| 16 | The Library's kind filter (All, Movies, Series) and the "tonight" filters both offer Movie or Series. Where does kind live? | One kind control, inside the filter sheet next to length and genre. There is no separate "Movie or Series" tonight option. Active filters show as removable chips above the grid, and the filter button shows how many are on. | Two controls for one thing confuse. The chips keep a filter that is on visible, so moving kind into a sheet does not hide it. |
