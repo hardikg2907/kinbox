@@ -183,11 +183,12 @@ body::before {
 }
 
 /* The Title's full view, shared by the page and the drawer. A drawer sets --p (0 at the quick view,
-   1 at full height) and --gap (the full hero's height minus the strip the quick view shows) on
-   itself; outside a drawer both read as the full view. Only transforms use them, so a drag never
+   1 at full height), --gap (the full hero's height minus the strip the quick view shows) and --lift
+   (how much deeper the body overlaps the hero at full height than at the quick view) on itself;
+   outside a drawer they read as the full view. Only transforms use them, so a drag never
    triggers layout. */
 @utility title-follow {
-  transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1)), 0);
+  transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1) + var(--lift, 0px) * (1 - var(--p, 1))), 0);
 }
 @utility title-parallax {
   transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1) * 0.45), 0);
@@ -198,22 +199,27 @@ body::before {
   transform-origin: 0 100%;
   transform: scale(calc(1 + var(--p, 1) * 0.25));
 }
+/* The wash above the body is laid out at its quick-view height and stretched up from its foot to
+   the full view's. */
 @utility title-fade-grow {
   transform-origin: 50% 100%;
-  transform: scaleY(calc(1 + var(--p, 1) * 1.5));
+  transform: scaleY(calc(1 + var(--p, 1) * 0.625));
+  @media (min-width: 1024px) {
+    transform: scaleY(1.5);
+  }
 }
 
 /* Washes the foot of the Title hero into the Title's colour (the page colour, tinted by the poster
-   once it is read) above the name. Every line of text sits below it on the solid colour, and the
-   last half of the wash is solid or nearly so: a poster's own printed title usually sits just
-   there, and it must not ghost through above the name, least of all in light mode. */
+   once it is read) just above the body. The poster's own printed title sits lower, under the
+   body's overlap, so the wash only has to be steep: nearly solid by its last third and solid at the
+   body's top, which leaves no empty band between the poster and the name. */
 @utility scrim-title {
   background-image: linear-gradient(
     to bottom,
     transparent 0,
-    color-mix(in oklab, var(--title-bg, var(--background)) 50%, transparent) 15%,
-    color-mix(in oklab, var(--title-bg, var(--background)) 99%, transparent) 33%,
-    var(--title-bg, var(--background)) 38%
+    color-mix(in oklab, var(--title-bg, var(--background)) 55%, transparent) 45%,
+    color-mix(in oklab, var(--title-bg, var(--background)) 94%, transparent) 67%,
+    var(--title-bg, var(--background)) 100%
   );
 }
 
@@ -342,7 +348,7 @@ html[data-drawer="full"] [data-sonner-toaster] {
    full height. Only once the drawer has settled: while it moves the window stays whole, so a drag
    never triggers layout. */
 #title-drawer:not([data-moving]) [data-title-window] {
-  height: calc(100% - 2rem - var(--gap, 0px) * (1 - var(--p, 1)));
+  height: calc(100% - 2rem - var(--lift, 0px) * var(--p, 1) - var(--gap, 0px) * (1 - var(--p, 1)));
 }
 
 /* A poster moving from its tile into the drawer or the page, and back. */
@@ -408,16 +414,6 @@ html[data-drawer="full"] [data-sonner-toaster] {
   inherits: true;
   initial-value: 0%;
 }
-/* The scrim taller at full height than title-fade-grow, so the wash is long enough to hide a
-   printed title and still fades gently. */
-@utility title-fade-tall {
-  transform-origin: 50% 100%;
-  transform: scaleY(calc(1 + var(--p, 1) * 2.5));
-  /* The side panel's hero is only 250px tall, so its wash stays at the shorter length. */
-  @media (min-width: 1024px) {
-    transform: scaleY(2.5);
-  }
-}
 @utility title-tint {
   --tint-source: var(--tint-light, var(--background));
   --tint-amount: var(--tint-mix-light, 0%);
@@ -432,5 +428,16 @@ html[data-drawer="full"] [data-sonner-toaster] {
   @media (prefers-color-scheme: dark) {
     --tint-source: var(--tint-dark, var(--background));
     --tint-amount: var(--tint-mix-dark, 0%);
+  }
+}
+
+/* The drawer's body overlaps the hero 160px at full height and 32px (2rem) at the quick view. The
+   side panel's short hero keeps the shallow overlap. */
+#title-drawer {
+  --lift: calc(160px - 2rem);
+}
+@media (min-width: 1024px) {
+  #title-drawer {
+    --lift: 0px;
   }
 }
