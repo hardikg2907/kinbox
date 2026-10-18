@@ -1,11 +1,14 @@
 import { X } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ViewTransition } from "react";
 import { getLibrary } from "@/data/library";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryGrid } from "@/components/library/library-grid";
 import { LibraryNav } from "@/components/library/library-nav";
+import { LAYOUT_COOKIE, parseLayout } from "@/components/library/layout";
 import { libraryHref, parseKind, parseTab } from "@/components/library/params";
+import { LayoutProvider } from "@/components/library/wall-layout";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -18,10 +21,11 @@ export async function LibraryContent({ searchParams }: Props) {
   const params = await searchParams;
   const tab = parseTab(params.tab);
   const kind = parseKind(params.kind);
-  const view = await getLibrary({ tab, kind });
+  const [view, jar] = await Promise.all([getLibrary({ tab, kind }), cookies()]);
+  const layout = parseLayout(jar.get(LAYOUT_COOKIE)?.value);
 
   return (
-    <>
+    <LayoutProvider initial={layout}>
       <LibraryNav tab={tab} kind={kind} counts={view.counts} />
       {kind !== "all" ? (
         <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">
@@ -45,6 +49,6 @@ export async function LibraryContent({ searchParams }: Props) {
           {view.cards.length > 0 ? <LibraryGrid cards={view.cards} /> : <LibraryEmpty tab={tab} kind={kind} />}
         </div>
       </ViewTransition>
-    </>
+    </LayoutProvider>
   );
 }
