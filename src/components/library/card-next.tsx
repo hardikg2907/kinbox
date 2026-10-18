@@ -92,7 +92,7 @@ export function CardNext({ entryId, name, heading, lead = false, progress }: Pro
   const line = shown.marking !== null ? `Marked ${shown.marking}` : `Next: ${shown.nextLabel}`;
 
   return (
-    <div className={lead ? "flex items-end justify-between gap-3" : "flex flex-col gap-2"}>
+    <div className={lead ? "flex items-end justify-between gap-3" : "flex flex-col gap-2 rows:flex-row rows:items-center rows:justify-between rows:gap-3"}>
       <div className="min-w-0">
         {heading}
         <p className="tabular mt-1 flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-bold" aria-live="polite">
@@ -114,11 +114,11 @@ export function CardNext({ entryId, name, heading, lead = false, progress }: Pro
         disabled={pending}
         className={cn(
           "relative z-10 font-semibold after:absolute after:-inset-y-1 after:inset-x-0",
-          lead ? "h-11 shrink-0 px-5" : "h-10 w-full text-sm",
+          lead ? "h-11 shrink-0 px-5" : "h-10 w-full text-sm dense:w-11 dense:px-0 rows:w-auto rows:shrink-0 rows:px-4",
         )}
       >
         <Check aria-hidden />
-        Watched it
+        <span className={lead ? undefined : "dense:sr-only"}>Watched it</span>
       </Button>
     </div>
   );

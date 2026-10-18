@@ -7,6 +7,7 @@ import { useEffect, useOptimistic, useRef, useState, useTransition, type CSSProp
 import { cn } from "cn";
 import type { KindFilter } from "@/data/dto";
 import { STATUSES, type Status } from "@/domain/types";
+import { LayoutChoices } from "@/components/library/layout-choices";
 import { Sheet } from "@/components/library/sheet";
 import { libraryHref } from "@/components/library/params";
 import { useSearchSheet } from "@/components/search/search-sheet-context";
@@ -187,6 +188,12 @@ export function LibraryNav({ tab, kind, counts }: Props) {
           </ul>
         </section>
         <hr className="mx-5 mt-5" />
+        <section aria-labelledby="filter-layout" className="px-5 pt-4">
+          <h3 id="filter-layout" className="text-sm font-semibold text-muted-foreground">
+            Layout
+          </h3>
+          <LayoutChoices desktop={false} idPrefix="sheet" className="mt-2" />
+        </section>
         <div className="flex min-h-11 items-center justify-between gap-2 px-5 py-4">
           {filtersOn > 0 ? (
             <Link
@@ -276,6 +283,12 @@ export function LibraryNav({ tab, kind, counts }: Props) {
           <ul id="side-kinds" className="mt-1 grid grid-cols-3 gap-2">
             {kindLinks("side-kind", "flex min-h-11 items-center justify-center rounded-full text-sm font-semibold transition-colors")}
           </ul>
+        </section>
+        <section aria-labelledby="side-layout">
+          <h2 id="side-layout" className="text-sm font-semibold text-muted-foreground">
+            Layout
+          </h2>
+          <LayoutChoices desktop idPrefix="side" className="mt-1" />
         </section>
       </aside>
     </>

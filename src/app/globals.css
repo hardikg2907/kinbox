@@ -30,6 +30,7 @@
   --color-glass: var(--glass);
   --color-glass-strong: var(--glass-strong);
   --color-glass-border: var(--glass-border);
+  --radius-thumb: 6px;
   --radius-tile: 10px;
   --radius-card: 18px;
   --radius-sheet: 28px;
@@ -204,6 +205,21 @@ body::before {
   );
 }
 
+/* Wall layouts. The grid carries data-layout; cards restyle themselves through these variants, so a
+   layout change needs no server round trip. Dense means three columns or more (auto is three from
+   the small breakpoint up); a phone shows "4" as three. */
+@custom-variant dense {
+  &:where([data-layout="3"] *, [data-layout="4"] *) {
+    @slot;
+  }
+  @media (width >= 40rem) {
+    &:where([data-layout="auto"] *) {
+      @slot;
+    }
+  }
+}
+@custom-variant rows (&:where([data-layout="list"] *));
+
 /* A sheet grows out of the control that opened it (set --sheet-origin on it) and shrinks back.
    Only transform and opacity move; visibility waits for the shrink so a closed sheet is never focusable. */
 @utility sheet {
@@ -279,5 +295,6 @@ body:has(.dock) [data-sonner-toaster] {
     --mobile-offset-bottom: 1.5rem !important;
   }
 }
+
 
 

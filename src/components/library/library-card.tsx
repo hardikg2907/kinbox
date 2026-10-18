@@ -26,7 +26,9 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
       href={`/entry/${entryId}`}
       className={cn(
         "block rounded-sm outline-none after:absolute after:inset-0 focus-visible:after:rounded-tile focus-visible:after:ring-3 focus-visible:after:ring-ring",
-        lead ? "line-clamp-1 font-display text-xl" : "line-clamp-2 text-sm leading-tight font-bold",
+        lead
+          ? "line-clamp-1 font-display text-xl"
+          : "line-clamp-2 text-sm leading-tight font-bold dense:line-clamp-1 rows:line-clamp-1 rows:text-base",
       )}
     >
       {name}
@@ -44,7 +46,9 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
         decorative
         className={cn(
           "transition-transform duration-[450ms] ease-(--spring) group-has-[a:active]:scale-[0.97]",
-          lead ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]" : "rounded-tile",
+          lead
+            ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]"
+            : 'rounded-tile [[data-layout="4"]_&]:rounded-thumb rows:w-[46px] rows:shrink-0 rows:rounded-thumb',
         )}
         imageClassName={lead ? "object-top" : undefined}
       />
@@ -79,9 +83,12 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   }
 
   return (
-    <li id={`card-${entryId}`} className="group relative flex min-w-0 flex-col">
+    <li
+      id={`card-${entryId}`}
+      className="group relative flex min-w-0 flex-col rows:min-h-[86px] rows:flex-row rows:items-center rows:gap-3.5 rows:border-b rows:py-2"
+    >
       {poster}
-      <div className="px-0.5 pt-2">
+      <div className="px-0.5 pt-2 rows:min-w-0 rows:flex-1 rows:p-0">
         {next ?? (
           <>
             {nameLink}
