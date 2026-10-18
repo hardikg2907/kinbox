@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "cn";
 import type { TitleContainer } from "./entry-layout";
 import { useEntry } from "./entry-state";
+import { StatusPill } from "./status-pill";
 
 /** Height of the bar below the top inset; the name counts as gone once it passes under it. */
 const BAR_PX = 56;
 
-// Once the name scrolls under it, the name shows in a slim glass bar. Inside the drawer, `fixed`
-// resolves against the drawer (it is transformed), so the bar stays at the drawer's top edge
-// while its content scrolls. It repeats the heading, so screen readers skip it.
+// Once the name scrolls under it, the name and a compact status pill show in a slim glass bar.
+// Inside the drawer, `fixed` resolves against the drawer (it is transformed), so the bar stays at
+// the drawer's top edge while its content scrolls. The name repeats the heading, so screen readers
+// skip it; the pill is a real control, and the bar is inert while hidden so it is never tabbed to.
 export function NameBar({ name, container }: { name: string; container: TitleContainer }) {
   const { entryId } = useEntry();
   const bar = useRef<HTMLDivElement>(null);
@@ -35,14 +37,17 @@ export function NameBar({ name, container }: { name: string; container: TitleCon
   return (
     <div
       ref={bar}
-      aria-hidden
+      inert={!shown}
       className={cn(
-        "glass-strong fixed inset-x-0 top-0 flex h-[calc(env(safe-area-inset-top)+3.5rem)] items-center justify-center border-b px-16 pt-[env(safe-area-inset-top)] transition-[opacity,transform] duration-300 ease-(--spring)",
+        "glass-strong fixed inset-x-0 top-0 flex h-[calc(env(safe-area-inset-top)+3.5rem)] items-center gap-3 border-b pt-[env(safe-area-inset-top)] pr-3 pl-16 transition-[opacity,transform] duration-300 ease-(--spring)",
         container === "page" ? "z-20 lg:left-80" : "z-[2] lg:pt-0",
         shown ? "opacity-100" : "pointer-events-none -translate-y-2 opacity-0",
       )}
     >
-      <p className="truncate text-base font-extrabold">{name}</p>
+      <p aria-hidden className="min-w-0 flex-1 truncate text-base font-extrabold">
+        {name}
+      </p>
+      <StatusPill compact />
     </div>
   );
 }

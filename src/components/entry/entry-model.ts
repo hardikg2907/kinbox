@@ -53,6 +53,13 @@ export type Patch =
       previousStatus: Status;
       addedWatchId: string | null;
       series: SeriesProgressView | null;
+    }
+  | {
+      type: "move-undo";
+      status: Status;
+      addedWatchId: string | null;
+      /** The Series and its opened Seasons from before a move that ticked Episodes; null otherwise. */
+      before: Pick<EntryModel, "series" | "seasons"> | null;
     };
 
 export function sortWatches(watches: WatchView[]): WatchView[] {
@@ -242,6 +249,20 @@ export function applyPatch(model: EntryModel, patch: Patch): EntryModel {
                 allNumberedWatched: before.allNumberedWatched,
               }
             : reverted.series,
+      };
+    }
+    case "move-undo": {
+      const watches = patch.addedWatchId
+        ? model.watches.filter((watch) => watch.id !== patch.addedWatchId && !isPendingWatch(watch))
+        : model.watches;
+      const restored = { ...model, status: patch.status, watches };
+      if (!patch.before) return restored;
+      // Seasons opened after the move keep their ticks until the fresh lists arrive.
+      return {
+        ...restored,
+        nextPending: false,
+        series: patch.before.series,
+        seasons: { ...model.seasons, ...patch.before.seasons },
       };
     }
   }

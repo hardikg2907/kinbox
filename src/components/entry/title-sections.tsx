@@ -10,7 +10,7 @@ import { NoteSection } from "./note-section";
 import { Overview } from "./overview";
 import { RatingSection } from "./rating-section";
 import { RemoveEntry } from "./remove-entry";
-import { StatusMenu } from "./status-menu";
+import { StatusPill } from "./status-pill";
 import { WatchesSection } from "./watches-section";
 
 export type TitleFacts = {
@@ -60,7 +60,7 @@ export function TitleHead({ facts, container }: { facts: TitleFacts; container: 
         {facts.name}
       </Heading>
       <div className="flex">
-        <StatusMenu />
+        <StatusPill />
       </div>
       {leadsWithNext ? (
         <NextBlock />

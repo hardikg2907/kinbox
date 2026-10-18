@@ -3,6 +3,7 @@ import { posterUrl } from "@/lib/tmdb/images";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
 import { NameBar } from "./name-bar";
+import { StatusPillHost } from "./status-pill";
 import { TitleHero } from "./title-hero";
 import { TitleHead, TitleMore, type TitleFacts } from "./title-sections";
 
@@ -31,19 +32,21 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
         tmdbUnavailable: entry.tmdbUnavailable,
       }}
     >
-      <TitleHero
-        entryId={entry.id}
-        low={posterUrl(title.posterPath, "w342")}
-        high={posterUrl(title.posterPath, "w500")}
-        alt={container === "page" ? title.name : ""}
-        container={container}
-      />
-      <NameBar name={title.name} container={container} />
-      <div id="entry-content" data-title-body className={layout.body}>
-        <div aria-hidden className={layout.fade} />
-        <TitleHead facts={facts} container={container} />
-        <TitleMore facts={facts} note={entry.note} />
-      </div>
+      <StatusPillHost name={title.name} posterPath={title.posterPath}>
+        <TitleHero
+          entryId={entry.id}
+          low={posterUrl(title.posterPath, "w342")}
+          high={posterUrl(title.posterPath, "w500")}
+          alt={container === "page" ? title.name : ""}
+          container={container}
+        />
+        <NameBar name={title.name} container={container} />
+        <div id="entry-content" data-title-body className={layout.body}>
+          <div aria-hidden className={layout.fade} />
+          <TitleHead facts={facts} container={container} />
+          <TitleMore facts={facts} note={entry.note} />
+        </div>
+      </StatusPillHost>
     </EntryProvider>
   );
 }
