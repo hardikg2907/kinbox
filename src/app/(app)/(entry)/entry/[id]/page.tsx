@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { EntryScreen } from "@/components/entry/entry-screen";
 import { EntrySkeleton } from "@/components/entry/entry-skeleton";
 import { TitlePage } from "@/components/entry/title-page";
+import { LAYOUT_COOKIE, parseLayout } from "@/components/library/layout";
 import { LibraryNav } from "@/components/library/library-nav";
+import { LayoutProvider } from "@/components/library/wall-layout";
 import { LibrarySearch } from "@/components/search/library-search";
 import { getEntry } from "@/data/entries";
 import { getLibrary } from "@/data/library";
@@ -45,10 +48,15 @@ async function EntryContent({ params }: { params: PageProps<"/entry/[id]">["para
 // The tab that holds this Title is the current one, so the sidebar says where the Title lives.
 async function Sidebar({ params }: { params: PageProps<"/entry/[id]">["params"] }) {
   const { id } = await params;
-  const entry = await getEntry(id);
+  const [entry, jar] = await Promise.all([getEntry(id), cookies()]);
   if (!entry) return <SidebarFrame />;
   const view = await getLibrary({ tab: entry.status, kind: "all" });
-  return <LibraryNav tab={entry.status} kind="all" counts={view.counts} />;
+  // The sidebar's layout choice applies to the Library; here it only saves the choice for later.
+  return (
+    <LayoutProvider initial={parseLayout(jar.get(LAYOUT_COOKIE)?.value)}>
+      <LibraryNav tab={entry.status} kind="all" counts={view.counts} />
+    </LayoutProvider>
+  );
 }
 
 function SidebarFrame() {
