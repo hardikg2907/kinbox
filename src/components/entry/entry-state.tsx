@@ -17,6 +17,7 @@ import {
   setRating,
   setStatus,
   setWatchDate,
+  undoStatusMove,
   watchAgain,
 } from "@/actions/entries";
 import {
@@ -26,7 +27,7 @@ import {
   undoWatchedNext,
   watchedNext,
 } from "@/actions/progress";
-import type { ActionResult, EntryView, ProgressChange } from "@/data/dto";
+import type { ActionResult, EntryView, ProgressChange, StatusMove, StatusMoveUndo } from "@/data/dto";
 import { formatEpisode } from "@/domain/series";
 import type { IsoDate, Status, TitleKind } from "@/domain/types";
 import { showActionToast } from "@/components/action-toast";
@@ -41,6 +42,7 @@ import {
   type EntryModel,
   type Patch,
 } from "./entry-model";
+import { movedMessage, offersStars, titleToastId } from "./status-moves";
 import { WatchedStars } from "./watched-stars";
 
 const GENERIC_ERROR = "Couldn't save that. Try again.";
@@ -180,23 +182,55 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
     });
   }
 
+  // What the screen showed before a move, so its Undo can put back the ticks it added at once.
+  type BeforeMove = Pick<EntryModel, "series" | "seasons">;
+
+  // The words come from the server's answer, so they name what really happened.
+  function showMoveToast(move: StatusMove, before: BeforeMove) {
+    const undo = move.undo;
+    showActionToast("success", movedMessage(move), {
+      id: titleToastId(entry.id),
+      description: offersStars(move) ? <WatchedStars initial={null} onRate={rate} /> : undefined,
+      action: undo ? { label: "Undo", onClick: () => undoMove(undo, before) } : undefined,
+    });
+  }
+
+  function undoMove(undo: StatusMoveUndo, before: BeforeMove) {
+    const ticked = undo.tickedCount > 0;
+    run(
+      {
+        type: "move-undo",
+        status: undo.previousStatus,
+        addedWatchId: undo.addedWatchId,
+        before: ticked ? before : null,
+      },
+      () => undoStatusMove(undo),
+      // The server decides: Watched cannot come back once its last Watch is gone.
+      (previous, data) => ({ ...previous, status: data.status }),
+      ticked ? reloadOpenSeasons : undefined,
+    );
+  }
+
   function changeStatus(status: Status) {
     if (status === model.status) return;
-    toast.dismiss(`watched-${entry.id}`);
+    toast.dismiss(titleToastId(entry.id));
     const pendingWatchId = newPendingWatchId();
+    const before: BeforeMove = { series: model.series, seasons: model.seasons };
     run(
       { type: "status", status, today: localToday(), pendingWatchId },
       () => setStatus({ entryId: entry.id, status }),
       (previous, data) => ({ ...previous, status: data.status }),
       (data) => {
-        if (data.addedWatch) showWatchedToast("Marked as watched");
+        showMoveToast(data, before);
         if (status === "watched") reloadOpenSeasons();
       },
     );
   }
 
   function addWatch() {
+    toast.dismiss(titleToastId(entry.id));
     const pendingWatchId = newPendingWatchId();
+    const before: BeforeMove = { series: model.series, seasons: model.seasons };
     run(
       { type: "watch-again", today: localToday(), pendingWatchId },
       () => watchAgain({ entryId: entry.id }),
@@ -206,7 +240,7 @@ export function EntryProvider({ entry, children }: { entry: EntrySnapshot; child
           watch.id === pendingWatchId ? data.watch : watch,
         ),
       }),
-      undefined,
+      (data) => showMoveToast(data, before),
       startAddWatch,
     );
   }

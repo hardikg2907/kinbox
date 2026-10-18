@@ -306,8 +306,10 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       }
     }
 
-    // A menu, dialog or toast opened from the drawer handles its own keys.
+    // A menu, dialog or toast opened from the drawer handles its own keys. A sheet that closed on
+    // this Escape has already sent focus back into the drawer, so its handled mark is what counts.
     function onKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented) return;
       const active = document.activeElement;
       const onDrawer = active === null || active === document.body || panelElement.contains(active);
       if (!onDrawer) return;
