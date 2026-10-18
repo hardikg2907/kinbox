@@ -1,13 +1,39 @@
-// Shared by the page and its skeleton so the two never drift apart.
+// Shared by the Title's two containers and their skeletons, so the boxes never drift apart.
 //
-// The markup is in reading order: hero header, then the sheet (Next block, overview, Seasons,
-// Rating, Watches, Note, Remove). A phone, a keyboard and a screen reader all follow it.
-// A phone stacks the hero over the sheet. From `lg` the hero is a tall sticky left column and
-// the sheet is a panel in the right column.
-export const ENTRY_SHELL = "lg:grid lg:grid-cols-[minmax(24rem,5fr)_minmax(0,7fr)]";
+// The markup is in reading order: hero, then the body (name, status, Next or overview, rating,
+// then progress, overview, Seasons, Watches, Note, Remove). A phone, a keyboard and a screen
+// reader all follow it. The body overlaps the hero's foot, where the scrim washes the poster into
+// the page colour. In the drawer, transforms driven by --p and --gap shrink this same layout to
+// the quick view; the page is the layout at rest.
 
-// The sticky piece sits inside the header, so the header can stretch to the sheet's height while the poster stays put.
-export const ENTRY_HERO = "relative h-[68svh] min-h-[26rem] w-full overflow-hidden lg:sticky lg:top-0 lg:h-dvh";
+export type TitleContainer = "page" | "drawer";
 
-export const ENTRY_SHEET =
-  "glass relative z-10 -mt-6 flex min-w-0 flex-col gap-8 rounded-t-3xl border border-b-0 px-4 pt-7 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 lg:mt-20 lg:mr-6 lg:mb-6 lg:rounded-3xl lg:border-b lg:px-10 lg:pt-10 lg:pb-10";
+/** The full view's hero; the drawer's quick view shows only a strip of it. */
+const HERO_HEIGHT = "h-[min(122vw,62svh)]";
+
+/** The strip of the hero the drawer's quick view shows, in px; the drawer's geometry reads it. */
+export const STRIP_PX = 176;
+
+/** How far the body overlaps the hero's foot, in px (`-mt-8`). */
+export const BODY_OVERLAP_PX = 32;
+
+type Layout = { hero: string; media: string; body: string; fade: string; name: string };
+
+export const TITLE_LAYOUT: Record<TitleContainer, Layout> = {
+  // From `lg` the page is two columns beside the sidebar: a tall sticky poster and the sections.
+  page: {
+    hero: `relative ${HERO_HEIGHT} w-full overflow-hidden lg:sticky lg:top-0 lg:h-dvh`,
+    media: "absolute inset-0",
+    body: "relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-background px-5 pb-[max(3rem,env(safe-area-inset-bottom))] sm:px-6 lg:mt-0 lg:px-10 lg:pt-20 lg:pb-12",
+    fade: "pointer-events-none absolute inset-x-0 bottom-full h-40 scrim-title lg:hidden",
+    name: "font-display text-[44px] text-balance wrap-break-word text-foreground",
+  },
+  drawer: {
+    hero: `relative ${HERO_HEIGHT} w-full overflow-hidden select-none [-webkit-touch-callout:none] lg:h-[250px]`,
+    // As tall as the hero, not the window around it, so cutting the window never moves the poster.
+    media: `absolute inset-x-0 top-0 ${HERO_HEIGHT} title-parallax lg:h-[250px]`,
+    body: "title-follow relative z-[1] -mt-8 flex min-w-0 flex-col gap-8 bg-background px-5 pb-[max(5rem,env(safe-area-inset-bottom))]",
+    fade: "pointer-events-none absolute inset-x-0 bottom-full h-16 title-fade-grow scrim-title",
+    name: "title-name-grow max-w-[80%] font-display text-[30px] text-balance wrap-break-word text-foreground",
+  },
+};

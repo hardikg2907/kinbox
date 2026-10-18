@@ -73,6 +73,7 @@
   --glass-strong: rgb(255 255 255 / 0.86);
   --glass-border: rgb(14 18 26 / 0.08);
   --spring: linear(0, 0.0398, 0.1352, 0.2582, 0.3892, 0.5156, 0.6297, 0.7279, 0.8089, 0.8732, 0.9225, 0.9589, 0.9844, 1.0015, 1.0119, 1.0175, 1.0197, 1.0196, 1.0181, 1.0159, 1.0133, 1.0107, 1.0083, 1.0062, 1.0045, 1.003, 1.0019, 1.0011, 1.0005, 1.0001, 0.9998, 0.9997, 0.9996, 0.9996, 0.9996, 0.9997, 1);
+  --ease-morph: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -181,28 +182,44 @@ body::before {
   mask-image: linear-gradient(to right, black 60%, transparent 100%);
 }
 
-/* Washes the bottom of the Entry hero into the page colour. The text block sits below the
-   top 7 rem (its fade, kept free of text), where the page colour is at least 95 % solid, and
-   the first stop is fully solid so the hero has no edge. */
-@utility scrim-hero {
+/* The Title's full view, shared by the page and the drawer. A drawer sets --p (0 at the quick view,
+   1 at full height) and --gap (the full hero's height minus the strip the quick view shows) on
+   itself; outside a drawer both read as the full view. Only transforms use them, so a drag never
+   triggers layout. */
+@utility title-follow {
+  transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1)), 0);
+}
+@utility title-parallax {
+  transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1) * 0.45), 0);
+}
+/* The drawer's name is laid out at its quick-view size and scaled up from its foot, so it grows
+   without moving the lines after it. Its width is capped at 80 % so the grown name still fits. */
+@utility title-name-grow {
+  transform-origin: 0 100%;
+  transform: scale(calc(1 + var(--p, 1) * 0.25));
+}
+@utility title-fade-grow {
+  transform-origin: 50% 100%;
+  transform: scaleY(calc(1 + var(--p, 1) * 1.5));
+}
+
+/* Washes the foot of the Title hero into the page colour above the name. Every line of text sits
+   below it on the solid page colour, and the last third of the wash is solid too: a poster's own
+   printed title usually sits just there, and it must not show through above the name. */
+@utility scrim-title {
   background-image: linear-gradient(
-    to top,
-    var(--background) 0,
-    color-mix(in oklab, var(--background) 95%, transparent) calc(100% - 7rem),
-    color-mix(in oklab, var(--background) 55%, transparent) calc(100% - 3.5rem),
-    transparent 100%
+    to bottom,
+    transparent 0,
+    color-mix(in oklab, var(--background) 55%, transparent) 30%,
+    color-mix(in oklab, var(--background) 92%, transparent) 52%,
+    var(--background) 68%
   );
 }
 
-/* Keeps the app header legible when the hero poster runs behind it: at least 85 % solid down to
-   the header's foot. */
-@utility scrim-top {
-  background-image: linear-gradient(
-    to bottom,
-    color-mix(in oklab, var(--background) 92%, transparent) 0,
-    color-mix(in oklab, var(--background) 85%, transparent) 45%,
-    transparent 100%
-  );
+/* Under the drawer's handle and close button: enough shade that the white handle keeps 3:1 over
+   a white poster. */
+@utility shade-top {
+  background-image: linear-gradient(to bottom, rgb(0 0 0 / 0.45), transparent 5.5rem);
 }
 
 /* Wall layouts. The grid carries data-layout; cards restyle themselves through these variants, so a
@@ -296,5 +313,87 @@ body:has(.dock) [data-sonner-toaster] {
   }
 }
 
+/* While the Title drawer is open the Library behind it stays put. The gutter keeps a classic
+   scrollbar's space, so the wall does not shift when the scrollbar goes. */
+html[data-drawer] {
+  overflow: hidden;
+  scrollbar-gutter: stable;
+}
 
+/* Toasts sit just above the drawer's top edge at the quick view, and at the top of the screen at
+   full height. The drawer sets --drawer-lift (how tall it stands) when it settles. */
+html[data-drawer="quick"] [data-sonner-toaster] {
+  --offset-bottom: calc(var(--drawer-lift, 0px) + 0.75rem) !important;
+  --mobile-offset-bottom: calc(var(--drawer-lift, 0px) + 0.75rem) !important;
+}
+html[data-drawer="full"] [data-sonner-toaster] {
+  --offset-bottom: calc(100dvh - env(safe-area-inset-top) - 0.75rem - var(--front-toast-height, 4rem)) !important;
+  --mobile-offset-bottom: calc(100dvh - env(safe-area-inset-top) - 0.75rem - var(--front-toast-height, 4rem)) !important;
+}
 
+/* Clicks during a view transition reach the live page instead of the snapshot overlay. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* A view transition captures the drawer's poster as one image above everything else, so its window
+   is cut to the part the drawer shows: the strip at the quick view, the hero above the sections at
+   full height. Only once the drawer has settled: while it moves the window stays whole, so a drag
+   never triggers layout. */
+#title-drawer:not([data-moving]) [data-title-window] {
+  height: calc(100% - 2rem - var(--gap, 0px) * (1 - var(--p, 1)));
+}
+
+/* A poster moving from its tile into the drawer or the page, and back. */
+::view-transition-group(.poster-morph) {
+  z-index: 1;
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-morph);
+}
+
+/* The drawer rises from the bottom (from the right on desktop) while its poster morphs into place. */
+::view-transition-new(.drawer-in) {
+  animation: drawer-rise 520ms var(--spring) both;
+}
+::view-transition-old(.drawer-out) {
+  animation: drawer-sink 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes drawer-rise {
+  from {
+    transform: translateY(60vh);
+  }
+}
+@keyframes drawer-sink {
+  to {
+    transform: translateY(60vh);
+    opacity: 0;
+  }
+}
+@media (min-width: 1024px) {
+  ::view-transition-new(.drawer-in) {
+    animation-name: drawer-slide-in;
+  }
+  ::view-transition-old(.drawer-out) {
+    animation-name: drawer-slide-out;
+  }
+  @keyframes drawer-slide-in {
+    from {
+      transform: translateX(470px);
+    }
+  }
+  @keyframes drawer-slide-out {
+    to {
+      transform: translateX(470px);
+      opacity: 0;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+}

@@ -1,5 +1,7 @@
-import { AppShell } from "@/components/app-shell";
-
-export default function AppLayout({ children }: LayoutProps<"/">) {
-  return <AppShell>{children}</AppShell>;
+export default function EntryLayout({ children }: LayoutProps<"/">) {
+  return (
+    <main id="main" className="min-h-dvh">
+      {children}
+    </main>
+  );
 }
