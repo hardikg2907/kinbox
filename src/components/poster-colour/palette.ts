@@ -110,7 +110,10 @@ export function readPalette(posterPath: string | null): Promise<PosterPalette | 
   if (posterPath === null || url === null) return Promise.resolve(null);
   let promise = loaded.get(posterPath);
   if (!promise) {
-    promise = read(url).then((palette) => {
+    // TMDB sends its CORS header only when asked and does not vary its answer by origin, so a plain
+    // <img> of this poster elsewhere caches a copy the canvas may not read. An address of its own
+    // keeps the readable copy apart.
+    promise = read(`${url}?palette`).then((palette) => {
       settled.set(posterPath, palette);
       return palette;
     });
