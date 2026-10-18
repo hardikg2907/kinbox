@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useMemo, useRef, useState, ViewTransition, type ReactNode } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, ViewTransition, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { cn } from "cn";
 import {
@@ -12,12 +12,17 @@ import {
   releaseVelocity,
   spring,
 } from "./drawer-motion";
+import { DrawerHero, DrawerTitleContext, heroFromTile, nextHero, type DrawerHeroState } from "./drawer-hero";
 import { BODY_OVERLAP_PX, STRIP_PX } from "./entry-layout";
+import { openedTile } from "./opened-tile";
 
 const DESKTOP = "(min-width: 1024px)";
 
 /** How far the desktop side panel travels when it slides in or out, in px. */
 const SIDE_TRAVEL_PX = 470;
+
+/** About how long the drawer takes to rise, in ms; `drawer-rise` in globals.css lasts 520. */
+const RISE_MS = 600;
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -55,6 +60,12 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
   const [closing, setClosing] = useState(false);
   const [atFull, setAtFull] = useState(false);
   const [desktop, setDesktop] = useState(false);
+  const [tile] = useState(openedTile);
+  const [hero, setHero] = useState<DrawerHeroState>(() => heroFromTile(tile));
+  const show = useCallback(
+    (entryId: string | null, posterPath: string | null) => setHero((current) => nextHero(current, entryId, posterPath)),
+    [],
+  );
 
   useLayoutEffect(() => {
     if (!panel.current || !scroller.current || !scrim.current) return;
@@ -67,6 +78,8 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     // from the right edge on desktop.
     const geometry = { offset: 0, quick: 0, viewport: 0, desktop: false, full: false };
     let motion: { stop: () => void } | null = null;
+    // Where a running spring is headed; null once it has landed.
+    let target: number | null = null;
     let closingNow = false;
     // Back and Forward hide and reveal this same drawer, so it starts each showing afresh.
     setClosing(false);
@@ -96,6 +109,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     // Toasts read where the drawer settled: above its top edge, or at the top of the screen at full height.
     function settle() {
       if (closingNow) return;
+      target = null;
       delete panelElement.dataset.moving;
       if (geometry.desktop) {
         root.dataset.drawer = "side";
@@ -125,9 +139,10 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       geometry.quick = Math.round(clamp(geometry.viewport - visible, 80, geometry.viewport - 160));
     }
 
-    function animateTo(target: number, velocity = 0) {
+    function animateTo(to: number, velocity = 0) {
       motion?.stop();
-      motion = spring({ from: geometry.offset, to: target, velocity, onUpdate: apply, onDone: settle });
+      target = to;
+      motion = spring({ from: geometry.offset, to, velocity, onUpdate: apply, onDone: settle });
     }
 
     function snap(to: "full" | "quick", velocity = 0) {
@@ -141,6 +156,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     function close(velocity = 0) {
       if (closingNow) return;
       closingNow = true;
+      target = null;
       motion?.stop();
       motion = spring({
         from: geometry.offset,
@@ -170,10 +186,14 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       snap(Math.abs(projected) < Math.abs(projected - geometry.quick) ? "full" : "quick", velocity);
     }
 
-    // When the content arrives, or the quick view's content changes size, the quick view follows.
-    function refit() {
+    // The quick view follows its content. When the Title arrives in place of the skeleton, any
+    // difference lands in the frame the Title paints in (observers report before paint), and --gap
+    // moves with the offset, so no frame shows the strip at one size and the sections at another.
+    // A change made in the drawer itself (a new Status, say) springs to the new size instead.
+    function refit(arrived: boolean) {
       if (closingNow) return;
       const wasDesktop = geometry.desktop;
+      const wasQuick = geometry.quick;
       const atQuick = !wasDesktop && Math.abs(geometry.offset - geometry.quick) < 2;
       measure();
       if (geometry.desktop !== wasDesktop) {
@@ -181,6 +201,14 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
         // The quick view never opens scrolled.
         if (!geometry.desktop) scrollElement.scrollTop = 0;
         apply(geometry.desktop ? 0 : geometry.quick);
+        settle();
+      } else if (geometry.quick === wasQuick) {
+        return;
+      } else if (target !== null) {
+        // Still on its way to the quick view: the running spring aims at the new one.
+        if (target === wasQuick) animateTo(geometry.quick);
+      } else if (atQuick && arrived) {
+        apply(geometry.quick);
         settle();
       } else if (atQuick) {
         animateTo(geometry.quick);
@@ -375,7 +403,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
 
     // The drawer's frame paints before the Title's address data reaches it, so it learns which
     // Title it holds, and its accessible name, from the content as that arrives.
-    const resizeObserver = new ResizeObserver(refit);
+    const resizeObserver = new ResizeObserver(() => refit(false));
     let watchedHead: Element | null = null;
     let entryId: string | undefined;
     function watchContent() {
@@ -390,7 +418,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     }
     const contentObserver = new MutationObserver(() => {
       watchContent();
-      refit();
+      refit(true);
     });
 
     measure();
@@ -405,6 +433,9 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       apply(geometry.desktop ? SIDE_TRAVEL_PX : geometry.viewport);
       animateTo(geometry.desktop ? 0 : geometry.quick);
     }
+    // A poster colour that arrives while the drawer still rises lands at once instead of fading.
+    panelElement.dataset.rising = "";
+    const risen = window.setTimeout(() => delete panelElement.dataset.rising, prefersReducedMotion() ? 0 : RISE_MS);
 
     // The Library behind is out of reach while the drawer is open: no focus, no screen reader.
     const library = visibleElement("main#main");
@@ -422,12 +453,15 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     panelElement.addEventListener("pointercancel", onPointerUp);
     panelElement.addEventListener("wheel", onWheel, { passive: false });
     document.addEventListener("keydown", onKeyDown);
-    desktopQuery.addEventListener("change", refit);
-    window.addEventListener("resize", refit);
+    const onResize = () => refit(false);
+    desktopQuery.addEventListener("change", onResize);
+    window.addEventListener("resize", onResize);
     controls.current = { close, toggle: () => snap(geometry.offset <= 1 ? "quick" : "full") };
 
     return () => {
       motion?.stop();
+      window.clearTimeout(risen);
+      delete panelElement.dataset.rising;
       controls.current = null;
       resizeObserver.disconnect();
       contentObserver.disconnect();
@@ -441,8 +475,8 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       panelElement.removeEventListener("pointercancel", onPointerUp);
       panelElement.removeEventListener("wheel", onWheel);
       document.removeEventListener("keydown", onKeyDown);
-      desktopQuery.removeEventListener("change", refit);
-      window.removeEventListener("resize", refit);
+      desktopQuery.removeEventListener("change", onResize);
+      window.removeEventListener("resize", onResize);
       delete root.dataset.drawer;
       root.style.removeProperty("--drawer-lift");
       library?.removeAttribute("inert");
@@ -452,56 +486,60 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
   }, [router]);
 
   const motionState = useMemo(() => ({ closing }), [closing]);
+  const drawerTitle = useMemo(() => ({ tile, hero, show }), [tile, hero, show]);
 
   return (
     <DrawerMotionContext value={motionState}>
-      <div
-        ref={scrim}
-        aria-hidden
-        onClick={() => controls.current?.close()}
-        className="fixed inset-0 z-50 touch-none bg-black/45 opacity-0"
-      />
-      <ViewTransition enter="drawer-in" exit="drawer-out" default="none">
-        <section
-          ref={panel}
-          id="title-drawer"
-          role="dialog"
-          aria-modal="true"
-          className={cn(
-            "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden title-tint shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
-            "lg:inset-x-auto lg:top-3 lg:right-3 lg:bottom-3 lg:h-auto lg:w-[430px] lg:rounded-sheet lg:border lg:shadow-[0_22px_54px_-18px_rgb(0_0_0/0.6)]",
-            atFull ? "rounded-none" : "rounded-t-sheet border border-b-0",
-          )}
-        >
-          <button
-            ref={closeButton}
-            type="button"
-            aria-label="Close"
-            onClick={() => controls.current?.close()}
-            className="glass-strong absolute top-3 left-3 z-[3] grid size-11 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-pointer place-items-center rounded-full border text-foreground transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+      <DrawerTitleContext value={drawerTitle}>
+        <div
+          ref={scrim}
+          aria-hidden
+          onClick={() => controls.current?.close()}
+          className="fixed inset-0 z-50 touch-none bg-black/45 opacity-0"
+        />
+        <ViewTransition enter="drawer-in" exit="drawer-out" default="none">
+          <section
+            ref={panel}
+            id="title-drawer"
+            role="dialog"
+            aria-modal="true"
+            className={cn(
+              "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden title-tint shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
+              "lg:inset-x-auto lg:top-3 lg:right-3 lg:bottom-3 lg:h-auto lg:w-[430px] lg:rounded-sheet lg:border lg:shadow-[0_22px_54px_-18px_rgb(0_0_0/0.6)]",
+              atFull ? "rounded-none" : "rounded-t-sheet border border-b-0",
+            )}
           >
-            <X aria-hidden className="size-5" />
-          </button>
-          <button
-            type="button"
-            data-drawer-handle
-            aria-label={atFull ? "Show less" : "Show more"}
-            onClick={(event) => {
-              // Enter and Space click with detail 0; no drag can be behind them.
-              if (event.detail === 0 || !dragged.current) controls.current?.toggle();
-            }}
-            className="absolute top-0 left-1/2 z-[3] flex h-11 w-30 -translate-x-1/2 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-grab touch-none justify-center rounded-full pt-2.5 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:hidden"
-          >
-            <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/90 shadow-[0_1px_6px_rgb(0_0_0/0.45)]" />
-          </button>
-          <div
-            ref={scroller}
-            className={cn("absolute inset-0 overscroll-contain", atFull || desktop ? "overflow-y-auto" : "overflow-hidden")}
-          >
-            {children}
-          </div>
-        </section>
-      </ViewTransition>
+            <button
+              ref={closeButton}
+              type="button"
+              aria-label="Close"
+              onClick={() => controls.current?.close()}
+              className="glass-strong absolute top-3 left-3 z-[3] grid size-11 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-pointer place-items-center rounded-full border text-foreground transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <X aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              data-drawer-handle
+              aria-label={atFull ? "Show less" : "Show more"}
+              onClick={(event) => {
+                // Enter and Space click with detail 0; no drag can be behind them.
+                if (event.detail === 0 || !dragged.current) controls.current?.toggle();
+              }}
+              className="absolute top-0 left-1/2 z-[3] flex h-11 w-30 -translate-x-1/2 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-grab touch-none justify-center rounded-full pt-2.5 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:hidden"
+            >
+              <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/90 shadow-[0_1px_6px_rgb(0_0_0/0.45)]" />
+            </button>
+            <div
+              ref={scroller}
+              className={cn("absolute inset-0 overscroll-contain", atFull || desktop ? "overflow-y-auto" : "overflow-hidden")}
+            >
+              <DrawerHero />
+              {children}
+            </div>
+          </section>
+        </ViewTransition>
+      </DrawerTitleContext>
     </DrawerMotionContext>
   );
 }

@@ -1,8 +1,13 @@
 "use client";
 
 import { RatingStars } from "@/components/rating-stars";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Status } from "@/domain/types";
 import { canRate } from "@/domain/rating";
 import { useEntry } from "./entry-state";
+
+const NOT_YET = "flex min-h-12 items-center text-sm text-muted-foreground";
+const NOT_YET_TEXT = "Rate it once you start watching";
 
 export function RatingSection() {
   const { model, rate } = useEntry();
@@ -15,8 +20,18 @@ export function RatingSection() {
       {canRate(model.status) ? (
         <RatingStars value={model.ratingHalfStars} onChange={rate} label="Rating" className="-ml-2" />
       ) : (
-        <p className="flex min-h-12 items-center text-sm text-muted-foreground">Rate it once you start watching</p>
+        <p className={NOT_YET}>{NOT_YET_TEXT}</p>
       )}
     </section>
+  );
+}
+
+/** The stars' row while the Title loads: the rating itself is not known yet, its height is. */
+export function RatingPreview({ status }: { status: Status }) {
+  if (!canRate(status)) return <p className={NOT_YET}>{NOT_YET_TEXT}</p>;
+  return (
+    <div className="flex h-12 items-center">
+      <Skeleton className="h-8 w-56" />
+    </div>
   );
 }
