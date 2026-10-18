@@ -30,6 +30,9 @@
   --color-glass: var(--glass);
   --color-glass-strong: var(--glass-strong);
   --color-glass-border: var(--glass-border);
+  --radius-tile: 10px;
+  --radius-card: 18px;
+  --radius-sheet: 28px;
   --radius-sm: calc(var(--radius) * 0.5);
   --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
@@ -68,7 +71,7 @@
   --glass: rgb(255 255 255 / 0.72);
   --glass-strong: rgb(255 255 255 / 0.86);
   --glass-border: rgb(14 18 26 / 0.08);
-  --glow-opacity: 0.25;
+  --spring: linear(0, 0.0398, 0.1352, 0.2582, 0.3892, 0.5156, 0.6297, 0.7279, 0.8089, 0.8732, 0.9225, 0.9589, 0.9844, 1.0015, 1.0119, 1.0175, 1.0197, 1.0196, 1.0181, 1.0159, 1.0133, 1.0107, 1.0083, 1.0062, 1.0045, 1.003, 1.0019, 1.0011, 1.0005, 1.0001, 0.9998, 0.9997, 0.9996, 0.9996, 0.9996, 0.9997, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -95,7 +98,6 @@
     --glass: rgb(255 255 255 / 0.07);
     --glass-strong: rgb(22 25 34 / 0.88);
     --glass-border: rgb(255 255 255 / 0.12);
-    --glow-opacity: 0.35;
   }
 }
 
@@ -156,7 +158,7 @@ body::before {
   }
 }
 
-/* Glass that carries text over posters: the sticky bar and the search field. */
+/* Glass that carries text over posters: the dock, sheets and chips. */
 @utility glass-strong {
   background-color: var(--card);
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
@@ -166,14 +168,16 @@ body::before {
   }
 }
 
-/* The name label on a poster. Its top 2.5 rem is the fade (keep it free of text); below that
-   the page colour is 92 % solid, so muted text stays at AA over any poster. */
-@utility scrim-label {
+/* Under the lead tile's text. The page colour is 92 % solid from the foot up to the top of the text block
+   (about 5.75 rem), so text stays at AA over any poster, then fades out. The mask clears the right side,
+   where only the solid button sits, so more of the poster shows. */
+@utility scrim-lead {
   background-image: linear-gradient(
     to top,
-    color-mix(in oklab, var(--background) 92%, transparent) calc(100% - 2.5rem),
+    color-mix(in oklab, var(--background) 92%, transparent) 5.75rem,
     transparent 100%
   );
+  mask-image: linear-gradient(to right, black 60%, transparent 100%);
 }
 
 /* Washes the bottom of the Entry hero into the page colour. The text block sits below the
@@ -198,6 +202,30 @@ body::before {
     color-mix(in oklab, var(--background) 85%, transparent) 45%,
     transparent 100%
   );
+}
+
+/* A sheet grows out of the control that opened it (set --sheet-origin on it) and shrinks back.
+   Only transform and opacity move; visibility waits for the shrink so a closed sheet is never focusable. */
+@utility sheet {
+  transform-origin: var(--sheet-origin, 50% 100%);
+  transform: translateY(1rem) scale(0.4);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 0.45s var(--spring),
+    opacity 0.2s ease,
+    visibility 0s linear 0.3s;
+  &[data-open="true"] {
+    transform: none;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+      transform 0.55s var(--spring),
+      opacity 0.25s ease,
+      visibility 0s;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -239,3 +267,17 @@ body::before {
   flex: 1 1 calc(100% - 1.5rem);
   min-width: 0;
 }
+
+/* Toasts clear the dock on a phone; the desktop sidebar has nothing at the bottom. */
+body:has(.dock) [data-sonner-toaster] {
+  --offset-bottom: calc(env(safe-area-inset-bottom) + 6rem) !important;
+  --mobile-offset-bottom: calc(env(safe-area-inset-bottom) + 6rem) !important;
+}
+@media (min-width: 1024px) {
+  body:has(.dock) [data-sonner-toaster] {
+    --offset-bottom: 1.5rem !important;
+    --mobile-offset-bottom: 1.5rem !important;
+  }
+}
+
+

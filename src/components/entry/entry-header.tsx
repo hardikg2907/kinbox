@@ -1,5 +1,4 @@
 import { ViewTransition } from "react";
-import { NotOutYetMock } from "@/components/not-out-yet-mock";
 import { KindBadge } from "@/components/status";
 import { Poster } from "@/components/poster";
 import type { EntryView } from "@/data/dto";
@@ -39,7 +38,6 @@ export function EntryHeader({ entryId, title }: { entryId: string; title: EntryV
             {title.kind === "movie" && title.runtimeMinutes ? (
               <span className="tabular">{formatRuntime(title.runtimeMinutes)}</span>
             ) : null}
-            <NotOutYetMock name={title.name} />
           </div>
           <div className="mt-1 flex">
             <StatusMenu />

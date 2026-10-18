@@ -2,44 +2,71 @@
 
 import { Search, SearchX, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { GUTTER } from "@/components/gutter";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Sheet } from "@/components/library/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SearchResultRow } from "@/components/search/search-result-row";
 import { SearchSkeleton } from "@/components/search/search-skeleton";
 import { SEARCH_INPUT_ID } from "@/components/search/search-ids";
+import { SearchSheetContext } from "@/components/search/search-sheet-context";
 import { useTitleSearch, type SearchOutcome } from "@/components/search/use-title-search";
 
 /**
- * The search field and its results. `children` is the server-rendered Library: it stays
- * mounted (only hidden) while results show, so clearing the field brings it back at once.
+ * Owns the search state and the sheet it shows in. The dock and the desktop sidebar open the
+ * sheet through context. `children` is the page, which stays mounted under the sheet.
  */
 export function LibrarySearch({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const opener = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const outcome = useTitleSearch(query);
-  const searching = outcome.phase !== "idle";
+  const keyboard = useKeyboardInset(open);
+
+  const openSheet = useCallback((element: HTMLElement) => {
+    opener.current = element;
+    setOpen(true);
+  }, []);
+  const context = useMemo(() => ({ open: openSheet }), [openSheet]);
 
   function clear() {
     setQuery("");
     inputRef.current?.focus();
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Escape" || query === "") return;
-    event.preventDefault();
-    setQuery("");
-  }
-
   return (
-    <div>
-      <div className={GUTTER}>
-        <form id="search-form" role="search" onSubmit={(event) => event.preventDefault()} className="relative pb-3 sm:max-w-2xl">
+    <SearchSheetContext value={context}>
+      {children}
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        label="Search"
+        openerRef={opener}
+        initialFocusId={SEARCH_INPUT_ID}
+        origin="28px calc(100% - 28px)"
+        style={{ bottom: `calc(env(safe-area-inset-bottom) + 10px + ${keyboard}px)` }}
+        className="inset-x-[10px] top-[calc(env(safe-area-inset-top)+10px)] lg:inset-x-auto lg:top-3 lg:left-80 lg:w-[34rem] lg:max-w-[calc(100vw-21rem)]"
+      >
+        <div className="flex justify-end px-3 pt-3">
+          <button
+            id="search-close"
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            className="flex size-11 cursor-pointer items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <X aria-hidden className="size-5" />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3">
+          {outcome.phase !== "idle" ? <SearchResults outcome={outcome} /> : null}
+        </div>
+        <form id="search-form" role="search" onSubmit={(event) => event.preventDefault()} className="relative p-3">
           <Label htmlFor={SEARCH_INPUT_ID} className="sr-only">
             Search a movie or series
           </Label>
-          <Search aria-hidden className="pointer-events-none absolute top-6 left-4.5 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-7.5 size-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={inputRef}
             id={SEARCH_INPUT_ID}
@@ -47,7 +74,6 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
             name="q"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={onKeyDown}
             placeholder="Search a movie or series"
             enterKeyHint="search"
             autoComplete="off"
@@ -62,34 +88,47 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
               type="button"
               onClick={clear}
               aria-label="Clear search"
-              className="absolute top-6 right-0.5 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+              className="absolute top-1/2 right-3.5 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
             >
               <X aria-hidden className="size-5" />
             </button>
           ) : null}
         </form>
-      </div>
-
-      {searching ? <SearchResults outcome={outcome} /> : null}
-      <div hidden={searching}>{children}</div>
-    </div>
+      </Sheet>
+    </SearchSheetContext>
   );
+}
+
+// iOS keeps fixed elements where the layout viewport ends, under the keyboard. The sheet lifts by the covered height so the field stays visible.
+function useKeyboardInset(active: boolean): number {
+  const [inset, setInset] = useState(0);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!active || !viewport) return;
+    const update = () => setInset(Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop)));
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, [active]);
+  return active ? inset : 0;
 }
 
 function SearchResults({ outcome }: { outcome: SearchOutcome }) {
   return (
-    <div id="search-results" aria-busy={outcome.phase === "loading"} className={GUTTER}>
-      <div className="max-w-2xl">
-        <SearchStatus outcome={outcome} />
-        {outcome.phase === "loading" ? <SearchSkeleton /> : null}
-        {outcome.phase === "results" ? (
-          <ul id="search-list" className="glass mt-3 flex flex-col rounded-3xl border p-2">
-            {outcome.items.map((item) => (
-              <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
-            ))}
-          </ul>
-        ) : null}
-      </div>
+    <div id="search-results" aria-busy={outcome.phase === "loading"}>
+      <SearchStatus outcome={outcome} />
+      {outcome.phase === "loading" ? <SearchSkeleton /> : null}
+      {outcome.phase === "results" ? (
+        <ul id="search-list" className="flex flex-col">
+          {outcome.items.map((item) => (
+            <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -99,7 +138,7 @@ function SearchStatus({ outcome }: { outcome: SearchOutcome }) {
   switch (outcome.phase) {
     case "results":
       return (
-        <p id="search-status" role="status" className="tabular px-1 text-sm text-muted-foreground">
+        <p id="search-status" role="status" className="tabular px-3 pb-1 text-sm text-muted-foreground">
           {outcome.items.length === 1 ? "1 result" : `${outcome.items.length} results`}
         </p>
       );
@@ -124,7 +163,7 @@ function SearchStatus({ outcome }: { outcome: SearchOutcome }) {
       );
     default:
       return (
-        <p id="search-status" role="status" className="px-1 text-sm text-muted-foreground">
+        <p id="search-status" role="status" className="px-3 text-sm text-muted-foreground">
           Searching…
         </p>
       );

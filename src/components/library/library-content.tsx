@@ -1,15 +1,17 @@
+import { X } from "lucide-react";
+import Link from "next/link";
 import { ViewTransition } from "react";
 import { getLibrary } from "@/data/library";
-import { AmbientGlow } from "@/components/library/ambient-glow";
 import { LibraryEmpty } from "@/components/library/library-empty";
-import { LibraryFilters } from "@/components/library/library-filters";
 import { LibraryGrid } from "@/components/library/library-grid";
-import { parseKind, parseTab } from "@/components/library/params";
-import { TonightFiltersMock } from "@/components/library/tonight-filters-mock";
+import { LibraryNav } from "@/components/library/library-nav";
+import { libraryHref, parseKind, parseTab } from "@/components/library/params";
 
 type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const KIND_CHIP = { movie: "Movies", series: "Series" } as const;
 
 // Awaits the URL and the Owner's data, so the caller wraps it in Suspense.
 export async function LibraryContent({ searchParams }: Props) {
@@ -20,13 +22,26 @@ export async function LibraryContent({ searchParams }: Props) {
 
   return (
     <>
-      <AmbientGlow posterPaths={view.cards.map((card) => card.posterPath)} />
-      <LibraryFilters tab={tab} kind={kind} counts={view.counts}>
-        <TonightFiltersMock />
-      </LibraryFilters>
+      <LibraryNav tab={tab} kind={kind} counts={view.counts} />
+      {kind !== "all" ? (
+        <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">
+          <span className="glass-strong inline-flex min-h-11 items-center rounded-full border pl-4 text-sm font-semibold">
+            {KIND_CHIP[kind]}
+            <Link
+              id="chip-remove-kind"
+              href={libraryHref(tab, "all")}
+              scroll={false}
+              aria-label={`Remove ${KIND_CHIP[kind]} filter`}
+              className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              <X aria-hidden className="size-4" />
+            </Link>
+          </span>
+        </div>
+      ) : null}
       {/* Tabs crossfade in place: same page, different content. */}
       <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="auto" default="none">
-        <div className="mt-4">
+        <div className={kind === "all" ? "lg:pt-3" : undefined}>
           {view.cards.length > 0 ? <LibraryGrid cards={view.cards} /> : <LibraryEmpty tab={tab} kind={kind} />}
         </div>
       </ViewTransition>
