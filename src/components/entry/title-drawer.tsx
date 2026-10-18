@@ -455,8 +455,9 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
             data-drawer-handle
             aria-label={atFull ? "Show less" : "Show more"}
             aria-expanded={atFull}
-            onClick={() => {
-              if (!dragged.current) controls.current?.toggle();
+            onClick={(event) => {
+              // Enter and Space click with detail 0; no drag can be behind them.
+              if (event.detail === 0 || !dragged.current) controls.current?.toggle();
             }}
             className="absolute top-0 left-1/2 z-[3] flex h-11 w-30 -translate-x-1/2 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-grab touch-none justify-center rounded-full pt-2.5 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:hidden"
           >
