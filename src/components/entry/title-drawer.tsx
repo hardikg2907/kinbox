@@ -1,6 +1,5 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, ViewTransition, type ReactNode } from "react";
 import { flushSync } from "react-dom";
@@ -12,6 +11,7 @@ import {
   releaseVelocity,
   spring,
 } from "./drawer-motion";
+import { CLOSE_LOOK, CloseIcon, HANDLE_BAR, HANDLE_LOOK } from "./drawer-chrome";
 import { DrawerHero, DrawerTitleContext, heroFromTile, nextHero, type DrawerHeroState } from "./drawer-hero";
 import { BODY_OVERLAP_PX, STRIP_PX } from "./entry-layout";
 import { openedTile } from "./opened-tile";
@@ -514,9 +514,12 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
               type="button"
               aria-label="Close"
               onClick={() => controls.current?.close()}
-              className="glass-strong absolute top-3 left-3 z-[3] grid size-11 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-pointer place-items-center rounded-full border text-foreground transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+              className={cn(
+                CLOSE_LOOK,
+                "z-[3] cursor-pointer transition-colors hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none",
+              )}
             >
-              <X aria-hidden className="size-5" />
+              <CloseIcon />
             </button>
             <button
               type="button"
@@ -526,13 +529,19 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
                 // Enter and Space click with detail 0; no drag can be behind them.
                 if (event.detail === 0 || !dragged.current) controls.current?.toggle();
               }}
-              className="absolute top-0 left-1/2 z-[3] flex h-11 w-30 -translate-x-1/2 translate-y-[calc(env(safe-area-inset-top)*var(--p,0))] cursor-grab touch-none justify-center rounded-full pt-2.5 focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset lg:hidden"
+              className={cn(
+                HANDLE_LOOK,
+                "z-[3] cursor-grab touch-none rounded-full focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+              )}
             >
-              <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/90 shadow-[0_1px_6px_rgb(0_0_0/0.45)]" />
+              <span aria-hidden className={HANDLE_BAR} />
             </button>
             <div
               ref={scroller}
-              className={cn("absolute inset-0 overscroll-contain", atFull || desktop ? "overflow-y-auto" : "overflow-hidden")}
+              className={cn(
+                "absolute inset-0 overscroll-contain rounded-[inherit]",
+                atFull || desktop ? "overflow-y-auto" : "overflow-hidden",
+              )}
             >
               <DrawerHero />
               {children}

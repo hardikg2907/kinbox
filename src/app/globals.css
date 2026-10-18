@@ -358,11 +358,38 @@ html[data-drawer="full"] [data-sonner-toaster] {
   height: calc(100% - 2rem - var(--lift, 0px) * var(--p, 1) - var(--gap, 0px) * (1 - var(--p, 1)));
 }
 
-/* A poster moving from its tile into the drawer or the page, and back. */
+/* What lies over the drawer's poster (the body's wash at its foot, the Close button and the handle)
+   is painted under it while a view transition lifts the poster above the page. For that time the
+   window carries identical copies in the same places, so the poster lands looking as it will at
+   rest, and the buttons never leave sight. The wash's copy waits for the drawer to settle, when the
+   window's foot is the body's top. */
+[data-title-wash],
+[data-chrome-copy] {
+  display: none;
+}
+:root:active-view-transition #title-drawer:not([data-moving]) [data-title-wash] {
+  display: block;
+}
+:root:active-view-transition #title-drawer [data-chrome-copy] {
+  display: contents;
+}
+
+/* A poster moving from its tile into the drawer or the page, and back. Each image fills the box it
+   travels in and is cut to it, so the tall tile poster never spills over the drawer's sections on
+   its way into the short strip. */
 ::view-transition-group(.poster-morph) {
   z-index: 1;
   animation-duration: 420ms;
   animation-timing-function: var(--ease-morph);
+}
+::view-transition-image-pair(.poster-morph) {
+  overflow: clip;
+}
+::view-transition-old(.poster-morph),
+::view-transition-new(.poster-morph) {
+  block-size: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
 }
 
 /* The drawer rises from the bottom (from the right on desktop) while its poster morphs into place. */

@@ -2,8 +2,9 @@
 
 import { use, useState, ViewTransition } from "react";
 import { cn } from "cn";
+import { DrawerChromeCopy } from "./drawer-chrome";
 import { DrawerMotionContext } from "./drawer-motion";
-import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
+import { DRAWER_WASH, TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 
 type Props = {
   entryId: string;
@@ -34,9 +35,11 @@ export function TitleHero({ entryId, low, high, alt, container }: Props) {
   }
 
   // The window is what morphs. In the drawer it is cut to the part of the poster on show, so the
-  // poster lands in the strip instead of spreading over the sections below it.
+  // poster lands in the strip instead of spreading over the sections below it. It also carries the
+  // shade under the drawer's handle, and copies of the body's wash and of the drawer's buttons, so
+  // the moving poster already looks the way it will at rest.
   const media = (
-    <div data-title-window className="absolute inset-x-0 top-0 h-full overflow-hidden">
+    <div data-title-window className="absolute inset-x-0 top-0 h-full overflow-hidden rounded-t-[inherit]">
       <div className={layout.media}>
         {low ? (
           // TMDB serves sized posters, so next/image optimisation would only spend quota.
@@ -63,6 +66,13 @@ export function TitleHero({ entryId, low, high, alt, container }: Props) {
           />
         ) : null}
       </div>
+      {container === "drawer" ? (
+        <>
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 shade-top" />
+          <div aria-hidden data-title-wash className={DRAWER_WASH} />
+          <DrawerChromeCopy />
+        </>
+      ) : null}
     </div>
   );
 
@@ -77,7 +87,6 @@ export function TitleHero({ entryId, low, high, alt, container }: Props) {
           {media}
         </ViewTransition>
       )}
-      {container === "drawer" ? <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 shade-top" /> : null}
     </header>
   );
 }
