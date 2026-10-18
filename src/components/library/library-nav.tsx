@@ -8,6 +8,7 @@ import { cn } from "cn";
 import type { KindFilter } from "@/data/dto";
 import { STATUSES, type Status } from "@/domain/types";
 import { LayoutChoices } from "@/components/library/layout-choices";
+import { useShownCounts } from "@/components/library/library-moves";
 import { Sheet } from "@/components/library/sheet";
 import { libraryHref } from "@/components/library/params";
 import { useSearchSheet } from "@/components/search/search-sheet-context";
@@ -34,8 +35,10 @@ const ROUND =
 const ACTIVE = "bg-primary text-primary-foreground hover:text-primary-foreground";
 
 // The dock on a phone, the sidebar on a wide screen. Both read one optimistic state, so a pressed
-// tab or filter lights up at once and the wall crossfades when the server answers.
-export function LibraryNav({ tab, kind, counts }: Props) {
+// tab or filter lights up at once and the wall crossfades when the server answers. Counts include
+// status moves still waiting for the server.
+export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
+  const counts = useShownCounts(serverCounts);
   const router = useRouter();
   const search = useSearchSheet();
   const [, startTransition] = useTransition();
