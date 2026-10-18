@@ -1,8 +1,9 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useOptimistic, useTransition } from "react";
+import { useOptimistic, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
+import { cn } from "cn";
 import { showActionToast } from "@/components/action-toast";
 import { Button } from "@/components/ui/button";
 import { undoWatchedNext, watchedNext } from "@/actions/progress";
@@ -13,8 +14,15 @@ type Props = {
   entryId: string;
   /** Names the button, so each card's "Watched it" is told apart by a screen reader. */
   name: string;
+  /** The Title's name link, shown above the Next line. */
+  heading: ReactNode;
+  /** The wide tile: text left, button right, on a scrim. */
+  lead?: boolean;
   /** Narrow on purpose: only what the "Next" line and the button need. */
-  progress: Pick<CardProgress, "caughtUp" | "allNumberedWatched"> & { nextLabel: string | null };
+  progress: Pick<CardProgress, "caughtUp" | "allNumberedWatched"> & {
+    nextLabel: string | null;
+    episodeName: string | null;
+  };
 };
 
 type Shown = Props["progress"] & {
@@ -28,10 +36,10 @@ const UNDO_TOAST_ID = "watched-next-undo";
 
 function reduce(current: Shown, change: Change): Shown {
   if (change.type === "mark") return { ...current, marking: change.label };
-  return { ...current, nextLabel: change.label, caughtUp: false, allNumberedWatched: false, marking: null };
+  return { ...current, nextLabel: change.label, episodeName: null, caughtUp: false, allNumberedWatched: false, marking: null };
 }
 
-export function CardNext({ entryId, name, progress }: Props) {
+export function CardNext({ entryId, name, heading, lead = false, progress }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, change] = useOptimistic<Shown, Change>({ ...progress, marking: null }, reduce);
 
@@ -65,14 +73,15 @@ export function CardNext({ entryId, name, progress }: Props) {
   if (shown.marking === null && shown.nextLabel === null) {
     return (
       <div>
+        {heading}
         {/* Same lines as the Entry page: only a Series that is not finished can be caught up. */}
         {shown.caughtUp ? (
           <>
-            <p className="text-sm font-semibold">Caught up</p>
+            <p className="mt-1 text-sm font-semibold">Caught up</p>
             <p className="text-xs text-muted-foreground">New episodes will show here</p>
           </>
         ) : (
-          <p className="text-sm font-semibold">
+          <p className="mt-1 text-sm font-semibold">
             {shown.allNumberedWatched ? "All episodes watched" : "All aired episodes watched"}
           </p>
         )}
@@ -83,21 +92,30 @@ export function CardNext({ entryId, name, progress }: Props) {
   const line = shown.marking !== null ? `Marked ${shown.marking}` : `Next: ${shown.nextLabel}`;
 
   return (
-    <div className="relative z-10 flex flex-col gap-2">
-      <p className="tabular flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-semibold" aria-live="polite">
-        <span key={line} className="inline-flex animate-in items-center gap-1.5 duration-200 fade-in slide-in-from-bottom-2">
-          {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0" /> : null}
-          {line}
-        </span>
-      </p>
+    <div className={lead ? "flex items-end justify-between gap-3" : "flex flex-col gap-2"}>
+      <div className="min-w-0">
+        {heading}
+        <p className="tabular mt-1 flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-bold" aria-live="polite">
+          <span key={line} className="inline-flex animate-in items-center gap-1.5 duration-200 fade-in slide-in-from-bottom-2">
+            {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0" /> : null}
+            {line}
+          </span>
+        </p>
+        {lead && shown.episodeName && shown.marking === null ? (
+          <p className="line-clamp-1 text-sm text-muted-foreground">{shown.episodeName}</p>
+        ) : null}
+      </div>
       <Button
         id={`watched-it-${entryId}`}
         type="button"
         aria-label={`Watched it: ${name}${shown.nextLabel ? ` ${shown.nextLabel}` : ""}`}
-        variant="secondary"
+        variant={lead ? "default" : "secondary"}
         onClick={markWatched}
         disabled={pending}
-        className="w-full font-semibold"
+        className={cn(
+          "relative z-10 font-semibold after:absolute after:-inset-y-1 after:inset-x-0",
+          lead ? "h-11 shrink-0 px-5" : "h-10 w-full text-sm",
+        )}
       >
         <Check aria-hidden />
         Watched it

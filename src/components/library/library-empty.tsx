@@ -26,20 +26,22 @@ function message(tab: Status, kind: KindFilter): string {
   }
 }
 
+// Centred in the screen above the dock, so the words sit where the eye rests.
 export function LibraryEmpty({ tab, kind }: { tab: Status; kind: KindFilter }) {
   const Icon = STATUS_ICON[tab];
   return (
-    <div className={cn(GUTTER, "pt-2")}>
-      <div
-        id="library-empty"
-        className="glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl border px-6 py-12 text-center"
-      >
-        <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-foreground">
-          <Icon aria-hidden className="size-6" />
-        </span>
-        <p className="text-lg text-pretty">{message(tab, kind)}</p>
-        {tab === "to_watch" ? <FocusSearchButton /> : null}
-      </div>
+    <div
+      id="library-empty"
+      className={cn(
+        GUTTER,
+        "flex min-h-[calc(100dvh-3.5rem-6.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col items-center justify-center gap-4 text-center lg:min-h-[calc(100dvh-4rem)]",
+      )}
+    >
+      <span className="flex size-14 items-center justify-center rounded-full bg-secondary text-foreground">
+        <Icon aria-hidden className="size-6" />
+      </span>
+      <p className="max-w-sm text-lg text-pretty">{message(tab, kind)}</p>
+      {tab === "to_watch" ? <FocusSearchButton /> : null}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { Check, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useOptimistic, useRef, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
-import { NotOutYetMock } from "@/components/not-out-yet-mock";
 import { Button } from "@/components/ui/button";
 import { Poster } from "@/components/poster";
 import { KindBadge, STATUS_LABEL, StatusLabel } from "@/components/status";
@@ -104,7 +103,6 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-muted-foreground">
             {year !== null ? <span className="tabular">{year}</span> : null}
             <KindBadge kind={kind} />
-            <NotOutYetMock name={name} />
           </div>
           {statusLine ? <div className="mt-1 sm:hidden">{statusLine}</div> : null}
         </div>
