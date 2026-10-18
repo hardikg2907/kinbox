@@ -426,7 +426,7 @@ html[data-drawer="full"] [data-sonner-toaster] {
   --tint-amount: var(--tint-mix-light, 0%);
   --title-bg: color-mix(in oklab, var(--background), var(--tint-source) var(--tint-amount));
   background-color: var(--title-bg);
-  transition: --tint-amount 700ms ease-out;
+  transition: --tint-amount 240ms ease-out;
   /* A tinted light page is darker than the plain one, so the stars' outline needs a deeper amber
      to keep 3:1 against it. */
   @media (not (prefers-color-scheme: dark)) {

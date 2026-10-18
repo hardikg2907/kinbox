@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { ShowInDrawer } from "@/components/entry/drawer-hero";
 import { DrawerSkeleton } from "@/components/entry/drawer-skeleton";
 import { EntryScreen } from "@/components/entry/entry-screen";
 import { TitleDrawer } from "@/components/entry/title-drawer";
@@ -12,8 +13,8 @@ export async function generateMetadata({ params }: PageProps<"/entry/[id]">): Pr
   return { title: entry ? entry.title.name : "Not found" };
 }
 
-// A Title tapped in the Library opens here, over the wall. The drawer and its skeleton paint at
-// once; the Owner's data streams in behind them.
+// A Title tapped in the Library opens here, over the wall. The drawer, its poster and what the
+// tapped card knows paint at once; the Owner's data streams in behind them.
 export default function TitleDrawerPage({ params }: PageProps<"/entry/[id]">) {
   return (
     <TitleDrawer>
@@ -30,6 +31,7 @@ async function DrawerContent({ params }: { params: PageProps<"/entry/[id]">["par
   if (!entry) {
     return (
       <div className="flex flex-col gap-3 px-5 pt-20 pb-10">
+        <ShowInDrawer entryId={null} posterPath={null} />
         <h2 id={`title-name-${id}`} data-title-name className="font-display text-3xl">
           Not in your library
         </h2>

@@ -5,7 +5,7 @@ import { TilePosterTransition } from "@/components/entry/tile-poster-transition"
 import { Poster } from "@/components/poster";
 import { CardNext } from "@/components/library/card-next";
 import { formatWatchDate } from "@/components/library/format-date";
-import type { LibraryCard as LibraryCardData } from "@/data/dto";
+import type { CardProgress, LibraryCard as LibraryCardData } from "@/data/dto";
 
 type Props = {
   card: LibraryCardData;
@@ -15,12 +15,35 @@ type Props = {
   lead?: boolean;
 };
 
+// The same states as the card's Next line below.
+function nextState(progress: CardProgress): string {
+  if (progress.next) return "next";
+  if (progress.caughtUp) return "caught-up";
+  return progress.allNumberedWatched ? "all-watched" : "all-aired";
+}
+
+// What the card already shows, for the drawer's first frame while the rest of the Title loads.
+function drawerFacts({ name, kind, status, posterPath, progress }: LibraryCardData, showsNext: boolean) {
+  const shown = showsNext ? progress : null;
+  const next = shown?.next;
+  return {
+    "data-name": name,
+    "data-kind": kind,
+    "data-status": status,
+    "data-poster-path": posterPath ?? undefined,
+    "data-next": shown ? nextState(shown) : undefined,
+    "data-next-label": next?.label,
+    "data-next-name": next?.name ?? undefined,
+  };
+}
+
 // The name's link stretches over the whole cell (its ::after), so a tap anywhere opens the Entry;
 // the "Watched it" button sits above it and stays a separate target. Press-and-hold belongs to
 // Kinbox here, so the browser's own long-press menu, text selection and dragging are off.
 export function LibraryCard({ card, eager, lead = false }: Props) {
   const { entryId, name, kind, posterPath, status, progress, latestWatchOn } = card;
   const showsNext = status === "watching" && kind === "series";
+  const facts = drawerFacts(card, showsNext);
 
   const nameLink = (
     <Link
@@ -76,6 +99,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
     return (
       <li
         id={`card-${entryId}`}
+        {...facts}
         className="group relative col-span-full isolate grid overflow-hidden rounded-card bg-muted select-none [-webkit-touch-callout:none]"
       >
         {poster}
@@ -89,6 +113,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   return (
     <li
       id={`card-${entryId}`}
+      {...facts}
       className="group relative flex min-w-0 flex-col select-none [-webkit-touch-callout:none] rows:min-h-[86px] rows:flex-row rows:items-center rows:gap-3.5 rows:border-b rows:py-2"
     >
       {poster}

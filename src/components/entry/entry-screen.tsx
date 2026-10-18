@@ -1,6 +1,7 @@
 import type { EntryView } from "@/data/dto";
 import { posterUrl } from "@/lib/tmdb/images";
 import { TitleTint } from "@/components/poster-colour/title-tint";
+import { ShowInDrawer } from "./drawer-hero";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 import { EntryProvider } from "./entry-state";
 import { NameBar } from "./name-bar";
@@ -33,15 +34,22 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
         tmdbUnavailable: entry.tmdbUnavailable,
       }}
     >
-      <TitleTint posterPath={title.posterPath} />
       <StatusPillHost name={title.name} posterPath={title.posterPath}>
-        <TitleHero
-          entryId={entry.id}
-          low={posterUrl(title.posterPath, "w342")}
-          high={posterUrl(title.posterPath, "w500")}
-          alt={container === "page" ? title.name : ""}
-          container={container}
-        />
+        {container === "page" ? (
+          <>
+            <TitleTint posterPath={title.posterPath} />
+            <TitleHero
+              entryId={entry.id}
+              low={posterUrl(title.posterPath, "w342")}
+              high={posterUrl(title.posterPath, "w500")}
+              alt={title.name}
+              container="page"
+            />
+          </>
+        ) : (
+          // The drawer draws the poster and its colour itself, from its first frame on.
+          <ShowInDrawer entryId={entry.id} posterPath={title.posterPath} />
+        )}
         <NameBar name={title.name} container={container} />
         <div id="entry-content" data-title-body className={layout.body}>
           <div aria-hidden className={layout.fade} />

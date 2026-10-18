@@ -1,16 +1,18 @@
 "use client";
 
 import { KindBadge } from "@/components/status";
-import { NextBlock, ProgressLine } from "@/components/progress/next-block";
+import { NextBlock, NextBlockPreview, ProgressLine } from "@/components/progress/next-block";
 import { SeasonsPanel } from "@/components/progress/seasons-panel";
-import type { TitleKind } from "@/domain/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { Status, TitleKind } from "@/domain/types";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 import { useEntry } from "./entry-state";
 import { NoteSection } from "./note-section";
-import { Overview } from "./overview";
-import { RatingSection } from "./rating-section";
+import type { TileFacts } from "./opened-tile";
+import { Overview, OverviewPreview } from "./overview";
+import { RatingPreview, RatingSection } from "./rating-section";
 import { RemoveEntry } from "./remove-entry";
-import { StatusPill } from "./status-pill";
+import { StatusPill, StatusPillPreview } from "./status-pill";
 import { WatchesSection } from "./watches-section";
 
 export type TitleFacts = {
@@ -28,9 +30,11 @@ function formatRuntime(minutes: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
+const META = "flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground";
+
 export function TitleMeta({ facts }: { facts: TitleFacts }) {
   return (
-    <p className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+    <p className={META}>
       {facts.year ? <span className="tabular">{facts.year}</span> : null}
       <KindBadge kind={facts.kind} />
       {facts.kind === "movie" && facts.runtimeMinutes ? (
@@ -41,9 +45,13 @@ export function TitleMeta({ facts }: { facts: TitleFacts }) {
 }
 
 /** A watching, watched or dropped Series leads with its Next block; anything else with its overview. */
+function leadsWithNext(kind: TitleKind, status: Status): boolean {
+  return kind === "series" && status !== "to_watch";
+}
+
 function useLeadsWithNext(): boolean {
   const { kind, model } = useEntry();
-  return kind === "series" && model.status !== "to_watch";
+  return leadsWithNext(kind, model.status);
 }
 
 /**
@@ -71,6 +79,35 @@ export function TitleHead({ facts, container }: { facts: TitleFacts; container: 
         </div>
       )}
       <RatingSection />
+    </div>
+  );
+}
+
+/**
+ * The quick view as the tapped card knows it, while the Title loads: the same name, a pill with the
+ * Status, and the Next block or, for anything else, the overview's and the stars' rows held at
+ * their height. A copy for the eye only; the controls arrive with the Title.
+ */
+export function TitleHeadPreview({ entryId, facts }: { entryId: string; facts: TileFacts }) {
+  return (
+    <div data-title-head aria-hidden className="flex flex-col gap-4">
+      <h2 id={`title-name-${entryId}`} data-title-name className={TITLE_LAYOUT.drawer.name}>
+        {facts.name}
+      </h2>
+      <div className="flex">
+        <StatusPillPreview status={facts.status} />
+      </div>
+      {leadsWithNext(facts.kind, facts.status) ? (
+        <NextBlockPreview next={facts.next} />
+      ) : (
+        <div className="flex flex-col gap-2">
+          <OverviewPreview />
+          <div className={META}>
+            <Skeleton className="h-5 w-40" />
+          </div>
+        </div>
+      )}
+      <RatingPreview status={facts.status} />
     </div>
   );
 }
