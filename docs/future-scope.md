@@ -4,7 +4,7 @@ Ideas that are not part of v1. Each one waits for a later effort. Add new ideas 
 
 ## Next, right after v1 ships
 
-- **Import existing lists.** Bulk paste of titles, then file import from Letterboxd, IMDb and Trakt exports.
+- **File import** from Letterboxd, IMDb and Trakt exports. (Pasting a list is being built now: see [paste import](paste-import.md).)
 
 ## Later
 
