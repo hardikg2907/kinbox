@@ -33,7 +33,8 @@ export function useWallLayout(): Pick<WallLayout, "layout" | "setLayout"> {
 
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function measure(root: HTMLElement | null): Map<string, DOMRect> {
+/** Where each card on (or near) the screen sits, so a change can glide the cards to their new places. */
+export function measure(root: HTMLElement | null): Map<string, DOMRect> {
   const map = new Map<string, DOMRect>();
   if (!root) return map;
   const height = window.innerHeight;
@@ -44,6 +45,34 @@ function measure(root: HTMLElement | null): Map<string, DOMRect> {
     map.set(card.id, rect);
   }
   return map;
+}
+
+/** Moves each card from where `measure` saw it to where it sits now. Cards new to the wall just appear. */
+export function glide(root: HTMLElement | null, first: Map<string, DOMRect>) {
+  if (!root) return;
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
+  const spring = getComputedStyle(document.documentElement).getPropertyValue("--spring").trim();
+  for (const card of root.querySelectorAll<HTMLElement>(":scope > li[id]")) {
+    const from = first.get(card.id);
+    if (!from) continue;
+    const to = card.getBoundingClientRect();
+    if (to.width === 0) continue;
+    const scale = from.width / to.width;
+    const dx = from.left - to.left;
+    const dy = from.top - to.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(1 - scale) < 0.01) continue;
+    // A card that changes shape too much (grid to list) fades in instead of stretching.
+    const stretchy = Math.abs(1 - scale) > 0.6;
+    const frames: Keyframe[] = stretchy
+      ? [{ opacity: 0 }, { opacity: 1 }]
+      : [{ transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: "0 0" }, { transform: "none", transformOrigin: "0 0" }];
+    const options: KeyframeAnimationOptions = { duration: 520, easing };
+    try {
+      card.animate(frames, spring ? { ...options, easing: spring } : options);
+    } catch {
+      card.animate(frames, options);
+    }
+  }
 }
 
 const DESKTOP_STEPS: readonly Layout[] = ["2", "3", "4"];
@@ -66,31 +95,7 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
   useLayoutEffect(() => {
     const first = snapshot.current;
     snapshot.current = null;
-    const root = wall.current;
-    if (!first || !root) return;
-    const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
-    const spring = getComputedStyle(document.documentElement).getPropertyValue("--spring").trim();
-    for (const card of root.querySelectorAll<HTMLElement>(":scope > li[id]")) {
-      const from = first.get(card.id);
-      if (!from) continue;
-      const to = card.getBoundingClientRect();
-      if (to.width === 0) continue;
-      const scale = from.width / to.width;
-      const dx = from.left - to.left;
-      const dy = from.top - to.top;
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(1 - scale) < 0.01) continue;
-      // A card that changes shape too much (grid to list) fades in instead of stretching.
-      const stretchy = Math.abs(1 - scale) > 0.6;
-      const frames: Keyframe[] = stretchy
-        ? [{ opacity: 0 }, { opacity: 1 }]
-        : [{ transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: "0 0" }, { transform: "none", transformOrigin: "0 0" }];
-      const options: KeyframeAnimationOptions = { duration: 520, easing };
-      try {
-        card.animate(frames, spring ? { ...options, easing: spring } : options);
-      } catch {
-        card.animate(frames, options);
-      }
-    }
+    if (first) glide(wall.current, first);
   }, [layout]);
 
   // Pinch on the wall switches two and three columns on a phone; Ctrl or Cmd with the wheel steps

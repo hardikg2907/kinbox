@@ -16,7 +16,8 @@ type Props = {
 };
 
 // The name's link stretches over the whole cell (its ::after), so a tap anywhere opens the Entry;
-// the "Watched it" button sits above it and stays a separate target.
+// the "Watched it" button sits above it and stays a separate target. Press-and-hold belongs to
+// Kinbox here, so the browser's own long-press menu, text selection and dragging are off.
 export function LibraryCard({ card, eager, lead = false }: Props) {
   const { entryId, name, kind, posterPath, status, progress, latestWatchOn } = card;
   const showsNext = status === "watching" && kind === "series";
@@ -24,6 +25,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   const nameLink = (
     <Link
       href={`/entry/${entryId}`}
+      draggable={false}
       className={cn(
         "block rounded-sm outline-none after:absolute after:inset-0 focus-visible:after:rounded-tile focus-visible:after:ring-3 focus-visible:after:ring-ring",
         lead
@@ -49,7 +51,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
             ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]"
             : 'rounded-tile [[data-layout="4"]_&]:rounded-thumb rows:w-[46px] rows:shrink-0 rows:rounded-thumb',
         )}
-        imageClassName={lead ? "object-top" : undefined}
+        imageClassName={cn("[-webkit-user-drag:none]", lead && "object-top")}
       />
     </TilePosterTransition>
   );
@@ -72,7 +74,10 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
 
   if (lead) {
     return (
-      <li id={`card-${entryId}`} className="group relative col-span-full isolate grid overflow-hidden rounded-card bg-muted">
+      <li
+        id={`card-${entryId}`}
+        className="group relative col-span-full isolate grid overflow-hidden rounded-card bg-muted select-none [-webkit-touch-callout:none]"
+      >
         {poster}
         <div aria-hidden className="scrim-lead z-[1] h-36 self-end [grid-area:1/1]" />
         {/* Not positioned, so the name's stretched link still covers the whole tile. */}
@@ -84,7 +89,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   return (
     <li
       id={`card-${entryId}`}
-      className="group relative flex min-w-0 flex-col rows:min-h-[86px] rows:flex-row rows:items-center rows:gap-3.5 rows:border-b rows:py-2"
+      className="group relative flex min-w-0 flex-col select-none [-webkit-touch-callout:none] rows:min-h-[86px] rows:flex-row rows:items-center rows:gap-3.5 rows:border-b rows:py-2"
     >
       {poster}
       <div className="px-0.5 pt-2 rows:min-w-0 rows:flex-1 rows:p-0">

@@ -3,8 +3,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { ViewTransition } from "react";
 import { getLibrary } from "@/data/library";
-import { LibraryEmpty } from "@/components/library/library-empty";
-import { LibraryGrid } from "@/components/library/library-grid";
+import { LibraryMoves, LibraryWall } from "@/components/library/library-moves";
 import { LibraryNav } from "@/components/library/library-nav";
 import { LAYOUT_COOKIE, parseLayout } from "@/components/library/layout";
 import { libraryHref, parseKind, parseTab } from "@/components/library/params";
@@ -26,29 +25,29 @@ export async function LibraryContent({ searchParams }: Props) {
 
   return (
     <LayoutProvider initial={layout}>
-      <LibraryNav tab={tab} kind={kind} counts={view.counts} />
-      {kind !== "all" ? (
-        <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">
-          <span className="glass-strong inline-flex min-h-11 items-center rounded-full border pl-4 text-sm font-semibold">
-            {KIND_CHIP[kind]}
-            <Link
-              id="chip-remove-kind"
-              href={libraryHref(tab, "all")}
-              scroll={false}
-              aria-label={`Remove ${KIND_CHIP[kind]} filter`}
-              className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
-            >
-              <X aria-hidden className="size-4" />
-            </Link>
-          </span>
-        </div>
-      ) : null}
-      {/* Tabs crossfade in place: same page, different content. */}
-      <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="auto" default="none">
-        <div className={kind === "all" ? "lg:pt-3" : undefined}>
-          {view.cards.length > 0 ? <LibraryGrid cards={view.cards} /> : <LibraryEmpty tab={tab} kind={kind} />}
-        </div>
-      </ViewTransition>
+      <LibraryMoves tab={tab} cards={view.cards} counts={view.counts}>
+        <LibraryNav tab={tab} kind={kind} counts={view.counts} />
+        {kind !== "all" ? (
+          <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">
+            <span className="glass-strong inline-flex min-h-11 items-center rounded-full border pl-4 text-sm font-semibold">
+              {KIND_CHIP[kind]}
+              <Link
+                id="chip-remove-kind"
+                href={libraryHref(tab, "all")}
+                scroll={false}
+                aria-label={`Remove ${KIND_CHIP[kind]} filter`}
+                className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none"
+              >
+                <X aria-hidden className="size-4" />
+              </Link>
+            </span>
+          </div>
+        ) : null}
+        {/* Tabs crossfade in place: same page, different content. */}
+        <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="auto" default="none">
+          <LibraryWall kind={kind} className={kind === "all" ? "lg:pt-3" : undefined} />
+        </ViewTransition>
+      </LibraryMoves>
     </LayoutProvider>
   );
 }
