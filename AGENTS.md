@@ -24,6 +24,19 @@ Your training data is out of date for this Next.js version. Read the guide in `n
 - `pnpm db:generate` then `pnpm db:migrate` for every schema change. Never `drizzle-kit push` against a shared or production database. Commit migration files.
 - `pnpm user:create` makes the Owner's account. There is no sign-up page.
 
+## Branches and worktrees
+
+Several sessions and agents work at once, so work never shares a checkout.
+
+- `main` is production: a push deploys. Code never lands on `main` directly, only by merge. Docs-only commits (decisions, specs) may go straight to `main`.
+- Every piece of work gets its own branch and worktree: `git worktree add ../kinbox-<slug> -b <feat|fix|design>/<slug> <base>`, then `pnpm install --frozen-lockfile`. Never work in a worktree another session or agent is using; make a new one. The owner's `post-checkout` hook copies the env files into a new worktree; never copy or print `.env*` files yourself.
+- Large work uses an integration branch (for example `design/dock`). Its parts branch off it and merge back into it, so parts that touch different files run in parallel.
+- Each worktree runs its dev server on its own port: `BETTER_AUTH_URL=http://localhost:<port> pnpm next dev -p <port>`. The main checkout uses 3100; take the next free port from 3101.
+- Tests share one test database, so only one test run happens at a time across worktrees. Take the lock first: `L="$(git rev-parse --git-common-dir)/test.lock"; until mkdir "$L" 2>/dev/null; do sleep 5; done; pnpm test; rmdir "$L"`. Remove a stale lock only when no test run is going.
+- Before a merge: rebase onto the target branch, then `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+- Merging into `main` and pushing need the owner's approval. Show the owner the reviewed and checked result first: code review done, quality checks passed, and how to try it.
+- After a merge, delete the branch and its worktree.
+
 ## Layout
 
 ```
