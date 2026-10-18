@@ -20,6 +20,12 @@ export const BODY_OVERLAP_PX = 32;
 
 type Layout = { hero: string; media: string; body: string; fade: string; name: string };
 
+/** The drawer's wash over the poster's foot. The body carries it, and the poster's window a copy for view transitions. */
+const DRAWER_FADE = "pointer-events-none absolute inset-x-0 h-16 title-fade-grow scrim-title";
+
+/** The copy of the drawer's wash that sits at the foot of the poster's window, where the body's top meets it. */
+export const DRAWER_WASH = `${DRAWER_FADE} bottom-0`;
+
 export const TITLE_LAYOUT: Record<TitleContainer, Layout> = {
   // From `lg` the page is two columns beside the sidebar: a tall sticky poster and the sections.
   page: {
@@ -30,11 +36,12 @@ export const TITLE_LAYOUT: Record<TitleContainer, Layout> = {
     name: "font-display text-[44px] text-balance wrap-break-word text-foreground",
   },
   drawer: {
-    hero: `relative ${HERO_HEIGHT} w-full overflow-hidden select-none [-webkit-touch-callout:none] lg:h-[250px]`,
+    // The rounded top follows the panel's, so the poster's window carries it into a view transition.
+    hero: `relative ${HERO_HEIGHT} w-full overflow-hidden rounded-t-[inherit] select-none [-webkit-touch-callout:none] lg:h-[250px]`,
     // As tall as the hero, not the window around it, so cutting the window never moves the poster.
     media: `absolute inset-x-0 top-0 ${HERO_HEIGHT} title-parallax lg:h-[250px]`,
     body: "title-follow relative z-[1] -mt-[160px] flex min-w-0 flex-col gap-8 bg-[var(--title-bg,var(--background))] px-5 pb-[max(5rem,env(safe-area-inset-bottom))] lg:-mt-8",
-    fade: "pointer-events-none absolute inset-x-0 bottom-full h-16 title-fade-grow scrim-title",
+    fade: `${DRAWER_FADE} bottom-full`,
     name: "title-name-grow max-w-[80%] font-display text-[30px] text-balance wrap-break-word text-foreground",
   },
 };
