@@ -99,15 +99,17 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
   }, [layout]);
 
   // Pinch on the wall switches two and three columns on a phone; Ctrl or Cmd with the wheel steps
-  // through the grids on a desktop (a laptop trackpad pinch arrives as Ctrl + wheel).
+  // through the grids on a desktop (a laptop trackpad pinch arrives as Ctrl + wheel). The listeners
+  // sit on the document because the wall's list unmounts while a tab is empty; they act only on
+  // events that start inside the wall, and leave the browser's own zoom alone elsewhere.
   useEffect(() => {
-    const root = wall.current;
-    if (!root) return;
+    const inWall = (target: EventTarget | null) =>
+      target instanceof Node && Boolean(wall.current?.contains(target));
     let startDistance = 0;
     const distance = (touches: TouchList) => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
 
     const onStart = (event: TouchEvent) => {
-      startDistance = event.touches.length === 2 ? distance(event.touches) : 0;
+      startDistance = event.touches.length === 2 && inWall(event.target) ? distance(event.touches) : 0;
     };
     const onMove = (event: TouchEvent) => {
       if (startDistance === 0 || event.touches.length !== 2) return;
@@ -124,49 +126,57 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
       if (event.touches.length < 2) startDistance = 0;
     };
     // iOS Safari zooms the page on a pinch even with touch-action set.
-    const onGesture = (event: Event) => event.preventDefault();
+    const onGesture = (event: Event) => {
+      if (inWall(event.target)) event.preventDefault();
+    };
 
     let acc = 0;
     let lockedUntil = 0;
     const onWheel = (event: WheelEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || !window.matchMedia("(min-width: 1024px)").matches) return;
-      event.preventDefault();
+      if (!(event.ctrlKey || event.metaKey) || !inWall(event.target) || !window.matchMedia("(min-width: 1024px)").matches) return;
       const now = current.current;
       if (now === "list") return;
+      // The rest of one pinch, right after a change, must not zoom the page either.
+      if (performance.now() < lockedUntil) {
+        event.preventDefault();
+        return;
+      }
       acc += event.deltaY;
-      if (performance.now() < lockedUntil || Math.abs(acc) < 40) return;
+      if (Math.abs(acc) < 40) return;
       const index = DESKTOP_STEPS.indexOf(now === "auto" ? "4" : now);
       const next = DESKTOP_STEPS[Math.min(DESKTOP_STEPS.length - 1, Math.max(0, index + (acc > 0 ? 1 : -1)))];
       acc = 0;
+      if (next === (now === "auto" ? "4" : now)) return;
+      event.preventDefault();
       lockedUntil = performance.now() + 380;
       setLayout(next);
     };
 
-    root.addEventListener("touchstart", onStart, { passive: true });
-    root.addEventListener("touchmove", onMove, { passive: true });
-    root.addEventListener("touchend", onEnd);
-    root.addEventListener("touchcancel", onEnd);
-    root.addEventListener("gesturestart", onGesture);
+    document.addEventListener("touchstart", onStart, { passive: true });
+    document.addEventListener("touchmove", onMove, { passive: true });
+    document.addEventListener("touchend", onEnd);
+    document.addEventListener("touchcancel", onEnd);
+    document.addEventListener("gesturestart", onGesture);
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => {
-      root.removeEventListener("touchstart", onStart);
-      root.removeEventListener("touchmove", onMove);
-      root.removeEventListener("touchend", onEnd);
-      root.removeEventListener("touchcancel", onEnd);
-      root.removeEventListener("gesturestart", onGesture);
+      document.removeEventListener("touchstart", onStart);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onEnd);
+      document.removeEventListener("gesturestart", onGesture);
       window.removeEventListener("wheel", onWheel);
     };
   }, [setLayout]);
-
 
   const value = useMemo(() => ({ layout, setLayout, wall, snapshot }), [layout, setLayout]);
   return <WallLayoutContext value={value}>{children}</WallLayoutContext>;
 }
 
 // Every layout gives the same cards a new place, so only the grid's own classes change here.
-// "4" is three on a phone, which a phone-only 4 would otherwise make too narrow.
+// "4" is three on a phone, which a phone-only 4 would otherwise make too narrow. The default is the
+// "2", "3" and "4" layouts in turn as the screen widens, so a button always matches what the wall shows.
 const GRID: Record<Layout, string> = {
-  auto: "grid-cols-2 gap-x-2 gap-y-5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+  auto: "grid-cols-2 gap-x-2 gap-y-5 sm:grid-cols-3 sm:gap-x-1.5 sm:gap-y-4 lg:grid-cols-4 lg:gap-x-1 lg:gap-y-3.5",
   "2": "grid-cols-2 gap-x-2 gap-y-5",
   "3": "grid-cols-3 gap-x-1.5 gap-y-4",
   "4": "grid-cols-3 gap-x-1.5 gap-y-4 sm:grid-cols-4 sm:gap-x-1 sm:gap-y-3.5",

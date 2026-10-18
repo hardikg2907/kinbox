@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { cn } from "cn";
 import type { Layout } from "@/components/library/layout";
 import { useWallLayout } from "@/components/library/wall-layout";
@@ -13,17 +14,31 @@ const PHONE: Option[] = [
 ];
 const DESKTOP: Option[] = [...PHONE.slice(0, 2), { value: "4", label: "4 columns" }, PHONE[2]];
 
-// The saved layout may not exist on this screen (a phone shows "4" as three, and the default is two
-// on a phone and four on a desktop), so the pressed button is the one the wall actually shows.
-function shownOn(layout: Layout, desktop: boolean): Layout {
-  if (layout === "auto") return desktop ? "4" : "2";
+const WIDE_PHONE = "(min-width: 40rem)";
+
+function subscribeWidePhone(onChange: () => void) {
+  const query = window.matchMedia(WIDE_PHONE);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+// The saved layout may not exist on this screen (a phone shows "4" as three), and the default grows
+// with the screen: two columns, three from 40rem, four on a desktop. So the pressed button is the
+// one the wall actually shows.
+function shownOn(layout: Layout, desktop: boolean, widePhone: boolean): Layout {
+  if (layout === "auto") return desktop ? "4" : widePhone ? "3" : "2";
   if (layout === "4" && !desktop) return "3";
   return layout;
 }
 
 export function LayoutChoices({ desktop, idPrefix, className }: { desktop: boolean; idPrefix: string; className?: string }) {
   const { layout, setLayout } = useWallLayout();
-  const shown = shownOn(layout, desktop);
+  const widePhone = useSyncExternalStore(
+    subscribeWidePhone,
+    () => window.matchMedia(WIDE_PHONE).matches,
+    () => false,
+  );
+  const shown = shownOn(layout, desktop, widePhone);
   return (
     <ul id={`${idPrefix}-layout`} className={cn("grid gap-2", desktop ? "grid-cols-2" : "grid-cols-3", className)}>
       {(desktop ? DESKTOP : PHONE).map(({ value, label }) => (

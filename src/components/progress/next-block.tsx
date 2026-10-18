@@ -13,9 +13,12 @@ const TMDB_DOWN = "Can't reach the movie database right now. Try again in a minu
 
 const DONE = "font-display text-3xl text-foreground";
 
-function NextName({ name, helper }: { name: string | null; helper: string | null }) {
+// `reserve` keeps the line's height in the Next state, so the layout does not jump when the
+// Episode's name arrives. Elsewhere an empty line would only add a gap.
+function NextName({ name, helper, reserve }: { name: string | null; helper: string | null; reserve: boolean }) {
   const [first] = useState(name);
   const text = name ?? helper;
+  if (!text && !reserve) return null;
   return (
     <p
       key={text ?? ""}
@@ -88,7 +91,7 @@ export function NextBlock() {
       </h2>
       <div className="min-w-0 flex-1">
         <SlideSwap id={headId}>{head}</SlideSwap>
-        {model.nextPending ? <Skeleton className="mt-1 h-6 w-40" /> : <NextName name={name} helper={helper} />}
+        {model.nextPending ? <Skeleton className="mt-1 h-6 w-40" /> : <NextName name={name} helper={helper} reserve={next !== null} />}
       </div>
       {canWatch ? (
         <Button

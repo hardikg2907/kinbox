@@ -29,7 +29,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
       className={cn(
         "block rounded-sm outline-none after:absolute after:inset-0 focus-visible:after:rounded-tile focus-visible:after:ring-3 focus-visible:after:ring-ring",
         lead
-          ? "line-clamp-1 font-display text-xl"
+          ? "line-clamp-1 font-display text-xl focus-visible:after:ring-inset"
           : "line-clamp-2 text-sm leading-tight font-bold dense:line-clamp-1 rows:line-clamp-1 rows:text-base",
       )}
     >
