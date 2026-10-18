@@ -13,7 +13,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "user:create": "tsx --conditions=react-server scripts/user-create.ts",
-    "db:migrate:deploy": "tsx --conditions=react-server scripts/migrate-on-deploy.ts"
+    "db:migrate:deploy": "tsx --conditions=react-server scripts/migrate-on-deploy.ts",
+    "prepare": "simple-git-hooks"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.10",
@@ -43,6 +44,7 @@
     "drizzle-kit": "0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "simple-git-hooks": "2.14.0",
     "tailwindcss": "^4",
     "tsx": "4.23.15",
     "typescript": "^5",
@@ -51,5 +53,12 @@
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": "22.x"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "if [ -f scripts/hooks/pre-commit.ts ]; then pnpm exec tsx scripts/hooks/pre-commit.ts; else echo '[hooks] This branch has no hook scripts yet; skipping.'; fi",
+    "pre-push": "if [ -f scripts/hooks/pre-push.sh ]; then sh scripts/hooks/pre-push.sh; else echo '[hooks] This branch has no hook scripts yet; skipping.'; fi",
+    "preserveUnused": [
+      "post-checkout"
+    ]
   }
 }
