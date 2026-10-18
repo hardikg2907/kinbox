@@ -13,6 +13,7 @@ export const MESSAGES = {
   rateNotStarted: "Start watching it to rate it.",
   noteTooLong: "Notes can be up to 1,000 characters.",
   watchDate: "Pick a date between 1 Jan 1900 and today.",
+  changedSince: "This changed after you moved it, so it can't be undone.",
   tmdbDown: "Can't reach the movie database right now. Try again in a minute.",
   signIn: "Sign in to continue.",
   generic: "Couldn't save that. Try again.",
