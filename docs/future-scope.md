@@ -5,6 +5,10 @@ Ideas that are not part of v1. Each one waits for a later effort. Add new ideas 
 ## Next, right after v1 ships
 
 - **File import** from Letterboxd, IMDb and Trakt exports. (Pasting a list is being built now: see [paste import](paste-import.md).)
+- **Episode places in a pasted list** (`S2E4`, `till S3`): the line becomes Watching from that Episode. Paste import reads Status only.
+- **Splitting pasted lines that name several Titles** ("Name 1 and 2", "all parts", "trilogy", "All <franchise> movies").
+- **An import that updates Titles already in the Library**, for example To watch to Watched. Paste import only adds.
+- **Undo an earlier import later**, from the account menu. Paste import offers Undo on its result screen only.
 
 ## Later
 
