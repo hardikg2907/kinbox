@@ -71,9 +71,9 @@ For each line, in this order:
 5. **Bracket groups** (`(...)`, `[...]`) are removed from the search text:
    - A year from 1874 to the current year + 5 is the year hint.
    - `series`, `tv`, `show`, `movie`, `film` is the kind hint. It wins over the heading's kind.
-   - Other text with letters becomes the alternate search text (the first such group only).
+   - Other text with a word of 3 or more letters, which is not itself a several-Titles pattern, becomes the alternate search text (the first such group only). `(One Day)` qualifies; `(1 and 2)` and `(all parts)` do not.
    - A year at the end without brackets (`Name 2010`) is also the year hint, unless the whole line is a year.
-6. **Several Titles**: a line with ` and <digit>`, `<digit>/<digit>`, `/`, `, ` between words, `(all parts)`, `trilogy`, or that starts with `all ` or `more ` is flagged as several Titles. It is never split; its result is at best "Check this".
+6. **Several Titles**: a line with ` and <digit>`, `<digit>/<digit>`, `/`, `, ` between words, `(all parts)` or `trilogy`, or that starts with `all ` or `more ` and ends with `movies`, `films`, `parts` or `series`, is flagged as several Titles. `All the old knives` stays one Title. It is never split; its result is at best "Check this".
 7. Trailing `,`, `.` and `;` are removed. The search text is capped at 100 characters (the search cache's key limit).
 
 The Status a line asks for: its own Watched mark or empty box, else the heading's Status, else To watch.
@@ -99,7 +99,7 @@ Results:
 - **Found**: the best result has name score 1, no hint against it, the line is not flagged as several Titles, and no other result with name score 1 and no hint against it has more than a third of its popularity.
 - **Check this**: every other case. The 3 best results are the candidates.
 
-When the main search text gives no Found result and the line has an alternate search text, that text is searched too, and the better result wins.
+When the main search text gives no Found result and the line has an alternate search text, that text is searched too. Its results are scored against the alternate text, and they replace the main results only when they reach Found. Otherwise the main results stand.
 
 The numbers are starting values. The evaluation script (build step 3) tunes them against the owner's real note. The aim: no wrong Match among Found rows, and as few Check this rows as that allows.
 
@@ -215,17 +215,18 @@ Words:
 
 ## Build steps
 
-All work happens on the integration branch `feat/paste-import` (from `main`), in its own worktree, as `AGENTS.md` ("Branches and worktrees") describes. Each step is a branch off `feat/paste-import` with its own worktree, merged back after `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass. Steps 1-5 do not touch screens and can start before the design merge; step 6 waits until the design is on `main`, then `feat/paste-import` rebases onto `main`. Merging `feat/paste-import` into `main` needs the owner's approval. The git hooks run lint and typecheck on every commit and the tests (under the test lock) on every push, so each step commits only green work.
+All work happens on the integration branch `feat/paste-import` (from `main`), in its own worktree, as `AGENTS.md` ("Branches and worktrees") describes. Each step is a branch off `feat/paste-import` with its own worktree, merged back after `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass. Steps 1-3 touch no screens and no file the design branch changes, so they can start before the design merge. Steps 4-6 wait until the design (with Undo for every Status move) is on `main`; then `feat/paste-import` rebases onto `main`. Merging `feat/paste-import` into `main` needs the owner's approval. The git hooks run lint and typecheck on every commit and the tests (under the test lock) on every push, so each step commits only green work.
 
 ```
+before the design merge          after the design merge
 1 reader ──┐
            ├─> 3 matching + eval ──┐
 2 TMDB ────┤                       ├─> 6 screens ─> 7 owner check ─> merge to main
-           └─> 4 adding ─> 5 undo ─┘        (after the design merge)
+           └──────────────> 4 adding ─> 5 undo ─┘
 ```
 
 1. **Line reader** (`feat/import-reader`). `src/domain/import-lines.ts` with `readPastedList`.
-   - Tests: every rule above, with made-up lines in the shapes of "The lists it is built for": both heading styles, `✔` and `✔️` with and without spaces, two marks, a mark inside brackets, `Name(2002)`, `(series)` under a Movies heading, an alternate name in brackets, each several-Titles pattern, a URL, a 201-character line, `Name- subtitle`, blank lines, bullets, Keep checkboxes `☐`/`☑`.
+   - Tests: every rule above, with made-up lines in the shapes of "The lists it is built for": both heading styles, `✔` and `✔️` with and without spaces, two marks, a mark inside brackets, `Name(2002)`, `(series)` under a Movies heading, an alternate name in brackets, `(1 and 2)` giving no alternate text, each several-Titles pattern, a title that starts with `All the` and is not flagged, a URL, a 201-character line, `Name- subtitle`, blank lines, bullets, Keep checkboxes `☐`/`☑`.
    - Done when the tests pass and no real note text is in the repo.
 2. **TMDB data and retries** (`feat/import-tmdb`). `originalName`, `popularity`, `releaseDate` on `SearchResult`; `releaseDate` on `MovieDetails` and `SeriesDetails`; the 429 retry in `real.ts`; `src/lib/limit.ts`; the fake client and fixtures updated.
    - Tests: mapping with nulls; a 429 then 200 succeeds; three 429s throw `TmdbUnavailableError` with status 429; `Retry-After` is capped; the limiter never runs more than its limit.
@@ -234,7 +235,7 @@ All work happens on the integration branch `feat/paste-import` (from `main`), in
    - Tests: scoring cases (exact, compact, article, typo, both kinds, year agreeing and against, two exact names with close and far popularity, several-Titles lines never Found, the 0.6 floor, alternate text); the route's 401, 400 on an extra key or 11 lines or a large body, a TMDB failure on one line only; candidates marked `inLibrary` only for the right Owner.
    - The eval script reads a note from `.local/import-sample.txt` (add `/.local/` to `.gitignore` in this step), runs the reader and matcher against real TMDB, and prints each line with its result and best candidate. TMDB calls fail on the owner's home network unless the Mac uses a public DNS (see `AGENTS.md`).
    - Done when the owner has run the script on their note and confirmed: no wrong Match among Found rows.
-4. **Adding** (`feat/import-add`). The migration (`pnpm db:generate`, `pnpm db:migrate`), `statusOnImport` and `isOutYet`, `insertNewEntry` shared with `saveTitle`, `startImport`, `addImportRows`, `finishImport`, and the actions.
+4. **Adding** (`feat/import-add`). It changes `saveTitle` in `src/data/entries.ts`, which the Undo work on `design/dock` also edits, so it starts after the design merge. The migration (`pnpm db:generate`, `pnpm db:migrate`), `statusOnImport` and `isOutYet`, `insertNewEntry` shared with `saveTitle`, `startImport`, `addImportRows`, `finishImport`, and the actions.
    - Tests: every row of the "What gets saved" table; `import_id` set; a Title already in the Library returns `already` and is unchanged; one failing row does not stop the others; rows insert in the given order; a second `startImport` closes the first and `addToImport` on it fails; another Owner's `importId` fails; all existing `saveTitle` tests pass unchanged.
 5. **Undo this import** (`feat/import-undo`). `undoImport` data and action.
    - Tests: removes unchanged Entries with their Watches and ticks; keeps an Entry with a Status move, a tick, an untick, a Rating, a Note or a new Watch; counts are right; leaves Entries from other Imports and saved by hand; another Owner's `importId` removes nothing.
