@@ -38,8 +38,8 @@ One page, `/import`, in three steps. It is reached from the account menu ("Impor
   - **Couldn't check**: TMDB failed for this line. "Try again" checks it again.
 - Order on screen: "Check these" first, then "Not found", then "Couldn't check", then one folded line "198 look right" that opens to show the Found rows. Each group keeps the order of the paste.
 - Each row shows the Match's poster, name, year and kind, the original line in small text under it, and what the Title will become ("To watch", "Watched"). For a Series marked as watched, the helper says "Ticks all aired episodes".
-- Tapping a row opens a sheet: the top 3 candidates, a search field to find another Title, and "Skip this line". A skipped row shows "Skipped" with "Include".
-- A row can switch between "To watch" and "Watched".
+- Tapping a row's poster or name opens a sheet: the top 3 candidates, a search field to find another Title, and "Skip this line". One tap on a Title picks it and closes the sheet. A skipped row shows "Skipped" with "Include".
+- Each row has two status pills, "To watch" and "Watched", in the save-button style; the chosen one is filled.
 - A Match already in the Library shows "Already in your library" and is never added or changed.
 - When two Import lines get the same Match, they merge into one row. The row is "Watched" if either line was marked.
 - After checking ends, the bar at the bottom shows "Add 238 titles".
@@ -167,16 +167,16 @@ Postgres fixes `now()` for a whole transaction, so an Entry inserted by an impor
 
 ## Screens
 
-The import page sits outside the dock: a focused full page with a top bar (close button back to the Library, title "Import a list") and an action bar pinned at the bottom, in thumb reach. It uses the dock design's tokens, glass sheets and toasts (`docs/design.md` on the design branch). On desktop it is a centred column of about 640 px.
+The import page sits outside the dock: a focused full page with a top bar (close button back to the Library, title "Import a list") and an action bar pinned at the bottom, in thumb reach. On desktop it is a centred column of about 640 px. Its look is set in `docs/design.md`, section "Import a list"; this spec owns the flow, rules and words.
 
 | Part | Exists in the dock design | New |
 |---|---|---|
 | Glass sheet, Close, focus trap | yes | |
 | Search field at the bottom of a sheet, result rows (w92 poster, name, year, kind) | yes, in the search sheet | a "pick" variant: one tap picks a Title instead of the three save buttons |
 | Toasts | yes (`showActionToast`) | |
-| Full page with a top bar and a bottom action bar | | yes |
-| Match row: poster, name, year, kind, the original line, a To watch / Watched switch | | yes |
-| Folded group "198 look right" | | yes |
+| Full page with a top bar and a bottom action bar | the action bar takes the dock's shape | yes |
+| Match row: poster, name, year, kind, the original line, To watch and Watched pills | the pills are the save buttons | yes |
+| Folded group "198 look right" | opens in place like a Season row | yes |
 | Progress line with a thin bar | the progress line on the Title page is close | yes |
 
 Entry points:
