@@ -38,22 +38,21 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
   );
 
   const poster = (
-    <TilePosterTransition entryId={entryId}>
-      <Poster
-        path={posterPath}
-        name={name}
-        size={lead ? "w500" : "w342"}
-        eager={eager}
-        decorative
-        className={cn(
-          "transition-transform duration-[450ms] ease-(--spring) group-has-[a:active]:scale-[0.97]",
-          lead
-            ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]"
-            : 'rounded-tile [[data-layout="4"]_&]:rounded-thumb rows:w-[46px] rows:shrink-0 rows:rounded-thumb',
-        )}
-        imageClassName={cn("[-webkit-user-drag:none]", lead && "object-top")}
-      />
-    </TilePosterTransition>
+    <Poster
+      path={posterPath}
+      name={name}
+      size={lead ? "w500" : "w342"}
+      eager={eager}
+      decorative
+      className={cn(
+        "transition-transform duration-[450ms] ease-(--spring) group-has-[a:active]:scale-[0.97]",
+        lead
+          ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]"
+          : 'rounded-tile [[data-layout="4"]_&]:rounded-thumb rows:w-[46px] rows:shrink-0 rows:rounded-thumb',
+      )}
+      imageClassName={cn("[-webkit-user-drag:none]", lead && "object-top")}
+      overlay={(face) => <TilePosterTransition entryId={entryId}>{face}</TilePosterTransition>}
+    />
   );
 
   const next =
