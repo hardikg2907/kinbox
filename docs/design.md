@@ -33,9 +33,9 @@ All colours are CSS variables in `globals.css`, exposed as Tailwind colours (`bg
 | input | #6E7483 | #7C8494 | Input borders (3:1) |
 | ring | #F4F5F8 | #0E121A | Focus |
 | stars | #F5C451 | #A86F00 | Rating stars only |
-| destructive | #FF6B6B | #B42318 | Remove from library |
+| destructive | #FF6B6B | #A81F14 | Remove from library (4.79:1 on the darkest light tint) |
 
-Shape and type scale, also tokens in `globals.css`:
+Shape and type scale. The radii are tokens in `globals.css`; the type sizes are plain Tailwind sizes, not tokens:
 
 - Radius: 6 px (small posters at 4 columns, thumbnails), 10 px (posters), 18 px (cards inside sheets), 28 px (sheets, the drawer, the dock), pill (buttons, tabs, chips). The radius follows the size; one value never covers everything.
 - Type: 12, 14, 16, 20, 30, 44 and 64 px.
@@ -82,16 +82,16 @@ Library (375)                        Title drawer (375)                Full view
 
 ### Library
 
-- **Top:** the wordmark on the left and a round account button on the right (it opens the account menu: About, Import a list, Sign out). Both scroll away with the wall.
-- **The wall:** a grid with the name under each poster, not on it. Under the name: for a watching Series "Next: S2 E4" and a compact "Watched it" button; "Caught up" with its helper; for Watched the date; the not-out-yet label when it applies. 2 columns by default at 375 px.
+- **Top:** the wordmark on the left and a round account button on the right (it opens the account menu: About, Import a list, Sign out; the menu arrives with Import a list). Both scroll away with the wall.
+- **The wall:** a grid with the name under each poster, not on it. Under the name: for a watching Series "Next: S2 E4" and a compact "Watched it" button; "Caught up" with its helper; for Watched the date; the not-out-yet label when it applies. The default is 2 columns, 3 from 40 rem (640 px) and 4 from 64 rem (1024 px); the matching layout button shows as pressed. At 375 px that is 2 columns.
 - **Lead tile:** on the Watching tab only, the most recent Series spans the whole row as a wide 16:9 crop of its poster (top-aligned), at most about 40 % of the screen, with the name, Next, the episode name and "Watched it" on a strong bottom scrim. Other tabs are a plain grid.
-- **Layout:** a view setting, not a filter. On a phone: 2 columns, 3 columns or List; pinch the wall to switch between 2 and 3 columns. On desktop: 4 columns and wider grids too, and Ctrl/⌘ + wheel switches them. The filter sheet has the same choice in its own Layout section. The choice belongs to the device, not the account: it is saved in a cookie (`kb_layout`, like the time-zone cookie), so the server renders the right grid and nothing shifts on load. At 3 columns and more, names drop to one line and the "Watched it" button becomes an icon button with the same accessible name.
+- **Layout:** a view setting, not a filter. On a phone: 2 columns, 3 columns or List; pinch the wall to switch between 2 and 3 columns. On desktop: 2, 3 or 4 columns or List, and Ctrl/⌘ + wheel over the wall steps through the columns. The filter sheet has the same choice in its own Layout section. The choice belongs to the device, not the account: it is saved in a cookie (`kb_layout`, like the time-zone cookie), so the server renders the right grid and nothing shifts on load. At 3 columns and more, names drop to one line and the "Watched it" button becomes an icon button with the same accessible name.
 - **List view:** one row per Title: 46 px thumbnail (w92), name, and the Next line or date, with the action at the right edge. Rows are separated by spacing and a hairline.
 - **The dock:** floats at the bottom, inset from the edges, above the safe area. Left: a round search button. Middle: the four status tabs as a segmented glass control, each with its count; a solid pill slides to the active one. Right: a round filter button with a count badge when filters are set. On scroll down the dock shrinks to a slim pill showing the active status; on scroll up it grows back.
 - **Active filters** show as removable chips above the wall, only when any are set.
 - **Search sheet:** the search button grows up into a full-height glass sheet. The field sits at the bottom, in thumb reach; results fill the sheet above it. Each result: poster (w92), name, year, kind badge, the not-out-yet label when it applies, and three save buttons: To watch, Watching, Watched. A Title already in the Library shows its status instead. After a save the row confirms in place and offers the optional Note, the "next to watch" picker and, after Watched, the stars.
 - **Filter sheet:** the filter button grows up into a glass sheet titled "Filters". The "Show" section holds kind (All, Movies, Series); length and genre join it when the tonight filters are built. Below a divider, the "Layout" section holds the layout choice. "Clear filters" (only when a filter is set) and "Done" close it. Layout never counts in the filter badge, never becomes a chip, and "Clear filters" leaves it alone.
-- **Empty tabs** say what lands there, centred in the space above the dock. When the Library has no Titles at all, the To watch empty text adds the link "Have a list somewhere? Paste it", which opens Import a list.
+- **Empty tabs** say what lands there, centred in the space above the dock. When the Library has no Titles at all, the To watch empty text adds the link "Have a list somewhere? Paste it", which opens Import a list. The link comes with Import a list.
 
 ### Title: one set of sections, two containers
 
@@ -116,7 +116,7 @@ The Title is built from sections written once: hero, status pill, Next block, ra
 
 ### Desktop (1280)
 
-A left glass sidebar (about 296 px) replaces the dock: the wordmark, the search field, the four status tabs as a vertical list with counts, the kind filter and the layout choice. The wall fills the rest (up to 8 columns at the default size). The drawer opens from the right as a side panel; pulling up is not needed there, so the panel simply scrolls, and a direct link opens the page in the content area.
+A left glass sidebar (about 296 px) replaces the dock: the wordmark, the search field, the four status tabs as a vertical list with counts, the kind filter and the layout choice. The wall fills the rest, at 4 columns by default. The drawer opens from the right as a side panel; pulling up is not needed there, so the panel simply scrolls, and a direct link opens the page in the content area.
 
 ### Import a list
 

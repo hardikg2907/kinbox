@@ -22,6 +22,8 @@ export function openedTile(): Omit<OpenedTile, "at"> | null {
 }
 
 function remember(event: MouseEvent) {
+  // These clicks open a new tab or window, not the drawer.
+  if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
   const link = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
   const entryId = link ? ENTRY_LINK.exec(link.pathname)?.[1] : undefined;
   if (!link || !entryId) {

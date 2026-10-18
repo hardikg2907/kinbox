@@ -178,6 +178,8 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       measure();
       if (geometry.desktop !== wasDesktop) {
         motion?.stop();
+        // The quick view never opens scrolled.
+        if (!geometry.desktop) scrollElement.scrollTop = 0;
         apply(geometry.desktop ? 0 : geometry.quick);
         settle();
       } else if (atQuick) {
@@ -306,34 +308,68 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       }
     }
 
-    // A menu, dialog or toast opened from the drawer handles its own keys. A sheet that closed on
-    // this Escape has already sent focus back into the drawer, so its handled mark is what counts.
+    // Tab cycles through what can take focus now: the panel's own controls (the sticky name bar's
+    // pill sits in an inert region and cannot), then the buttons of any toast, which lives outside
+    // the panel. A menu, dialog or sheet opened from the drawer handles its own keys; a sheet that
+    // closed on this Escape has already sent focus back, so its handled mark is what counts.
+    function cycle(): HTMLElement[] {
+      const reachable = (element: HTMLElement) =>
+        element.getClientRects().length > 0 && !element.closest("[inert]");
+      return [
+        ...Array.from(panelElement.querySelectorAll<HTMLElement>(FOCUSABLE)),
+        ...Array.from(document.querySelectorAll<HTMLElement>("[data-sonner-toaster] button:not([disabled])")),
+      ].filter(reachable);
+    }
+
+    // The toaster sends focus back to where it came from when focus leaves it, in the middle of
+    // this very move; a second call lands it where the cycle meant.
+    function moveFocus(target: HTMLElement) {
+      target.focus();
+      if (document.activeElement !== target) target.focus();
+    }
+
     function onKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return;
       const active = document.activeElement;
-      const onDrawer = active === null || active === document.body || panelElement.contains(active);
-      if (!onDrawer) return;
+      const inCycle =
+        active === null ||
+        active === document.body ||
+        panelElement.contains(active) ||
+        Boolean(active.closest("[data-sonner-toaster]"));
+      if (!inCycle) return;
       if (event.key === "Escape") {
         event.preventDefault();
         close();
         return;
       }
       if (event.key !== "Tab") return;
-      const items = Array.from(panelElement.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (element) => element.getClientRects().length > 0,
-      );
+      const items = cycle();
       const first = items[0];
       const last = items[items.length - 1];
       if (!first || !last) return;
-      if (!panelElement.contains(active)) {
+      const index = active instanceof HTMLElement ? items.indexOf(active) : -1;
+      // The toast itself takes focus on the way to its buttons; going forward the browser's own step
+      // is right. Going back, the toaster would send focus to where it came from, so the step is made here.
+      if (index === -1 && active?.closest("[data-sonner-toaster]")) {
+        if (!event.shiftKey) return;
         event.preventDefault();
-        (event.shiftKey ? last : first).focus();
+        moveFocus(items.filter((item) => !item.closest("[data-sonner-toaster]")).pop() ?? last);
+        return;
+      }
+      if (event.shiftKey && index > 0 && active?.closest("[data-sonner-toaster]")) {
+        event.preventDefault();
+        moveFocus(items[index - 1] ?? last);
+        return;
+      }
+      if (index === -1) {
+        event.preventDefault();
+        moveFocus(event.shiftKey ? last : first);
       } else if (event.shiftKey && active === first) {
         event.preventDefault();
-        last.focus();
+        moveFocus(last);
       } else if (!event.shiftKey && active === last) {
         event.preventDefault();
-        first.focus();
+        moveFocus(first);
       }
     }
 
@@ -437,12 +473,6 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
             atFull ? "rounded-none" : "rounded-t-sheet border border-b-0",
           )}
         >
-          <div
-            ref={scroller}
-            className={cn("absolute inset-0 overscroll-contain", atFull || desktop ? "overflow-y-auto" : "overflow-hidden")}
-          >
-            {children}
-          </div>
           <button
             ref={closeButton}
             type="button"
@@ -456,7 +486,6 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
             type="button"
             data-drawer-handle
             aria-label={atFull ? "Show less" : "Show more"}
-            aria-expanded={atFull}
             onClick={(event) => {
               // Enter and Space click with detail 0; no drag can be behind them.
               if (event.detail === 0 || !dragged.current) controls.current?.toggle();
@@ -465,6 +494,12 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
           >
             <span aria-hidden className="h-1.5 w-10 rounded-full bg-white/90 shadow-[0_1px_6px_rgb(0_0_0/0.45)]" />
           </button>
+          <div
+            ref={scroller}
+            className={cn("absolute inset-0 overscroll-contain", atFull || desktop ? "overflow-y-auto" : "overflow-hidden")}
+          >
+            {children}
+          </div>
         </section>
       </ViewTransition>
     </DrawerMotionContext>

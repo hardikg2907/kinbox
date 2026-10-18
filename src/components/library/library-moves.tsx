@@ -41,6 +41,8 @@ type Move = {
   from: Status;
   to: Status;
   tab: Status;
+  /** The Movies or Series filter in force when the move was made. */
+  kind: KindFilter;
   /** The card's place in its tab before the move, where Undo puts it back. */
   index: number;
   /** The counts the move was made against. */
@@ -55,6 +57,8 @@ function sameCounts(a: Counts, b: Counts): boolean {
 // applied again on top of it. So each part is a "set": counts that no longer match what the move
 // saw already hold it, and a card that is already gone (or back) stays as it is.
 function applyMove(shown: Shown, move: Move): Shown {
+  // A Title the filter hides is in neither the wall nor the counts, so an Undo must not add it.
+  if (move.kind !== "all" && move.card.kind !== move.kind) return shown;
   const counts =
     move.from !== move.to && sameCounts(shown.counts, move.countsBefore)
       ? {
@@ -127,11 +131,13 @@ async function send(entryId: string, target: MoveTarget): Promise<ActionResult<S
  */
 export function LibraryMoves({
   tab,
+  kind,
   cards,
   counts,
   children,
 }: {
   tab: Status;
+  kind: KindFilter;
   cards: LibraryCard[];
   counts: Counts;
   children: ReactNode;
@@ -147,9 +153,9 @@ export function LibraryMoves({
   const [byPointer, setByPointer] = useState(false);
   const waitToSaveRating = useRatingSaveDelay();
   // A toast's Undo runs after this screen may have moved on to another tab.
-  const latest = useRef({ tab, shown });
+  const latest = useRef({ tab, kind, shown });
   useLayoutEffect(() => {
-    latest.current = { tab, shown };
+    latest.current = { tab, kind, shown };
   });
 
   const hasCards = shown.cards.length > 0;
@@ -200,9 +206,9 @@ export function LibraryMoves({
     });
   }
 
-  function applyNow(move: Omit<Move, "tab" | "countsBefore">) {
+  function applyNow(move: Omit<Move, "tab" | "kind" | "countsBefore">) {
     snapshotWall();
-    addMove({ ...move, tab: latest.current.tab, countsBefore: latest.current.shown.counts });
+    addMove({ ...move, tab: latest.current.tab, kind: latest.current.kind, countsBefore: latest.current.shown.counts });
   }
 
   function undo(card: LibraryCard, index: number, data: StatusMoveUndo) {

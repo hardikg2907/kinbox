@@ -25,7 +25,7 @@ export async function LibraryContent({ searchParams }: Props) {
 
   return (
     <LayoutProvider initial={layout}>
-      <LibraryMoves tab={tab} cards={view.cards} counts={view.counts}>
+      <LibraryMoves tab={tab} kind={kind} cards={view.cards} counts={view.counts}>
         <LibraryNav tab={tab} kind={kind} counts={view.counts} />
         {kind !== "all" ? (
           <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">

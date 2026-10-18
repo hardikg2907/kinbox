@@ -17,10 +17,10 @@ export function LibrarySkeleton() {
           </div>
         ))}
       </div>
-      <div aria-hidden className="dock fixed right-[max(10px,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(10px,env(safe-area-inset-left))] z-40 flex items-center gap-1.5 lg:hidden">
-        <div className="glass-strong size-12 shrink-0 rounded-full border" />
+      <div aria-hidden className="dock fixed right-[max(10px,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(10px,env(safe-area-inset-left))] z-40 flex items-center gap-1 sm:gap-1.5 lg:hidden">
+        <div className="glass-strong size-11 shrink-0 sm:size-12 rounded-full border" />
         <div className="glass-strong h-15 flex-1 rounded-full border" />
-        <div className="glass-strong size-12 shrink-0 rounded-full border" />
+        <div className="glass-strong size-11 shrink-0 sm:size-12 rounded-full border" />
       </div>
       <div aria-hidden className="glass-strong fixed top-3 bottom-3 left-3 z-40 hidden w-74 rounded-sheet border lg:block" />
     </div>

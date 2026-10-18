@@ -116,6 +116,7 @@ export function Sheet({
         aria-labelledby={labelledBy}
         inert={!open}
         data-open={open}
+        data-sheet=""
         style={{ ...style, "--sheet-origin": origin } as CSSProperties}
         className={cn(
           "sheet glass-strong fixed z-50 flex flex-col overflow-hidden rounded-sheet border shadow-[0_22px_54px_-18px_rgb(0_0_0/0.6)]",

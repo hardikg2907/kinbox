@@ -60,7 +60,8 @@ function helper(target: MoveTarget, { kind, status, episodes }: SheetFacts): str
       if (!episodes || episodes.aired === 1) return "Ticks all aired episodes";
       return episodes.aired > 1 ? `Ticks all ${episodes.aired} aired episodes` : null;
     case "dropped":
-      return (status === "watching" ? (ticked ?? true) : ticked) ? "Keeps your progress" : null;
+      // Watching and Watched Series always have progress, even when the Episodes are not known yet.
+      return (status === "watching" || status === "watched" ? (ticked ?? true) : ticked) ? "Keeps your progress" : null;
     case "again":
       return null;
   }

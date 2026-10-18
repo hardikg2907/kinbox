@@ -31,7 +31,7 @@ const KINDS: { value: KindFilter; label: string }[] = [
 
 const FOCUS = "focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none";
 const ROUND =
-  "glass-strong relative grid size-12 shrink-0 cursor-pointer place-items-center rounded-full border shadow-[0_18px_44px_-18px_rgb(0_0_0/0.5)] transition-transform duration-[400ms] ease-(--spring) active:scale-90";
+  "glass-strong relative grid size-11 shrink-0 sm:size-12 cursor-pointer place-items-center rounded-full border shadow-[0_18px_44px_-18px_rgb(0_0_0/0.5)] transition-transform duration-[400ms] ease-(--spring) active:scale-90";
 const ACTIVE = "bg-primary text-primary-foreground hover:text-primary-foreground";
 
 // The dock on a phone, the sidebar on a wide screen. Both read one optimistic state, so a pressed
@@ -83,7 +83,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
       <div
         data-collapsed={collapsed}
         inert={collapsed}
-        className="dock fixed right-[max(10px,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(10px,env(safe-area-inset-left))] z-40 flex origin-bottom items-center gap-1.5 transition-[transform,opacity] duration-[620ms] ease-(--spring) data-[collapsed=true]:pointer-events-none data-[collapsed=true]:translate-y-4 data-[collapsed=true]:scale-50 data-[collapsed=true]:opacity-0 lg:hidden"
+        className="dock fixed right-[max(10px,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(10px,env(safe-area-inset-left))] z-40 flex origin-bottom items-center gap-1 transition-[transform,opacity] duration-[620ms] ease-(--spring) data-[collapsed=true]:pointer-events-none data-[collapsed=true]:translate-y-4 data-[collapsed=true]:scale-50 data-[collapsed=true]:opacity-0 sm:gap-1.5 lg:hidden"
       >
         <button
           id="dock-search"
@@ -96,7 +96,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
         </button>
         <nav
           aria-label="Library tabs"
-          className="glass-strong min-w-0 flex-1 rounded-full border p-1 shadow-[0_18px_44px_-18px_rgb(0_0_0/0.5)]"
+          className="glass-strong min-w-0 flex-1 rounded-full border px-0.5 py-1 sm:px-1 shadow-[0_18px_44px_-18px_rgb(0_0_0/0.5)]"
         >
           <ul id="library-tabs" style={{ "--i": STATUSES.indexOf(shown.tab) } as CSSProperties} className="relative grid grid-cols-4">
             <li aria-hidden className="absolute inset-y-0 left-0 w-1/4 translate-x-[calc(var(--i)*100%)] rounded-full bg-primary transition-transform duration-[550ms] ease-(--spring)" />
