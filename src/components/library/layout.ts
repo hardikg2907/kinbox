@@ -36,8 +36,8 @@ export const GRID: Record<Layout, string> = {
   list: "grid-cols-1 gap-0 px-4",
 };
 
-// The Watching tab's lead tile. A phone gives it the whole row as a wide strip, at most about 40 % of
-// the screen. A desktop gives it two columns and stretches it to the height of the row beside it,
-// so it reads as a big tile among the others; alone in its row, its 4:3 shape sets the height.
+// The Watching tab's lead tile: a 4:3 crop, tall enough that faces clear the text at its foot. A phone
+// gives it the whole row, at most about 40 % of the screen. A desktop gives it two columns and
+// stretches it to the height of the row beside it, so it reads as a big tile among the others.
 export const LEAD_BOX =
-  "col-span-full aspect-video max-h-[40svh] w-full rounded-card lg:col-span-2 lg:aspect-[4/3] lg:max-h-none lg:self-stretch";
+  "col-span-full aspect-[4/3] max-h-[40svh] w-full rounded-card lg:col-span-2 lg:max-h-none lg:self-stretch";

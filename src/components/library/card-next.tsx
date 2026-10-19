@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useOptimistic, useTransition, type ReactNode } from "react";
+import { useOptimistic, useState, useTransition, type ReactNode } from "react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { showActionToast } from "@/components/action-toast";
@@ -46,6 +46,9 @@ function reduce(current: Shown, change: Change): Shown {
 export function CardNext({ entryId, name, heading, lead = false, posterPath, progress }: Props) {
   const [pending, startTransition] = useTransition();
   const [shown, change] = useOptimistic<Shown, Change>({ ...progress, marking: null }, reduce);
+  const line = shown.marking !== null ? `Marked ${shown.marking}` : `Next: ${shown.nextLabel}`;
+  // Only a changed line slides in; the line the card loads with is simply there.
+  const [firstLine] = useState(line);
 
   function undo(data: WatchedNextUndo) {
     startTransition(async () => {
@@ -93,7 +96,6 @@ export function CardNext({ entryId, name, heading, lead = false, posterPath, pro
     );
   }
 
-  const line = shown.marking !== null ? `Marked ${shown.marking}` : `Next: ${shown.nextLabel}`;
 
   return (
     <div className={lead ? "flex items-end justify-between gap-3" : "flex flex-col gap-2 rows:flex-row rows:items-center rows:justify-between rows:gap-3"}>
@@ -103,7 +105,10 @@ export function CardNext({ entryId, name, heading, lead = false, posterPath, pro
           className={cn("tabular mt-1 flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-bold", lead && "lg:min-h-6 lg:text-base")}
           aria-live="polite"
         >
-          <span key={line} className="inline-flex animate-in items-center gap-1.5 duration-200 fade-in slide-in-from-bottom-2">
+          <span
+            key={line}
+            className={cn("inline-flex items-center gap-1.5", line !== firstLine && "animate-in duration-200 fade-in slide-in-from-bottom-2")}
+          >
             {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0" /> : null}
             {line}
           </span>
