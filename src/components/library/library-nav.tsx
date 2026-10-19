@@ -7,7 +7,6 @@ import { useEffect, useOptimistic, useRef, useState, useTransition, type CSSProp
 import { cn } from "cn";
 import type { KindFilter } from "@/data/dto";
 import { STATUSES, type Status } from "@/domain/types";
-import { LayoutChoices } from "@/components/library/layout-choices";
 import { useShownCounts } from "@/components/library/library-moves";
 import { Sheet } from "@/components/library/sheet";
 import { libraryHref } from "@/components/library/params";
@@ -83,7 +82,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
       <div
         data-collapsed={collapsed}
         inert={collapsed}
-        className="dock fixed right-[max(10px,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(10px,env(safe-area-inset-left))] z-40 flex origin-bottom items-center gap-1 transition-[transform,opacity] duration-[620ms] ease-(--spring) data-[collapsed=true]:pointer-events-none data-[collapsed=true]:translate-y-4 data-[collapsed=true]:scale-50 data-[collapsed=true]:opacity-0 sm:gap-1.5 lg:hidden"
+        className="dock fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(1rem,env(safe-area-inset-left))] z-40 flex origin-bottom items-center gap-2 transition-[transform,opacity] duration-[620ms] ease-(--spring) data-[collapsed=true]:pointer-events-none data-[collapsed=true]:translate-y-4 data-[collapsed=true]:scale-50 data-[collapsed=true]:opacity-0 lg:hidden"
       >
         <button
           id="dock-search"
@@ -111,7 +110,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
                     aria-current={active ? "page" : undefined}
                     onClick={(event) => go(event, { tab: status, kind: shown.kind })}
                     className={cn(
-                      "flex h-13 flex-col-reverse items-center justify-center rounded-full text-xs font-semibold tracking-tight whitespace-nowrap transition-colors duration-200",
+                      "flex h-13 flex-col-reverse items-center justify-center rounded-full text-[11px] leading-4 font-semibold tracking-tight whitespace-nowrap transition-colors duration-200 sm:text-xs",
                       FOCUS,
                       active ? "text-primary-foreground" : "text-foreground",
                     )}
@@ -169,7 +168,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
         label="Filters"
         openerRef={filterButton}
         origin="calc(100% - 28px) calc(100% - 28px)"
-        className="inset-x-[10px] bottom-[calc(env(safe-area-inset-bottom)+10px)] lg:hidden"
+        className="right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(env(safe-area-inset-bottom)+10px)] left-[max(1rem,env(safe-area-inset-left))] lg:hidden"
       >
         <div className="flex items-center justify-between pt-4 pr-3 pl-5">
           <h2 className="text-xl font-extrabold">Filters</h2>
@@ -190,14 +189,7 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
             {kindLinks("kind", "flex min-h-11 items-center justify-center rounded-full text-sm font-semibold transition-colors")}
           </ul>
         </section>
-        <hr className="mx-5 mt-5" />
-        <section aria-labelledby="filter-layout" className="px-5 pt-4">
-          <h3 id="filter-layout" className="text-sm font-semibold text-muted-foreground">
-            Layout
-          </h3>
-          <LayoutChoices desktop={false} idPrefix="sheet" className="mt-2" />
-        </section>
-        <div className="flex min-h-11 items-center justify-between gap-2 px-5 py-4">
+        <div className="flex min-h-11 items-center justify-between gap-2 px-5 pt-5 pb-4">
           {filtersOn > 0 ? (
             <Link
               id="filters-clear"
@@ -286,12 +278,6 @@ export function LibraryNav({ tab, kind, counts: serverCounts }: Props) {
           <ul id="side-kinds" className="mt-1 grid grid-cols-3 gap-2">
             {kindLinks("side-kind", "flex min-h-11 items-center justify-center rounded-full text-sm font-semibold transition-colors")}
           </ul>
-        </section>
-        <section aria-labelledby="side-layout">
-          <h2 id="side-layout" className="text-sm font-semibold text-muted-foreground">
-            Layout
-          </h2>
-          <LayoutChoices desktop idPrefix="side" className="mt-1" />
         </section>
       </aside>
     </>

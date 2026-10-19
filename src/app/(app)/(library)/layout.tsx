@@ -5,7 +5,7 @@ import { RememberOpenedTile } from "@/components/entry/opened-tile";
 export default function LibraryLayout({ children, drawer }: LayoutProps<"/">) {
   return (
     <>
-      <main id="main" className="min-h-dvh lg:pl-80">
+      <main id="main" className="relative min-h-dvh lg:pl-80">
         {children}
       </main>
       {drawer}

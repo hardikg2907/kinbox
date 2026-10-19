@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
 
-export function AccountMenu() {
+export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
@@ -35,7 +35,7 @@ export function AccountMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          id="account-menu-trigger"
+          id={id}
           variant="ghost"
           size="icon"
           aria-label="Account"

@@ -81,11 +81,11 @@ export function CardNext({ entryId, name, heading, lead = false, posterPath, pro
         {/* Same lines as the Entry page: only a Series that is not finished can be caught up. */}
         {shown.caughtUp ? (
           <>
-            <p className="mt-1 text-sm font-semibold">Caught up</p>
-            <p className="text-xs text-muted-foreground">New episodes will show here</p>
+            <p className={cn("mt-1 text-sm font-semibold", lead && "lg:text-base")}>Caught up</p>
+            <p className={cn("text-xs text-muted-foreground", lead && "lg:text-sm")}>New episodes will show here</p>
           </>
         ) : (
-          <p className="mt-1 text-sm font-semibold">
+          <p className={cn("mt-1 text-sm font-semibold", lead && "lg:text-base")}>
             {shown.allNumberedWatched ? "All episodes watched" : "All aired episodes watched"}
           </p>
         )}
@@ -99,14 +99,17 @@ export function CardNext({ entryId, name, heading, lead = false, posterPath, pro
     <div className={lead ? "flex items-end justify-between gap-3" : "flex flex-col gap-2 rows:flex-row rows:items-center rows:justify-between rows:gap-3"}>
       <div className="min-w-0">
         {heading}
-        <p className="tabular mt-1 flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-bold" aria-live="polite">
+        <p
+          className={cn("tabular mt-1 flex min-h-5 items-center gap-1.5 overflow-hidden text-sm font-bold", lead && "lg:min-h-6 lg:text-base")}
+          aria-live="polite"
+        >
           <span key={line} className="inline-flex animate-in items-center gap-1.5 duration-200 fade-in slide-in-from-bottom-2">
             {shown.marking !== null ? <Check aria-hidden className="size-4 shrink-0" /> : null}
             {line}
           </span>
         </p>
         {lead && shown.episodeName && shown.marking === null ? (
-          <p className="line-clamp-1 text-sm text-muted-foreground">{shown.episodeName}</p>
+          <p className="line-clamp-1 text-sm text-muted-foreground lg:text-base">{shown.episodeName}</p>
         ) : null}
       </div>
       <Button

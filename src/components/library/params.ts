@@ -4,7 +4,7 @@ import { STATUSES, type Status } from "@/domain/types";
 export const DEFAULT_TAB: Status = "to_watch";
 export const DEFAULT_KIND: KindFilter = "all";
 
-const KINDS: readonly KindFilter[] = ["all", "movie", "series"];
+export const KINDS: readonly KindFilter[] = ["all", "movie", "series"];
 
 // A URL is user input: anything that is not a known value falls back to the default.
 export function parseTab(value: string | string[] | undefined): Status {

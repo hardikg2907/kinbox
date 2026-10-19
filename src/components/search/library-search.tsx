@@ -46,7 +46,7 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
         initialFocusId={SEARCH_INPUT_ID}
         origin="28px calc(100% - 28px)"
         style={{ bottom: `calc(env(safe-area-inset-bottom) + 10px + ${keyboard}px)` }}
-        className="inset-x-[10px] top-[calc(env(safe-area-inset-top)+10px)] lg:inset-x-auto lg:top-3 lg:left-80 lg:w-[34rem] lg:max-w-[calc(100vw-21rem)]"
+        className="top-[calc(env(safe-area-inset-top)+10px)] right-[max(1rem,env(safe-area-inset-right))] left-[max(1rem,env(safe-area-inset-left))] lg:inset-x-auto lg:top-3 lg:left-80 lg:w-[34rem] lg:max-w-[calc(100vw-21rem)]"
       >
         <div className="flex justify-end px-3 pt-3">
           <button
@@ -60,7 +60,13 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3">
-          {outcome.phase !== "idle" ? <SearchResults outcome={outcome} /> : null}
+          {outcome.phase !== "idle" ? (
+            <SearchResults outcome={outcome} />
+          ) : (
+            <p id="search-hint" className="flex h-full items-center justify-center px-6 text-center text-base text-pretty text-muted-foreground">
+              Search for a movie or series to save it.
+            </p>
+          )}
         </div>
         <form id="search-form" role="search" onSubmit={(event) => event.preventDefault()} className="relative p-3">
           <Label htmlFor={SEARCH_INPUT_ID} className="sr-only">

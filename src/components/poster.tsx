@@ -18,6 +18,8 @@ type PosterProps = {
   decorative?: boolean;
   /** Drawn over the poster inside its box; it gets a copy of the poster's face. */
   overlay?: (face: ReactNode) => ReactNode;
+  /** Fades the image in once it has loaded, instead of letting it pop in. */
+  fade?: boolean;
 };
 
 // A fixed 2:3 box, so the layout never shifts while posters load.
@@ -30,6 +32,7 @@ export function Poster({
   eager = false,
   decorative = false,
   overlay,
+  fade = false,
 }: PosterProps) {
   const src = posterUrl(path, size);
   const face = src ? (
@@ -41,6 +44,9 @@ export function Poster({
       loading={eager ? "eager" : "lazy"}
       decoding="async"
       fetchPriority={eager ? "high" : "auto"}
+      data-fade={fade ? "" : undefined}
+      // The head script marks a fading image as loaded before React hydrates.
+      suppressHydrationWarning={fade}
       className={cn("absolute inset-0 size-full object-cover", imageClassName)}
     />
   ) : (
