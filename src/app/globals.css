@@ -175,7 +175,7 @@ body::before {
    most of the poster bright. With a button, the mask clears the strip the solid button sits on, so
    more of the poster shows; the text column never reaches that strip. */
 @utility scrim-lead {
-  --scrim-fade: 3rem;
+  --scrim-fade: 2.5rem;
   margin-top: calc(-1 * var(--scrim-fade));
   background-image: linear-gradient(
     to top,
