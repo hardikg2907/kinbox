@@ -5,7 +5,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 // Nonces would force every page to render per request and drop the static
 // shells that make navigation instant, so inline scripts are allowed instead.
-// React escapes all rendered text and nothing injects raw HTML.
+// React escapes all rendered text; the only raw HTML is the constant wall-marks script in the head.
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,

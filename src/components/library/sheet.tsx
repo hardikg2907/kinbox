@@ -28,6 +28,39 @@ type Props = {
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Whether the last input was a key, so focus handed back after a tap or a click shows no ring.
+let keyboardLast = false;
+let watchingInput = false;
+
+function watchInput() {
+  if (watchingInput) return;
+  watchingInput = true;
+  window.addEventListener(
+    "keydown",
+    () => {
+      keyboardLast = true;
+      document.querySelector("[data-pointer-focus]")?.removeAttribute("data-pointer-focus");
+    },
+    { capture: true },
+  );
+  window.addEventListener(
+    "pointerdown",
+    () => {
+      keyboardLast = false;
+    },
+    { capture: true },
+  );
+}
+
+function handBackFocus(element: HTMLElement | null) {
+  if (!element) return;
+  if (!keyboardLast) {
+    element.setAttribute("data-pointer-focus", "");
+    element.addEventListener("blur", () => element.removeAttribute("data-pointer-focus"), { once: true });
+  }
+  element.focus({ preventScroll: true });
+}
+
 // A glass sheet over a dimmed page. It stays mounted so its state and its grow/shrink motion survive;
 // `inert` keeps it out of the tab order and the accessibility tree while closed.
 export function Sheet({
@@ -47,6 +80,8 @@ export function Sheet({
   const panel = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
 
+  useEffect(watchInput, []);
+
   useEffect(() => {
     if (open) {
       wasOpen.current = true;
@@ -54,7 +89,7 @@ export function Sheet({
       (target ?? panel.current?.querySelector<HTMLElement>(FOCUSABLE))?.focus({ preventScroll: true });
     } else if (wasOpen.current) {
       wasOpen.current = false;
-      openerRef.current?.focus({ preventScroll: true });
+      handBackFocus(openerRef.current);
     }
   }, [open, initialFocusId, openerRef]);
 

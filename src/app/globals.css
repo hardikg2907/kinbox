@@ -170,16 +170,27 @@ body::before {
   }
 }
 
-/* Under the lead tile's text. The page colour is 92 % solid from the foot up to the top of the text block
-   (about 5.75 rem), so text stays at AA over any poster, then fades out. The mask clears the right side,
-   where only the solid button sits, so more of the poster shows. */
+/* Under the lead tile's text, in the text's own grid cell. The page colour is 92 % solid up to the top of
+   the text, so text stays at AA over any poster, then eases out over --scrim-fade above it, which keeps
+   most of the poster bright. With a button, the mask clears the strip the solid button sits on, so
+   more of the poster shows; the text column never reaches that strip. */
 @utility scrim-lead {
+  --scrim-fade: 3rem;
+  margin-top: calc(-1 * var(--scrim-fade));
   background-image: linear-gradient(
     to top,
-    color-mix(in oklab, var(--background) 92%, transparent) 5.75rem,
+    color-mix(in oklab, var(--background) 92%, transparent) calc(100% - var(--scrim-fade)),
+    color-mix(in oklab, var(--background) 62%, transparent) calc(100% - var(--scrim-fade) * 0.7),
+    color-mix(in oklab, var(--background) 30%, transparent) calc(100% - var(--scrim-fade) * 0.4),
+    color-mix(in oklab, var(--background) 10%, transparent) calc(100% - var(--scrim-fade) * 0.15),
     transparent 100%
   );
-  mask-image: linear-gradient(to right, black 60%, transparent 100%);
+  &:has(~ * button) {
+    mask-image: linear-gradient(to right, black calc(100% - 9.5rem), transparent 100%);
+  }
+  @media (width >= 64rem) {
+    --scrim-fade: 4rem;
+  }
 }
 
 /* The Title's full view, shared by the page and the drawer. A drawer sets --p (0 at the quick view,
@@ -474,4 +485,121 @@ html[data-drawer="full"] [data-sonner-toaster] {
   #title-drawer {
     --lift: 0px;
   }
+}
+
+/* The Library's wall marks. A script in the document head copies the saved layout (and, on the
+   Library's address, the tab and the kind filter) onto <html> before the first paint, so the static
+   shell can already look like what the data will show. */
+
+/* The skeleton holds one wall per layout and shows only the saved one, with the lead tile on the
+   Watching tab, the Next line on Watching cards, the date on Watched ones, and the chip row when a
+   kind filter is on. */
+:root:not([data-wall-layout="2"]) #library-skeleton [data-layout="2"],
+:root:not([data-wall-layout="3"]) #library-skeleton [data-layout="3"],
+:root:not([data-wall-layout="4"]) #library-skeleton [data-layout="4"],
+:root:not([data-wall-layout="list"]) #library-skeleton [data-layout="list"],
+:root[data-wall-layout]:not([data-wall-layout="auto"]) #library-skeleton [data-layout="auto"],
+:root:not([data-wall-tab="watching"]) #library-skeleton :is([data-skeleton-lead], [data-skeleton-next]),
+:root[data-wall-kind="movie"] #library-skeleton :is([data-skeleton-lead], [data-skeleton-next]),
+:root:not([data-wall-tab="watched"]) #library-skeleton [data-skeleton-date],
+:root:not([data-wall-kind="movie"], [data-wall-kind="series"]) #library-skeleton [data-skeleton-chip] {
+  display: none;
+}
+/* Under the chip row the wall drops its own top space, as the real one does. */
+:root:is([data-wall-kind="movie"], [data-wall-kind="series"]) #library-skeleton [data-skeleton-wall] {
+  padding-top: 0;
+}
+
+/* The pressed one of the top bar's Tiles and List buttons, right from the first paint. */
+:root:not([data-wall-layout="list"]) [data-layout-button="tiles"],
+:root[data-wall-layout="list"] [data-layout-button="list"] {
+  border-color: transparent;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* The skeleton's dock and sidebar mark the tab and the kind filter from the URL, as the real ones will. */
+:root[data-wall-tab="watching"] #library-skeleton [data-skeleton-tabs] {
+  --i: 1;
+}
+:root[data-wall-tab="watched"] #library-skeleton [data-skeleton-tabs] {
+  --i: 2;
+}
+:root[data-wall-tab="dropped"] #library-skeleton [data-skeleton-tabs] {
+  --i: 3;
+}
+:root:is(:not([data-wall-tab]), [data-wall-tab="to_watch"]) #library-skeleton [data-skeleton-tab="to_watch"],
+:root[data-wall-tab="watching"] #library-skeleton [data-skeleton-tab="watching"],
+:root[data-wall-tab="watched"] #library-skeleton [data-skeleton-tab="watched"],
+:root[data-wall-tab="dropped"] #library-skeleton [data-skeleton-tab="dropped"] {
+  color: var(--primary-foreground);
+}
+:root:is(:not([data-wall-tab]), [data-wall-tab="to_watch"]) #library-skeleton [data-skeleton-side-tab="to_watch"],
+:root[data-wall-tab="watching"] #library-skeleton [data-skeleton-side-tab="watching"],
+:root[data-wall-tab="watched"] #library-skeleton [data-skeleton-side-tab="watched"],
+:root[data-wall-tab="dropped"] #library-skeleton [data-skeleton-side-tab="dropped"],
+:root:is(:not([data-wall-kind]), [data-wall-kind="all"]) #library-skeleton [data-skeleton-kind="all"],
+:root[data-wall-kind="movie"] #library-skeleton [data-skeleton-kind="movie"],
+:root[data-wall-kind="series"] #library-skeleton [data-skeleton-kind="series"] {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+:root:not([data-wall-kind="movie"], [data-wall-kind="series"]) #library-skeleton [data-skeleton-clear] {
+  display: none;
+}
+
+/* On desktop, once the Library has loaded, its copy of the top bar's buttons (placed after the
+   sidebar for the Tab order) stands on the same spot, and the shell's own buttons step aside. The
+   copy counts only inside <main>: while it streams in, it waits in a hidden holder outside it. */
+@media (width >= 64rem) {
+  body:has(main #desk-top-buttons) #top-buttons {
+    visibility: hidden;
+  }
+}
+
+/* A sheet grows out of the dock and covers it, so the dock steps back while one is open: its words
+   would otherwise show through the glass. It comes back as the sheet shrinks into it. */
+body:has([data-sheet][data-open="true"]) :is(.dock, #dock-pill) {
+  opacity: 0;
+  transition-duration: 150ms;
+}
+
+/* The press-and-hold hint never sits over a sheet or the drawer: it hides while one is open and comes
+   back only once a closing sheet has shrunk away. */
+[data-hold-hint] {
+  transition: visibility 0s linear 0.45s;
+}
+body:has([data-sheet][data-open="true"]) [data-hold-hint],
+html[data-drawer] [data-hold-hint] {
+  visibility: hidden;
+  transition-delay: 0s;
+}
+
+/* A tab's crossfade lifts the wall into a layer of its own, which would cover the dock and the toasts
+   that float over the wall. Each of them gets its own layer, painted above the wall's. */
+.dock:not([aria-hidden]) {
+  view-transition-name: dock;
+}
+[data-sonner-toast] {
+  view-transition-name: match-element;
+}
+
+/* Library posters fade in as they load instead of popping in. The head script marks each one as it
+   loads. During a view transition the mark shows at once, so the new snapshot already holds the poster. */
+img[data-fade] {
+  transition: opacity 0.3s ease-out;
+}
+img[data-fade]:not([data-loaded]) {
+  opacity: 0;
+}
+:root:active-view-transition img[data-fade] {
+  transition: none;
+}
+
+/* Focus that a sheet hands back after a tap or a click shows no ring; the ring is for the keyboard. */
+[data-pointer-focus],
+[data-pointer-focus]::after {
+  outline: none !important;
+  box-shadow: none !important;
 }

@@ -2,34 +2,78 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
 import { cn } from "cn";
-import { writeLayoutCookie, type Layout } from "@/components/library/layout";
+import { GRID, WALL_CLASS, readLayoutCookie, writeLayoutCookie, type Layout } from "@/components/library/layout";
+import { wallMarks } from "@/components/library/wall-marks";
+
+// One layout per page, shared by the top bar's Tiles and List buttons (in the static shell) and the
+// wall (which streams in later). It starts from the cookie, the same one the server and the head
+// script read.
+let saved: Layout | null = null;
+// Where Tiles goes back to: the tile size last pinched to, or the default.
+let lastTiles: Layout = "auto";
+const listeners = new Set<() => void>();
+const beforeChange = new Set<() => void>();
+
+function currentLayout(): Layout {
+  saved ??= readLayoutCookie(document.cookie);
+  return saved;
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/** The saved layout; `serverLayout` stands in while the page hydrates. */
+export function useSavedLayout(serverLayout: Layout): Layout {
+  return useSyncExternalStore(subscribe, currentLayout, () => serverLayout);
+}
+
+export function changeLayout(next: Layout): void {
+  const now = currentLayout();
+  if (next === now) return;
+  if (now !== "list") lastTiles = now;
+  for (const run of beforeChange) run();
+  saved = next;
+  document.documentElement.setAttribute("data-wall-layout", next);
+  writeLayoutCookie(next);
+  for (const listener of listeners) listener();
+}
+
+export function showTiles(): void {
+  if (currentLayout() === "list") changeLayout(lastTiles);
+}
+
+/**
+ * Sets the head script's marks again. React clears attributes it does not own from <html> when it
+ * remounts the root in development, and a move to the Library from another page runs no head script.
+ */
+export function markWall(): void {
+  const root = document.documentElement;
+  const marks = wallMarks(document.cookie, location.pathname, location.search);
+  root.setAttribute("data-wall-layout", currentLayout());
+  if (marks["data-wall-tab"]) root.setAttribute("data-wall-tab", marks["data-wall-tab"]);
+  if (marks["data-wall-kind"]) root.setAttribute("data-wall-kind", marks["data-wall-kind"]);
+}
 
 type WallLayout = {
   layout: Layout;
-  setLayout: (next: Layout) => void;
   wall: RefObject<HTMLUListElement | null>;
-  /** Card positions taken just before a change, so the wall can glide to the new ones. */
-  snapshot: RefObject<Map<string, DOMRect> | null>;
 };
 
 const WallLayoutContext = createContext<WallLayout | null>(null);
-
-export function useWallLayout(): Pick<WallLayout, "layout" | "setLayout"> {
-  const value = useContext(WallLayoutContext);
-  if (!value) throw new Error("useWallLayout needs a LayoutProvider above it.");
-  return value;
-}
 
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -78,18 +122,19 @@ export function glide(root: HTMLElement | null, first: Map<string, DOMRect>) {
 const DESKTOP_STEPS: readonly Layout[] = ["2", "3", "4"];
 
 export function LayoutProvider({ initial, children }: { initial: Layout; children: ReactNode }) {
-  const [layout, setLayoutState] = useState<Layout>(initial);
+  const layout = useSavedLayout(initial);
   const wall = useRef<HTMLUListElement>(null);
   const snapshot = useRef<Map<string, DOMRect> | null>(null);
-  const current = useRef(layout);
 
-  const setLayout = useCallback((next: Layout) => {
-    if (next === current.current) return;
-    current.current = next;
-    // With reduced motion the change is instant: no snapshot means no glide.
-    snapshot.current = prefersReducedMotion() ? null : measure(wall.current);
-    setLayoutState(next);
-    writeLayoutCookie(next);
+  // With reduced motion the change is instant: no snapshot means no glide.
+  useEffect(() => {
+    const takeSnapshot = () => {
+      snapshot.current = prefersReducedMotion() ? null : measure(wall.current);
+    };
+    beforeChange.add(takeSnapshot);
+    return () => {
+      beforeChange.delete(takeSnapshot);
+    };
   }, []);
 
   useLayoutEffect(() => {
@@ -114,11 +159,11 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
     const onMove = (event: TouchEvent) => {
       if (startDistance === 0 || event.touches.length !== 2) return;
       const ratio = distance(event.touches) / startDistance;
-      const now = current.current;
+      const now = currentLayout();
       if (now === "list") return;
       const columns = now === "3" || now === "4" ? "3" : "2";
-      if (ratio > 1.25 && columns === "3") setLayout("2");
-      else if (ratio < 0.8 && columns === "2") setLayout("3");
+      if (ratio > 1.25 && columns === "3") changeLayout("2");
+      else if (ratio < 0.8 && columns === "2") changeLayout("3");
       else return;
       startDistance = distance(event.touches);
     };
@@ -134,7 +179,7 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
     let lockedUntil = 0;
     const onWheel = (event: WheelEvent) => {
       if (!(event.ctrlKey || event.metaKey) || !inWall(event.target) || !window.matchMedia("(min-width: 1024px)").matches) return;
-      const now = current.current;
+      const now = currentLayout();
       if (now === "list") return;
       // The rest of one pinch, right after a change, must not zoom the page either.
       if (performance.now() < lockedUntil) {
@@ -149,7 +194,7 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
       if (next === (now === "auto" ? "4" : now)) return;
       event.preventDefault();
       lockedUntil = performance.now() + 380;
-      setLayout(next);
+      changeLayout(next);
     };
 
     document.addEventListener("touchstart", onStart, { passive: true });
@@ -166,23 +211,11 @@ export function LayoutProvider({ initial, children }: { initial: Layout; childre
       document.removeEventListener("gesturestart", onGesture);
       window.removeEventListener("wheel", onWheel);
     };
-  }, [setLayout]);
+  }, []);
 
-  const value = useMemo(() => ({ layout, setLayout, wall, snapshot }), [layout, setLayout]);
+  const value = useMemo(() => ({ layout, wall }), [layout]);
   return <WallLayoutContext value={value}>{children}</WallLayoutContext>;
 }
-
-// Every layout gives the same cards a new place, so only the grid's own classes change here.
-// "4" is three on a phone, which a phone-only 4 would otherwise make too narrow. The default is the
-// "2", "3" and "4" layouts in turn as the screen widens, so a button always matches what the wall shows.
-const GRID: Record<Layout, string> = {
-  auto: "grid-cols-2 gap-x-2 gap-y-5 sm:grid-cols-3 sm:gap-x-1.5 sm:gap-y-4 lg:grid-cols-4 lg:gap-x-1 lg:gap-y-3.5",
-  "2": "grid-cols-2 gap-x-2 gap-y-5",
-  "3": "grid-cols-3 gap-x-1.5 gap-y-4",
-  "4": "grid-cols-3 gap-x-1.5 gap-y-4 sm:grid-cols-4 sm:gap-x-1 sm:gap-y-3.5",
-  list: "grid-cols-1 gap-0 px-4",
-};
-
 
 type Props = {
   /** The first card as the wide tile, shown in every grid layout. */
@@ -195,15 +228,7 @@ type Props = {
 export function WallFrame({ lead, leadAsRow, children }: Props) {
   const { layout, wall } = useContext(WallLayoutContext)!;
   return (
-    <ul
-      ref={wall}
-      id="library-grid"
-      data-layout={layout}
-      className={cn(
-        "grid touch-pan-y pr-[max(0.5rem,env(safe-area-inset-right))] pb-[calc(env(safe-area-inset-bottom)+8.5rem)] pl-[max(0.5rem,env(safe-area-inset-left))] lg:px-3 lg:pb-8",
-        GRID[layout],
-      )}
-    >
+    <ul ref={wall} id="library-grid" data-layout={layout} className={cn(WALL_CLASS, GRID[layout])}>
       {layout === "list" ? leadAsRow : lead}
       {children}
     </ul>

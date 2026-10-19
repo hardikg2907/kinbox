@@ -5,6 +5,7 @@ import { TilePosterTransition } from "@/components/entry/tile-poster-transition"
 import { Poster } from "@/components/poster";
 import { CardNext } from "@/components/library/card-next";
 import { formatWatchDate } from "@/components/library/format-date";
+import { LEAD_BOX } from "@/components/library/layout";
 import type { CardProgress, LibraryCard as LibraryCardData } from "@/data/dto";
 
 type Props = {
@@ -52,7 +53,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
       className={cn(
         "block rounded-sm outline-none after:absolute after:inset-0 focus-visible:after:rounded-tile focus-visible:after:ring-3 focus-visible:after:ring-ring",
         lead
-          ? "line-clamp-1 font-display text-xl focus-visible:after:ring-inset"
+          ? "line-clamp-1 font-display text-xl focus-visible:after:ring-inset lg:text-3xl"
           : "line-clamp-2 text-sm leading-tight font-bold dense:line-clamp-1 rows:line-clamp-1 rows:text-base",
       )}
     >
@@ -60,6 +61,7 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
     </Link>
   );
 
+  // Faces on a poster sit in its upper part; the lead's crop starts a quarter of the way down to keep them.
   const poster = (
     <Poster
       path={posterPath}
@@ -67,13 +69,14 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
       size={lead ? "w500" : "w342"}
       eager={eager}
       decorative
+      fade
       className={cn(
         "transition-transform duration-[450ms] ease-(--spring) group-has-[a:active]:scale-[0.97]",
         lead
-          ? "aspect-video max-h-[40svh] w-full rounded-card [grid-area:1/1] lg:aspect-[3/1]"
+          ? "aspect-auto w-full rounded-card [grid-area:1/1]"
           : 'rounded-tile [[data-layout="4"]_&]:rounded-thumb rows:w-[46px] rows:shrink-0 rows:rounded-thumb',
       )}
-      imageClassName={cn("[-webkit-user-drag:none]", lead && "object-top")}
+      imageClassName={cn("[-webkit-user-drag:none]", lead && "object-[50%_25%]")}
       overlay={(face) => <TilePosterTransition entryId={entryId}>{face}</TilePosterTransition>}
     />
   );
@@ -100,12 +103,15 @@ export function LibraryCard({ card, eager, lead = false }: Props) {
       <li
         id={`card-${entryId}`}
         {...facts}
-        className="group relative col-span-full isolate grid overflow-hidden rounded-card bg-muted select-none [-webkit-touch-callout:none]"
+        className={cn(LEAD_BOX, "group relative isolate grid overflow-hidden bg-muted select-none [-webkit-touch-callout:none]")}
       >
         {poster}
-        <div aria-hidden className="scrim-lead z-[1] h-36 self-end [grid-area:1/1]" />
-        {/* Not positioned, so the name's stretched link still covers the whole tile. */}
-        <div className="z-[2] self-end px-4 pb-4 [grid-area:1/1]">{next ?? nameLink}</div>
+        {/* Not positioned, so the name's stretched link still covers the whole tile. The scrim shares
+            the text's grid cell, so its solid part always reaches the top of the text. */}
+        <div className="z-[2] grid self-end [grid-area:1/1]">
+          <div aria-hidden className="scrim-lead [grid-area:1/1]" />
+          <div className="z-[1] px-4 pt-2 pb-4 [grid-area:1/1] lg:px-6 lg:pb-6">{next ?? nameLink}</div>
+        </div>
       </li>
     );
   }

@@ -2,12 +2,12 @@ import type { LibraryCard as LibraryCardData } from "@/data/dto";
 import { LibraryCard } from "@/components/library/library-card";
 import { WallFrame } from "@/components/library/wall-layout";
 
-// Skeleton wall: the default layout, since the saved one is only known once the data streams in.
-export const GRID_CLASS =
-  "grid grid-cols-2 gap-x-2 gap-y-5 pr-[max(0.5rem,env(safe-area-inset-right))] pb-[calc(env(safe-area-inset-bottom)+8.5rem)] pl-[max(0.5rem,env(safe-area-inset-left))] sm:grid-cols-3 sm:gap-x-1.5 sm:gap-y-4 lg:grid-cols-4 lg:gap-x-1 lg:gap-y-3.5 lg:px-3 lg:pb-8";
+// Posters on the first screen load at once. A tab switch waits briefly for them before it crossfades,
+// so they arrive inside the crossfade instead of popping in after it.
+const EAGER = 8;
 
 export function LibraryGrid({ cards }: { cards: LibraryCardData[] }) {
-  // On the Watching tab the most recent Series takes the whole first row in every grid layout;
+  // On the Watching tab the most recent Series takes the lead tile in every grid layout;
   // List view shows it as an ordinary row.
   const leadIndex = cards[0]?.status === "watching" ? cards.findIndex((card) => card.kind === "series") : -1;
   const lead = leadIndex >= 0 ? cards[leadIndex] : null;
@@ -19,7 +19,7 @@ export function LibraryGrid({ cards }: { cards: LibraryCardData[] }) {
       leadAsRow={lead ? <LibraryCard key={lead.entryId} card={lead} eager /> : null}
     >
       {rest.map((card, index) => (
-        <LibraryCard key={card.entryId} card={card} eager={index < 4} />
+        <LibraryCard key={card.entryId} card={card} eager={index < EAGER} />
       ))}
     </WallFrame>
   );

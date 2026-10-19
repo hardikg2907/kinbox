@@ -5,6 +5,7 @@ import { ViewTransition } from "react";
 import { getLibrary } from "@/data/library";
 import { LibraryMoves, LibraryWall } from "@/components/library/library-moves";
 import { LibraryNav } from "@/components/library/library-nav";
+import { DesktopTopButtons } from "@/components/library/library-top-bar";
 import { LAYOUT_COOKIE, parseLayout } from "@/components/library/layout";
 import { libraryHref, parseKind, parseTab } from "@/components/library/params";
 import { LayoutProvider } from "@/components/library/wall-layout";
@@ -27,6 +28,7 @@ export async function LibraryContent({ searchParams }: Props) {
     <LayoutProvider initial={layout}>
       <LibraryMoves tab={tab} kind={kind} cards={view.cards} counts={view.counts}>
         <LibraryNav tab={tab} kind={kind} counts={view.counts} />
+        <DesktopTopButtons />
         {kind !== "all" ? (
           <div id="library-chips" className="flex gap-2 px-2 pb-3 lg:px-3 lg:pt-3">
             <span className="glass-strong inline-flex min-h-11 items-center rounded-full border pl-4 text-sm font-semibold">
@@ -43,8 +45,9 @@ export async function LibraryContent({ searchParams }: Props) {
             </span>
           </div>
         ) : null}
-        {/* Tabs crossfade in place: same page, different content. */}
-        <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="auto" default="none">
+        {/* Tabs crossfade in place: same page, different content. The wall's first arrival is not
+            animated: it replaces a skeleton of the same shape. */}
+        <ViewTransition key={`${tab}-${kind}`} name="library-grid" share="auto" enter="none" default="none">
           <LibraryWall kind={kind} className={kind === "all" ? "lg:pt-3" : undefined} />
         </ViewTransition>
       </LibraryMoves>

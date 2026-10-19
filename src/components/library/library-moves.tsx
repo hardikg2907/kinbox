@@ -31,6 +31,8 @@ const HOLD_MS = 450;
 const HOLD_SLOP_PX = 8;
 const HINT_ID = "hold-hint";
 const HINT_KEY = "kb_hold_hint";
+// How long the sheet and the lifted copy take to leave, so the cards glide only after them.
+const LEAVE_MS = 180;
 
 type Counts = Record<Status, number>;
 type Shown = { cards: LibraryCard[]; counts: Counts };
@@ -240,6 +242,12 @@ export function LibraryMoves({
     setLiftLeaves(leaves);
     setOpen(false);
     toast.dismiss(titleToastId(card.entryId));
+    // One step after another: the sheet goes and the copy fades, then the cards glide into the gap.
+    if (leaves && !prefersReducedMotion()) window.setTimeout(() => commit(card, index, to, target), LEAVE_MS);
+    else commit(card, index, to, target);
+  }
+
+  function commit(card: LibraryCard, index: number, to: Status, target: MoveTarget) {
     startTransition(async () => {
       applyNow({ card, from: card.status, to, index });
       const result = await send(card.entryId, target);
@@ -303,7 +311,7 @@ export function LibraryMoves({
 
 function HoldHint({ onClose }: { onClose: () => void }) {
   return (
-    <div className="flex w-[var(--width)] max-w-full items-center gap-2 rounded-[1.25rem] border bg-card py-1.5 pr-1.5 pl-4 text-sm font-medium text-card-foreground shadow-[0_12px_40px_-12px_rgb(0_0_0/0.5)]">
+    <div data-hold-hint className="flex w-[var(--width)] max-w-full items-center gap-2 rounded-[1.25rem] border bg-card py-1.5 pr-1.5 pl-4 text-sm font-medium text-card-foreground shadow-[0_12px_40px_-12px_rgb(0_0_0/0.5)]">
       <p className="flex-1">Press and hold a poster for quick actions.</p>
       <button
         type="button"
