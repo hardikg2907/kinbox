@@ -53,6 +53,12 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  experimental: {
+    // Turbopack's on-disk cache does not see changes in the files Tailwind scans for classes, so a
+    // restored cache (Vercel keeps .next/cache between deploys) ships the previous stylesheet.
+    turbopackFileSystemCacheForBuild: false,
+    turbopackFileSystemCacheForDev: false,
+  },
 };
 
 export default nextConfig;
