@@ -135,6 +135,8 @@ export function Sheet({
     <>
       <div
         aria-hidden
+        data-sheet-scrim=""
+        data-open={open}
         onClick={onClose}
         className={cn(
           "fixed inset-0 z-50 touch-none bg-black/30 transition-opacity duration-300",
