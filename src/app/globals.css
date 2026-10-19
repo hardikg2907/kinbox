@@ -581,12 +581,16 @@ html[data-drawer] [data-sonner-toast]:has([data-hold-hint]) {
   pointer-events: none;
 }
 
-/* A tab's crossfade lifts the wall into a layer of its own, which would cover the dock and the toasts
-   that float over the wall. Each of them gets its own layer, painted above the wall's. */
+/* A tab's crossfade lifts the wall into a layer of its own, which would cover the dock, the toasts and
+   an open sheet that float over the wall. Each of them gets its own layer, painted above the wall's. */
 .dock:not([aria-hidden]) {
   view-transition-name: dock;
 }
 [data-sonner-toast] {
+  view-transition-name: match-element;
+}
+/* A filter picked in the open Filters sheet crossfades the wall under the sheet and its dimmed backdrop. */
+:is([data-sheet], [data-sheet-scrim])[data-open="true"] {
   view-transition-name: match-element;
 }
 
