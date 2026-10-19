@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { readPalette } from "@/components/poster-colour/palette";
 import { STATUSES, type Status, type TitleKind } from "@/domain/types";
 import { isPosterPath } from "@/lib/tmdb/images";
+import { watchInput } from "./quiet-focus";
 
 const ENTRY_LINK = /^\/entry\/([0-9a-f-]{36})$/i;
 const TMDB_IMAGES = "https://image.tmdb.org/t/p/";
@@ -107,6 +108,8 @@ function forget() {
 /** Listens for taps on Title links in the Library; renders nothing. */
 export function RememberOpenedTile() {
   useEffect(() => {
+    // The drawer's code may load after the key or tap that opens it, so the input is noted from here.
+    watchInput();
     document.addEventListener("click", remember, { capture: true });
     // Back and Forward reopen a drawer without a tap, so an older tap must not speak for them.
     window.addEventListener("popstate", forget);

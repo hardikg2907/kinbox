@@ -1,5 +1,7 @@
+import { preload } from "react-dom";
 import type { EntryView } from "@/data/dto";
 import { posterUrl } from "@/lib/tmdb/images";
+import { paletteImageUrl } from "@/components/poster-colour/palette";
 import { TitleTint } from "@/components/poster-colour/title-tint";
 import { ShowInDrawer } from "./drawer-hero";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
@@ -20,6 +22,10 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
     overview: title.overview,
   };
   const layout = TITLE_LAYOUT[container];
+  // The page's colour is read from this small poster; fetched with the page, it is there by the time
+  // the page's code asks for it.
+  const palette = container === "page" ? paletteImageUrl(title.posterPath) : null;
+  if (palette) preload(palette, { as: "image", crossOrigin: "anonymous", fetchPriority: "high" });
 
   return (
     <EntryProvider
@@ -37,7 +43,7 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
       <StatusPillHost name={title.name} posterPath={title.posterPath}>
         {container === "page" ? (
           <>
-            <TitleTint posterPath={title.posterPath} />
+            <TitleTint posterPath={title.posterPath} revealsHero />
             <TitleHero
               entryId={entry.id}
               low={posterUrl(title.posterPath, "w342")}

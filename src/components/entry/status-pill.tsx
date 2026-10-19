@@ -6,6 +6,7 @@ import { cn } from "cn";
 import { STATUS_ICON, STATUS_LABEL } from "@/components/status";
 import type { Status } from "@/domain/types";
 import { useEntry } from "./entry-state";
+import { quietAfterPointer } from "./quiet-focus";
 import type { MoveTarget, SheetFacts } from "./status-moves";
 import { StatusSheet } from "./status-sheet";
 
@@ -48,8 +49,14 @@ export function StatusPillHost({
     setOpenedBy(by);
   }
 
-  function move(target: MoveTarget) {
+  // Focus goes back to the pill as the sheet closes; after a tap it carries no ring.
+  function close() {
+    quietAfterPointer(opener.current);
     setOpenedBy(null);
+  }
+
+  function move(target: MoveTarget) {
+    close();
     if (target === "again") addWatch();
     else changeStatus(target);
   }
@@ -59,7 +66,7 @@ export function StatusPillHost({
       {children}
       <StatusSheet
         open={openedBy !== null}
-        onClose={() => setOpenedBy(null)}
+        onClose={close}
         openerRef={opener}
         anchor={anchor}
         side="below"

@@ -2,7 +2,6 @@
 
 import { use, useState, ViewTransition } from "react";
 import { cn } from "cn";
-import { DrawerChromeCopy } from "./drawer-chrome";
 import { DrawerMotionContext } from "./drawer-motion";
 import { DRAWER_WASH, TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 
@@ -34,17 +33,17 @@ export function TitleHero({ entryId, low, high, alt, container }: Props) {
     image.decode().then(fade, fade);
   }
 
-  // The window is what morphs. In the drawer it is cut to the part of the poster on show, so the
+  // The window is what morphs. In the drawer it is cut to the strip the quick view shows, so the
   // poster lands in the strip instead of spreading over the sections below it. It also carries the
-  // shade under the drawer's handle, and copies of the body's wash and of the drawer's buttons, so
-  // the moving poster already looks the way it will at rest.
+  // shade under the drawer's handle and a copy of the body's wash, so the moving poster already
+  // looks the way it will at rest. The muted box holds the hero's colour until the poster paints.
   const media = (
     <div data-title-window className="absolute inset-x-0 top-0 h-full overflow-hidden rounded-t-[inherit]">
-      <div className={layout.media}>
+      <div className={cn(layout.media, "bg-muted")}>
         {low ? (
           // TMDB serves sized posters, so next/image optimisation would only spend quota.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={low} alt={alt} draggable={false} decoding="async" fetchPriority="high" className={IMAGE} />
+          <img data-hero-low src={low} alt={alt} draggable={false} decoding="async" fetchPriority="high" className={IMAGE} />
         ) : (
           <div aria-hidden className="absolute inset-0 bg-muted" />
         )}
@@ -70,7 +69,6 @@ export function TitleHero({ entryId, low, high, alt, container }: Props) {
         <>
           <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-24 shade-top" />
           <div aria-hidden data-title-wash className={DRAWER_WASH} />
-          <DrawerChromeCopy />
         </>
       ) : null}
     </div>

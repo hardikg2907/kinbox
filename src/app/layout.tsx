@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree } from "next/font/google";
+import { HistoryGate } from "@/components/entry/history-gate";
 import { Toaster } from "@/components/ui/sonner";
 import { TimeZoneCookie } from "@/components/time-zone-cookie";
 import { WALL_MARKS_SCRIPT } from "@/components/library/wall-marks";
 import { POSTER_FADE_SCRIPT } from "@/components/poster-fade";
+import { ViewportCookie } from "@/components/viewport-cookie";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -41,6 +43,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Toaster position="bottom-center" />
         <TimeZoneCookie />
+        <ViewportCookie />
+        <HistoryGate />
       </body>
     </html>
   );

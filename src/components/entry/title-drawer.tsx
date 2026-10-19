@@ -15,6 +15,8 @@ import { CLOSE_LOOK, CloseIcon, HANDLE_BAR, HANDLE_LOOK } from "./drawer-chrome"
 import { DrawerHero, DrawerTitleContext, heroFromTile, nextHero, type DrawerHeroState } from "./drawer-hero";
 import { BODY_OVERLAP_PX, STRIP_PX } from "./entry-layout";
 import { openedTile } from "./opened-tile";
+import { holdHistoryMoves } from "./history-gate";
+import { focusAfterInput } from "./quiet-focus";
 
 const DESKTOP = "(min-width: 1024px)";
 
@@ -153,7 +155,9 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       animateTo(to === "full" ? 0 : geometry.quick, velocity);
     }
 
-    function close(velocity = 0) {
+    // `leave` takes the drawer's address away once it has gone: Back by default, or a history
+    // move the browser already made.
+    function close(velocity = 0, leave: () => void = () => router.back()) {
       if (closingNow) return;
       closingNow = true;
       target = null;
@@ -169,9 +173,46 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
           // The hero lets go of the poster's shared name before the Library returns, so the poster
           // stays in its tile instead of flying up from below the screen.
           flushSync(() => setClosing(true));
-          router.back();
+          leave();
         },
       });
+    }
+
+    // The browser's Back moves the address before anything can run, and the router would drop the
+    // drawer in that same frame. The drawer holds the move back from the router, leaves the way the
+    // Close button does, and then hands the router the same move. A move the browser animated
+    // itself (an edge swipe) and one made while the drawer already leaves go straight through.
+    const ownPath = window.location.pathname;
+    let held = false;
+    let replaying = false;
+    function holdMove(event: PopStateEvent): boolean {
+      if (replaying) return false;
+      if (held) {
+        // A second move while the drawer sinks: the router takes this one, and a move back to
+        // this Title keeps the drawer open.
+        held = false;
+        motion?.stop();
+        if (window.location.pathname === ownPath) {
+          closingNow = false;
+          animateTo(geometry.desktop ? 0 : geometry.quick);
+        }
+        return false;
+      }
+      const animatedByBrowser = "hasUAVisualTransition" in event && event.hasUAVisualTransition === true;
+      if (closingNow || animatedByBrowser || prefersReducedMotion()) return false;
+      held = true;
+      const { state } = event;
+      close(0, () => {
+        if (!held) return;
+        held = false;
+        replaying = true;
+        try {
+          window.dispatchEvent(new PopStateEvent("popstate", { state }));
+        } finally {
+          replaying = false;
+        }
+      });
+      return true;
     }
 
     // From the full view a pull down only shrinks it; from the quick view, far enough or fast enough closes it.
@@ -440,7 +481,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     // The Library behind is out of reach while the drawer is open: no focus, no screen reader.
     const library = visibleElement("main#main");
     library?.setAttribute("inert", "");
-    closeButton.current?.focus({ preventScroll: true });
+    focusAfterInput(closeButton.current);
 
     contentObserver.observe(scrollElement, { childList: true });
     panelElement.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -453,6 +494,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     panelElement.addEventListener("pointercancel", onPointerUp);
     panelElement.addEventListener("wheel", onWheel, { passive: false });
     document.addEventListener("keydown", onKeyDown);
+    holdHistoryMoves(holdMove);
     const onResize = () => refit(false);
     desktopQuery.addEventListener("change", onResize);
     window.addEventListener("resize", onResize);
@@ -475,13 +517,14 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       panelElement.removeEventListener("pointercancel", onPointerUp);
       panelElement.removeEventListener("wheel", onWheel);
       document.removeEventListener("keydown", onKeyDown);
+      holdHistoryMoves(null);
       desktopQuery.removeEventListener("change", onResize);
       window.removeEventListener("resize", onResize);
       delete root.dataset.drawer;
       root.style.removeProperty("--drawer-lift");
       library?.removeAttribute("inert");
       // Focus goes back to the poster that opened the drawer.
-      if (entryId) visibleElement(`#card-${CSS.escape(entryId)} a[href]`)?.focus({ preventScroll: true });
+      if (entryId) focusAfterInput(visibleElement(`#card-${CSS.escape(entryId)} a[href]`));
     };
   }, [router]);
 
@@ -503,15 +546,18 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
             id="title-drawer"
             role="dialog"
             aria-modal="true"
+            data-full={atFull ? "" : undefined}
             className={cn(
-              "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden title-tint shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
+              // The edge only turns clear at full height, so the sections never move by its width.
+              "fixed inset-x-0 top-0 z-50 h-dvh overflow-hidden border border-b-0 title-tint shadow-[0_-12px_50px_rgb(0_0_0/0.35)] will-change-transform",
               "lg:inset-x-auto lg:top-3 lg:right-3 lg:bottom-3 lg:h-auto lg:w-[430px] lg:rounded-sheet lg:border lg:shadow-[0_22px_54px_-18px_rgb(0_0_0/0.6)]",
-              atFull ? "rounded-none" : "rounded-t-sheet border border-b-0",
+              atFull ? "rounded-none border-transparent" : "rounded-t-sheet",
             )}
           >
             <button
               ref={closeButton}
               type="button"
+              data-drawer-close
               aria-label="Close"
               onClick={() => controls.current?.close()}
               className={cn(
