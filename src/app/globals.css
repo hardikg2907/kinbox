@@ -575,6 +575,11 @@ html[data-drawer] [data-hold-hint] {
   visibility: hidden;
   transition-delay: 0s;
 }
+/* Its toast's own box would still catch taps meant for the sheet. */
+body:has([data-sheet][data-open="true"]) [data-sonner-toast]:has([data-hold-hint]),
+html[data-drawer] [data-sonner-toast]:has([data-hold-hint]) {
+  pointer-events: none;
+}
 
 /* A tab's crossfade lifts the wall into a layer of its own, which would cover the dock and the toasts
    that float over the wall. Each of them gets its own layer, painted above the wall's. */
