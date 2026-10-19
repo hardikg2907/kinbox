@@ -59,27 +59,31 @@ export function SignInForm() {
           aria-describedby={error ? "sign-in-error" : undefined}
         />
       </div>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="password" className="pl-1">
-          Password
-        </Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          maxLength={128}
-          required
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "sign-in-error" : undefined}
-        />
+      {/* The error has a slot of its own between the password and the button, as tall as the longest
+          message, so it appears without moving anything; empty, it is only a little wider than a gap. */}
+      <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password" className="pl-1">
+            Password
+          </Label>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            maxLength={128}
+            required
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? "sign-in-error" : undefined}
+          />
+        </div>
+        <p id="sign-in-error" role="alert" className="flex min-h-9 items-center px-1 text-sm leading-tight text-destructive">
+          {error}
+        </p>
+        <Button id="sign-in-submit" type="submit" size="lg" disabled={pending}>
+          {pending ? "Signing in…" : "Sign in"}
+        </Button>
       </div>
-      <p id="sign-in-error" role="alert" className="min-h-5 px-1 text-sm text-destructive">
-        {error}
-      </p>
-      <Button id="sign-in-submit" type="submit" size="lg" disabled={pending}>
-        {pending ? "Signing in…" : "Sign in"}
-      </Button>
     </form>
   );
 }
