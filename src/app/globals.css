@@ -204,11 +204,16 @@ body::before {
 @utility title-parallax {
   transform: translate3d(0, calc(var(--gap, 0px) * (var(--p, 1) - 1) * 0.45), 0);
 }
-/* The drawer's name is laid out at its quick-view size and scaled up from its foot, so it grows
-   without moving the lines after it. Its width is capped at 80 % so the grown name still fits. */
+/* The drawer's name is laid out at its quick-view size (30 px) and scaled up from its foot to the
+   full view's 44 px, so it grows without moving the lines after it. Its width is capped at 30/44 so
+   the grown name still fits. The side panel is always the full view, so it lays the name out at
+   44 px instead. */
 @utility title-name-grow {
   transform-origin: 0 100%;
-  transform: scale(calc(1 + var(--p, 1) * 0.25));
+  transform: scale(calc(1 + var(--p, 1) * 14 / 30));
+  @media (min-width: 1024px) {
+    transform: none;
+  }
 }
 /* The wash above the body is laid out at its quick-view height and stretched up from its foot to
    the full view's. */
@@ -362,27 +367,26 @@ html[data-drawer="full"] [data-sonner-toaster] {
 }
 
 /* A view transition captures the drawer's poster as one image above everything else, so its window
-   is cut to the part the drawer shows: the strip at the quick view, the hero above the sections at
-   full height. Only once the drawer has settled: while it moves the window stays whole, so a drag
-   never triggers layout. */
-#title-drawer:not([data-moving]) [data-title-window] {
-  height: calc(100% - 2rem - var(--lift, 0px) * var(--p, 1) - var(--gap, 0px) * (1 - var(--p, 1)));
+   is cut to the strip the quick view shows (the side panel's on desktop). The cut never changes as
+   the drawer moves or settles: outside a view transition the poster simply shows past it, wherever
+   the sections leave it in sight, and only a view transition clips it. */
+#title-drawer [data-title-window] {
+  height: calc(100% - 2rem - var(--gap, 0px));
+  overflow: visible;
+}
+:root:active-view-transition #title-drawer:not([data-full]) [data-title-window] {
+  overflow: clip;
 }
 
-/* What lies over the drawer's poster (the body's wash at its foot, the Close button and the handle)
-   is painted under it while a view transition lifts the poster above the page. For that time the
-   window carries identical copies in the same places, so the poster lands looking as it will at
-   rest, and the buttons never leave sight. The wash's copy waits for the drawer to settle, when the
+/* The body's wash at the poster's foot is painted under the poster while a view transition lifts the
+   poster above the page. For that time the window carries an identical copy in the same place, so
+   the poster lands looking as it will at rest. The copy waits for the drawer to settle, when the
    window's foot is the body's top. */
-[data-title-wash],
-[data-chrome-copy] {
+[data-title-wash] {
   display: none;
 }
 :root:active-view-transition #title-drawer:not([data-moving]) [data-title-wash] {
   display: block;
-}
-:root:active-view-transition #title-drawer [data-chrome-copy] {
-  display: contents;
 }
 
 /* A poster moving from its tile into the drawer or the page, and back. Each image fills the box it
@@ -611,4 +615,57 @@ img[data-fade]:not([data-loaded]) {
 [data-pointer-focus]::after {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* The Title's drawer and page. */
+
+/* While the drawer rises in a view transition, its Close button and handle are lifted above the
+   poster that morphs into the strip, and rise with the panel, so they stay in sight. */
+:root:active-view-transition #title-drawer[data-rising] [data-drawer-close] {
+  view-transition-name: drawer-close;
+}
+:root:active-view-transition #title-drawer[data-rising] [data-drawer-handle] {
+  view-transition-name: drawer-handle;
+}
+/* The group moves, not the image: the browser keeps a glass button's backdrop on the group's box.
+   `translate` adds to the transform that places the group, where `transform` would replace it. */
+::view-transition-group(drawer-close),
+::view-transition-group(drawer-handle) {
+  z-index: 2;
+  animation: drawer-chrome-rise 520ms var(--spring) both;
+}
+::view-transition-new(drawer-close),
+::view-transition-new(drawer-handle) {
+  animation: none;
+}
+@keyframes drawer-chrome-rise {
+  from {
+    translate: 0 60vh;
+  }
+}
+@media (min-width: 1024px) {
+  ::view-transition-group(drawer-close) {
+    animation-name: drawer-chrome-slide-in;
+  }
+  @keyframes drawer-chrome-slide-in {
+    from {
+      translate: 470px 0;
+    }
+  }
+}
+
+/* Focus that a tap or a click moved for the keyboard's sake shows no ring until a key is pressed
+   (quiet-focus.ts). */
+[data-quiet-focus]:focus-visible {
+  --tw-ring-shadow: 0 0 #0000;
+  outline: none;
+}
+
+/* On the Title page the poster waits over the hero's muted box until its colour is read, then both
+   fade in together (title-tint.tsx), so the page never restyles after the poster shows. */
+#entry-page [data-title-window] img {
+  transition: opacity 240ms ease-out;
+}
+#entry-page:not([data-arrived]) [data-title-window] img {
+  opacity: 0;
 }

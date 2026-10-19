@@ -2,8 +2,12 @@ import { cn } from "cn";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TITLE_LAYOUT, type TitleContainer } from "./entry-layout";
 
-/** The quick view's boxes: name, status, the Next block and the stars, each as tall as the real one. */
-export function TitleHeadSkeleton({ container }: { container: TitleContainer }) {
+/**
+ * The quick view's boxes: name, status, the Next block and the stars, each as tall as the real one.
+ * `nameAndStatus` keeps only the two whose height every Title shares; what follows them differs by
+ * kind and Status, so a guessed box there would move when the Title arrives.
+ */
+export function TitleHeadSkeleton({ container, nameAndStatus = false }: { container: TitleContainer; nameAndStatus?: boolean }) {
   return (
     <div data-title-head className="flex flex-col gap-4">
       {/* One line in the real name's type holds the name's height. */}
@@ -12,14 +16,18 @@ export function TitleHeadSkeleton({ container }: { container: TitleContainer }) 
         <Skeleton className="absolute inset-y-0.5 left-0 w-3/5" />
       </div>
       <Skeleton className="h-11 w-36 rounded-full" />
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-11 w-40" />
-          <Skeleton className="h-5 w-28" />
-        </div>
-        <Skeleton className="h-12 w-36 rounded-full" />
-      </div>
-      <Skeleton className="h-12 w-60" />
+      {nameAndStatus ? null : (
+        <>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-11 w-40" />
+              <Skeleton className="h-5 w-28" />
+            </div>
+            <Skeleton className="h-12 w-36 rounded-full" />
+          </div>
+          <Skeleton className="h-12 w-60" />
+        </>
+      )}
     </div>
   );
 }
@@ -42,7 +50,11 @@ export function TitleMoreSkeleton() {
   );
 }
 
-/** The same boxes as the loaded Title page, so nothing moves when it arrives. */
+/**
+ * The Title page before anything about the Title is known (a direct link or a reload): the hero's
+ * box, and the name and status at their real heights. The rest fills in below them when the Title
+ * arrives, so nothing on screen moves.
+ */
 export function EntrySkeleton() {
   const layout = TITLE_LAYOUT.page;
   return (
@@ -50,8 +62,7 @@ export function EntrySkeleton() {
       <TitleHeroSkeleton container="page" />
       <div id="entry-skeleton" data-title-body role="status" aria-label="Loading" className={layout.body}>
         <div aria-hidden className={layout.fade} />
-        <TitleHeadSkeleton container="page" />
-        <TitleMoreSkeleton />
+        <TitleHeadSkeleton container="page" nameAndStatus />
       </div>
     </>
   );

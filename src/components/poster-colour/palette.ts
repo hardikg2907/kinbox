@@ -104,17 +104,25 @@ async function read(url: string): Promise<PosterPalette | null> {
   }
 }
 
+/**
+ * The small poster the palette is read from. TMDB sends its CORS header only when asked and does not
+ * vary its answer by origin, so a plain <img> of this poster elsewhere caches a copy the canvas may
+ * not read. An address of its own keeps the readable copy apart. A page may preload it, with
+ * `crossOrigin: "anonymous"`, so the read finds it already fetched.
+ */
+export function paletteImageUrl(posterPath: string | null): string | null {
+  const url = posterUrl(posterPath, "w92");
+  return url === null ? null : `${url}?palette`;
+}
+
 /** The palette of a poster, or null when it has none or cannot be read. Read once per path; a failed read is tried again. */
 export function readPalette(posterPath: string | null): Promise<PosterPalette | null> {
-  const url = posterUrl(posterPath, "w92");
+  const url = paletteImageUrl(posterPath);
   if (posterPath === null || url === null) return Promise.resolve(null);
   let promise = loaded.get(posterPath);
   if (!promise) {
-    // TMDB sends its CORS header only when asked and does not vary its answer by origin, so a plain
-    // <img> of this poster elsewhere caches a copy the canvas may not read. An address of its own
-    // keeps the readable copy apart.
     // A failed read is not kept, so the next open tries again after a brief network drop.
-    promise = read(`${url}?palette`).then((palette) => {
+    promise = read(url).then((palette) => {
       if (palette) settled.set(posterPath, palette);
       else loaded.delete(posterPath);
       return palette;

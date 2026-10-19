@@ -42,6 +42,6 @@ export const TITLE_LAYOUT: Record<TitleContainer, Layout> = {
     media: `absolute inset-x-0 top-0 ${HERO_HEIGHT} title-parallax lg:h-[250px]`,
     body: "title-follow relative z-[1] -mt-[160px] flex min-w-0 flex-col gap-8 bg-[var(--title-bg,var(--background))] px-5 pb-[max(5rem,env(safe-area-inset-bottom))] lg:-mt-8",
     fade: `${DRAWER_FADE} bottom-full`,
-    name: "title-name-grow max-w-[80%] font-display text-[30px] text-balance wrap-break-word text-foreground",
+    name: "title-name-grow max-w-[calc(100%*30/44)] font-display text-[30px] text-balance wrap-break-word text-foreground lg:max-w-none lg:text-[44px]",
   },
 };
