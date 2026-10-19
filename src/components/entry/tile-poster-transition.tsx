@@ -12,7 +12,7 @@ import { useWallLayout } from "@/components/library/wall-layout";
 // would only blur on its way into the strip, so a row never morphs: its drawer just rises.
 export function TilePosterTransition({ entryId, children }: { entryId: string; children: ReactNode }) {
   const drawerOpen = usePathname() === `/entry/${entryId}`;
-  const { layout } = useWallLayout();
+  const layout = useWallLayout();
   if (drawerOpen || layout === "list") return null;
   return (
     <ViewTransition name={`poster-${entryId}`} share="poster-morph" default="none">

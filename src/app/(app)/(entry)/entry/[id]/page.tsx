@@ -6,9 +6,7 @@ import { EntryScreen } from "@/components/entry/entry-screen";
 import { EntrySkeleton } from "@/components/entry/entry-skeleton";
 import { RefreshWhenWide } from "@/components/entry/refresh-when-wide";
 import { TitlePage } from "@/components/entry/title-page";
-import { LAYOUT_COOKIE, parseLayout } from "@/components/library/layout";
 import { LibraryNav } from "@/components/library/library-nav";
-import { LayoutProvider } from "@/components/library/wall-layout";
 import { LibrarySearch } from "@/components/search/library-search";
 import { getEntry } from "@/data/entries";
 import { getLibrary } from "@/data/library";
@@ -64,13 +62,10 @@ async function Sidebar({ params }: { params: PageProps<"/entry/[id]">["params"] 
   const entry = await getEntry(id);
   if (!entry) return <SidebarFrame />;
   const view = await getLibrary({ tab: entry.status, kind: "all" });
-  // The sidebar's layout choice applies to the Library; here it only saves the choice for later.
   // Its search button opens the search sheet, which lives here with it.
   return (
     <LibrarySearch>
-      <LayoutProvider initial={parseLayout(jar.get(LAYOUT_COOKIE)?.value)}>
-        <LibraryNav tab={entry.status} kind="all" counts={view.counts} />
-      </LayoutProvider>
+      <LibraryNav tab={entry.status} kind="all" counts={view.counts} />
     </LibrarySearch>
   );
 }
