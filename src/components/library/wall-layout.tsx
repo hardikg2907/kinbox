@@ -75,6 +75,11 @@ type WallLayout = {
 
 const WallLayoutContext = createContext<WallLayout | null>(null);
 
+/** The layout of the wall a card sits in; "auto" for a card outside one. */
+export function useWallLayout(): Layout {
+  return useContext(WallLayoutContext)?.layout ?? "auto";
+}
+
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Where each card on (or near) the screen sits, so a change can glide the cards to their new places. */
