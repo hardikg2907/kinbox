@@ -1,7 +1,6 @@
 "use client";
 
-import { RatingStars } from "@/components/rating-stars";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RatingStars, RatingStarsPreview } from "@/components/rating-stars";
 import type { Status } from "@/domain/types";
 import { canRate } from "@/domain/rating";
 import { useEntry } from "./entry-state";
@@ -26,12 +25,8 @@ export function RatingSection() {
   );
 }
 
-/** The stars' row while the Title loads: the rating itself is not known yet, its height is. */
+/** The stars' row while the Title loads: empty stars in their place; a Rating fills them in when it arrives. */
 export function RatingPreview({ status }: { status: Status }) {
   if (!canRate(status)) return <p className={NOT_YET}>{NOT_YET_TEXT}</p>;
-  return (
-    <div className="flex h-12 items-center">
-      <Skeleton className="h-8 w-56" />
-    </div>
-  );
+  return <RatingStarsPreview className="-ml-2" />;
 }

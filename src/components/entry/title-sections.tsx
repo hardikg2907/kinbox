@@ -98,7 +98,7 @@ export function TitleHeadPreview({ entryId, facts }: { entryId: string; facts: T
         <StatusPillPreview status={facts.status} />
       </div>
       {leadsWithNext(facts.kind, facts.status) ? (
-        <NextBlockPreview next={facts.next} />
+        <NextBlockPreview entryId={entryId} next={facts.next} />
       ) : (
         <div className="flex flex-col gap-2">
           <OverviewPreview />

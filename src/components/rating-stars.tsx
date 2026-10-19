@@ -19,6 +19,19 @@ const STARS = [1, 2, 3, 4, 5] as const;
 // Ten native radios (one per half star) give arrow-key support and a proper
 // accessible name for every value without custom key handling. Each half is
 // 24 px wide, the WCAG minimum target size.
+/** The empty row of stars, for the eye only, where the Rating is not known yet. */
+export function RatingStarsPreview({ className }: { className?: string }) {
+  return (
+    <div aria-hidden className={cn("flex", className)}>
+      {STARS.map((star) => (
+        <span key={star} className="flex h-12 w-12 items-center justify-center">
+          <Star className="size-8 text-muted-foreground" strokeWidth={1.5} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function RatingStars({ value, onChange, label = "Rating", disabled = false, className }: RatingStarsProps) {
   const name = useId();
   const current = value ?? 0;

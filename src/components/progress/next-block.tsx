@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,8 @@ const DONE = "font-display text-3xl text-foreground";
 const BLOCK = "flex flex-wrap items-center justify-between gap-x-4 gap-y-3";
 const NAME_LINE = "mt-1 min-h-6 truncate text-base text-muted-foreground";
 const CAUGHT_UP_HELPER = "New episodes will show here";
+/** Two taps closer than this are one tap, even before the first has shown as pending. */
+const DOUBLE_TAP_MS = 500;
 
 // `reserve` keeps the line's height in the Next state, so the layout does not jump when the
 // Episode's name arrives. Elsewhere an empty line would only add a gap.
@@ -39,7 +41,7 @@ function NextLine({ label }: { label: string }) {
   );
 }
 
-function WatchedItButton(props: Pick<ComponentProps<typeof Button>, "id" | "disabled" | "onClick">) {
+function WatchedItButton(props: Pick<ComponentProps<typeof Button>, "id" | "aria-disabled" | "tabIndex" | "onClick">) {
   return (
     <Button size="lg" {...props} className="h-12 shrink-0 px-5 text-base font-bold">
       <Check aria-hidden />
@@ -48,10 +50,36 @@ function WatchedItButton(props: Pick<ComponentProps<typeof Button>, "id" | "disa
   );
 }
 
+// A tap on "Watched it" in the drawer before its Title has loaded. The real button acts on it once
+// it is there, if it still offers the same Episode. A tap is only good for the drawer it was made
+// in: closing that drawer forgets it, and so does a load that never comes.
+const QUEUED_TAP_MS = 8000;
+let queuedTap: { entryId: string; label: string; at: number } | null = null;
+
+function takeQueuedTap(entryId: string): string | null {
+  const tap = queuedTap;
+  if (tap?.entryId !== entryId) return null;
+  queuedTap = null;
+  return performance.now() - tap.at < QUEUED_TAP_MS ? tap.label : null;
+}
+
+export function forgetQueuedTap(): void {
+  queuedTap = null;
+}
+
 // The bold element of the Title: the next Episode, and one tap to mark it watched beside it.
 export function NextBlock() {
-  const { model, watchNext, watchNextPending } = useEntry();
+  const { entryId, model, watchNext, watchNextPending } = useEntry();
   const series = model.series;
+  const nextLabel = series?.next?.label ?? null;
+  const lastTap = useRef(Number.NEGATIVE_INFINITY);
+
+  useEffect(() => {
+    const label = takeQueuedTap(entryId);
+    if (label !== null && label === nextLabel) watchNext();
+    // Only the first render can owe a tap; later ones never find one queued for this Title.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!series) {
     return (
@@ -90,6 +118,9 @@ export function NextBlock() {
   }
 
   const canWatch = next !== null || model.nextPending;
+  // While a tap is on its way the button keeps its look, so the screen stays calm; a second tap
+  // in that time does nothing.
+  const busy = model.nextPending || watchNextPending;
 
   return (
     <section id="series-progress" aria-labelledby="series-progress-title" className={BLOCK}>
@@ -103,8 +134,10 @@ export function NextBlock() {
       {canWatch ? (
         <WatchedItButton
           id="watched-it-button"
-          disabled={model.nextPending || watchNextPending}
+          aria-disabled={busy || undefined}
           onClick={(event) => {
+            if (busy || event.timeStamp - lastTap.current < DOUBLE_TAP_MS) return;
+            lastTap.current = event.timeStamp;
             playBloom(event.currentTarget, inheritedBloomColour(event.currentTarget));
             watchNext();
           }}
@@ -116,10 +149,11 @@ export function NextBlock() {
 
 /**
  * The Next block as the tapped card shows it, while the Title loads: the same lines, and the
- * "Watched it" button there but disabled. `next` is null when the card has no Next line (a Series
- * that is not Watching); a placeholder then holds one line.
+ * "Watched it" button looking as it will. A tap on it blooms at once and counts once the Title has
+ * loaded. `next` is null when the card has no Next line (a Series that is not Watching); a
+ * placeholder then holds one line.
  */
-export function NextBlockPreview({ next }: { next: TileNext | null }) {
+export function NextBlockPreview({ entryId, next }: { entryId: string; next: TileNext | null }) {
   let lines: ReactNode;
   if (next === null) {
     lines = (
@@ -148,7 +182,17 @@ export function NextBlockPreview({ next }: { next: TileNext | null }) {
   return (
     <div className={BLOCK}>
       <div className="min-w-0 flex-1">{lines}</div>
-      {next?.state === "next" ? <WatchedItButton disabled /> : null}
+      {next?.state === "next" ? (
+        <WatchedItButton
+          // The keyboard reaches the real button a moment later; this copy sits in a part screen readers skip.
+          tabIndex={-1}
+          onClick={(event) => {
+            if (queuedTap?.entryId === entryId) return;
+            playBloom(event.currentTarget, inheritedBloomColour(event.currentTarget));
+            queuedTap = { entryId, label: next.label, at: performance.now() };
+          }}
+        />
+      ) : null}
     </div>
   );
 }
