@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, ViewTransition, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { cn } from "cn";
+import { forgetQueuedTap } from "@/components/progress/next-block";
 import {
   clamp,
   DrawerMotionContext,
@@ -382,8 +383,9 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
     // the panel. A menu, dialog or sheet opened from the drawer handles its own keys; a sheet that
     // closed on this Escape has already sent focus back, so its handled mark is what counts.
     function cycle(): HTMLElement[] {
+      // A negative tabindex marks a copy shown while the Title loads, never a stop for Tab.
       const reachable = (element: HTMLElement) =>
-        element.getClientRects().length > 0 && !element.closest("[inert]");
+        element.tabIndex >= 0 && element.getClientRects().length > 0 && !element.closest("[inert]");
       return [
         ...Array.from(panelElement.querySelectorAll<HTMLElement>(FOCUSABLE)),
         ...Array.from(document.querySelectorAll<HTMLElement>("[data-sonner-toaster] button:not([disabled])")),
@@ -522,6 +524,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       window.removeEventListener("resize", onResize);
       delete root.dataset.drawer;
       root.style.removeProperty("--drawer-lift");
+      forgetQueuedTap();
       library?.removeAttribute("inert");
       // Focus goes back to the poster that opened the drawer.
       if (entryId) focusAfterInput(visibleElement(`#card-${CSS.escape(entryId)} a[href]`));
