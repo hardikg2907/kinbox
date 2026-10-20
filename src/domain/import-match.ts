@@ -16,6 +16,12 @@ export const POPULARITY_CAP = 0.05;
 export const POPULARITY_LOG_RANGE = 3;
 /** A rival with the same name and at least this share of the best one's popularity makes the line "check". */
 export const RIVAL_POPULARITY_SHARE = 1 / 3;
+/**
+ * A best result less popular than this is "check", however exact its name. Search splits text
+ * into words, so `Old boy` never returns `Oldboy`, only an obscure Title spelled `Old Boy`;
+ * real Titles people keep in a list, regional films included, score above it.
+ */
+export const MIN_FOUND_POPULARITY = 1;
 export const MAX_CANDIDATES = 3;
 
 export type MatchResult = "found" | "check" | "not_found";
@@ -42,6 +48,8 @@ export type RankedCandidate<T> = {
   score: number;
   /** Its kind disagrees with the line's kind hint, or its year is off the year hint. */
   hintAgainst: boolean;
+  /** Its year is off the line's year hint. */
+  yearAgainst: boolean;
 };
 
 export type Ranking<T> = {
@@ -142,11 +150,21 @@ function rank<T extends MatchCandidate>(line: RankableLine, title: T, text: stri
     nameScore: score,
     score: score + kind + year + popularityBonus(title.popularity),
     hintAgainst: kind < 0 || year < 0,
+    yearAgainst: year < 0,
   };
 }
 
-function isClear<T extends MatchCandidate>(candidate: RankedCandidate<T>): boolean {
-  return candidate.nameScore === 1 && !candidate.hintAgainst;
+// A kind hint usually comes from the heading above the line, and lists put Titles under the
+// wrong heading, so it may order Titles with the same name but never hide one. A year is
+// written on the line itself, so a Title it rules out is no rival.
+function isRival<T extends MatchCandidate>(candidate: RankedCandidate<T>, best: RankedCandidate<T>): boolean {
+  return (
+    candidate !== best &&
+    candidate.nameScore === 1 &&
+    !candidate.yearAgainst &&
+    // At equal popularity it still counts, so two Titles nothing tells apart are never decided by order alone.
+    candidate.title.popularity >= best.title.popularity * RIVAL_POPULARITY_SHARE
+  );
 }
 
 /** Scores every search result against the line's text and decides how sure the best one is. */
@@ -163,14 +181,12 @@ export function rankMatches<T extends MatchCandidate>(
   }
 
   const [best] = ranked;
-  // A rival at the same popularity counts too, so two equal Titles with no popularity are never told apart by order alone.
-  const rivalled = ranked.some(
-    (candidate) =>
-      candidate !== best &&
-      isClear(candidate) &&
-      candidate.title.popularity >= best.title.popularity * RIVAL_POPULARITY_SHARE,
-  );
-  const found = isClear(best) && !line.several && !rivalled;
+  const found =
+    best.nameScore === 1 &&
+    !best.hintAgainst &&
+    !line.several &&
+    best.title.popularity >= MIN_FOUND_POPULARITY &&
+    !ranked.some((candidate) => isRival(candidate, best));
   return { result: found ? "found" : "check", candidates };
 }
 

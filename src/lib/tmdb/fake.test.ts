@@ -137,7 +137,7 @@ describe("searchMulti", () => {
       originalName: "The Matrix",
       year: 1999,
       releaseDate: "1999-03-31",
-      popularity: 0,
+      popularity: 10,
       posterPath: expect.stringMatching(/^\/.+\.jpg$/),
     });
   });
@@ -147,7 +147,7 @@ describe("searchMulti", () => {
     expect(results.length).toBeGreaterThan(0);
     for (const result of results) {
       expect(result.originalName).toBe(result.name);
-      expect(result.popularity).toBe(0);
+      expect(result.popularity).toBe(10);
       const details =
         result.kind === "movie"
           ? await client.getMovie(result.tmdbId)

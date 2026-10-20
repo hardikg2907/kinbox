@@ -4,6 +4,7 @@ import {
   KIND_HINT_WEIGHT,
   matchLine,
   MAX_CANDIDATES,
+  MIN_FOUND_POPULARITY,
   NAME_FLOOR,
   nameScore,
   normaliseName,
@@ -16,6 +17,9 @@ import {
 
 type Fake = MatchCandidate & { posterPath: string | null };
 
+// Well above the floor for Found, so a test only meets the floor when it sets a popularity itself.
+const POPULARITY = 10;
+
 let nextId = 1;
 
 function title(name: string, extra: Partial<Fake> = {}): Fake {
@@ -25,7 +29,7 @@ function title(name: string, extra: Partial<Fake> = {}): Fake {
     name,
     originalName: null,
     year: null,
-    popularity: 0,
+    popularity: POPULARITY,
     posterPath: null,
     ...extra,
   };
@@ -177,8 +181,21 @@ describe("rankMatches", () => {
     expect(rankMatches(line("Dark"), [best, fainter]).result).toBe("found");
   });
 
-  it("asks to check two Titles with the same name when neither has any popularity", () => {
+  it("asks to check two Titles with the same name and the same popularity", () => {
     expect(rankMatches(line("Dark"), [title("Dark"), title("Dark")]).result).toBe("check");
+  });
+
+  it("asks to check an exact name too obscure to be sure of", () => {
+    const atFloor = title("Old Boy", { popularity: MIN_FOUND_POPULARITY });
+    expect(rankMatches(line("Old boy"), [atFloor]).result).toBe("found");
+    const obscure = title("Old Boy", { popularity: MIN_FOUND_POPULARITY - 0.01 });
+    const ranking = rankMatches(line("Old boy"), [obscure]);
+    expect(ranking.result).toBe("check");
+    expect(ranking.candidates[0].title).toBe(obscure);
+  });
+
+  it("asks to check an exact name when no search result says how popular it is", () => {
+    expect(rankMatches(line("Dark"), [title("Dark", { popularity: 0 })]).result).toBe("check");
   });
 
   it("keeps a Title whose kind disagrees with the hint, but asks to check it", () => {
@@ -188,35 +205,53 @@ describe("rankMatches", () => {
     expect(ranking.candidates[0]).toMatchObject({ title: movie, hintAgainst: true });
   });
 
-  it("lets the kind hint pick between a Movie and a Series with the same name", () => {
+  it("puts the hinted kind first, but asks to check when the other kind with the same name is about as popular", () => {
     const movie = title("Fargo", { kind: "movie", popularity: 20 });
     const series = title("Fargo", { kind: "series", popularity: 30 });
     const ranking = rankMatches(line("Fargo", { kind: "movie" }), [series, movie]);
-    expect(ranking.result).toBe("found");
+    expect(ranking.result).toBe("check");
     expect(ranking.candidates[0].title).toBe(movie);
     expect(ranking.candidates[0].score).toBeCloseTo(1 + KIND_HINT_WEIGHT + popularityBonus(20), 10);
     expect(ranking.candidates[1].score).toBeCloseTo(1 - KIND_HINT_WEIGHT + popularityBonus(30), 10);
   });
 
+  it("asks to check when the hinted kind's Title is dwarfed by the other kind with the same name", () => {
+    const movie = title("Chernobyl", { kind: "movie", year: 2005, popularity: 3 });
+    const series = title("Chernobyl", { kind: "series", year: 2019, popularity: 40 });
+    const ranking = rankMatches(line("Chernobyl", { kind: "movie" }), [series, movie]);
+    expect(ranking.result).toBe("check");
+    expect(ranking.candidates[0].title).toBe(movie);
+  });
+
+  it("finds the hinted kind when the other kind with the same name is far less popular", () => {
+    const movie = title("Westworld", { kind: "movie", popularity: 9 });
+    const series = title("Westworld", { kind: "series", popularity: 96 });
+    const ranking = rankMatches(line("Westworld", { kind: "series" }), [movie, series]);
+    expect(ranking.result).toBe("found");
+    expect(ranking.candidates[0].title).toBe(series);
+  });
+
   it("adds to the score when the year is within one of the hint", () => {
     const ranking = rankMatches(line("Inception", { year: 2010 }), [title("Inception", { year: 2011 })]);
     expect(ranking.result).toBe("found");
-    expect(ranking.candidates[0].score).toBeCloseTo(1 + YEAR_AGREES_BONUS, 10);
+    expect(ranking.candidates[0].score).toBeCloseTo(1 + YEAR_AGREES_BONUS + popularityBonus(POPULARITY), 10);
   });
 
   it("asks to check an exact name whose year is 3 off the hint", () => {
     const ranking = rankMatches(line("Inception", { year: 2013 }), [title("Inception", { year: 2010 })]);
     expect(ranking.result).toBe("check");
-    expect(ranking.candidates[0].score).toBeCloseTo(1 - YEAR_AGAINST_PENALTY, 10);
+    expect(ranking.candidates[0].score).toBeCloseTo(1 - YEAR_AGAINST_PENALTY + popularityBonus(POPULARITY), 10);
     expect(ranking.candidates[0].hintAgainst).toBe(true);
   });
 
   it("ignores the year hint for a Title without a year", () => {
     const ranking = rankMatches(line("Inception", { year: 2010 }), [title("Inception", { year: null })]);
     expect(ranking.result).toBe("found");
-    expect(ranking.candidates[0]).toMatchObject({ score: 1, hintAgainst: false });
+    expect(ranking.candidates[0].score).toBeCloseTo(1 + popularityBonus(POPULARITY), 10);
+    expect(ranking.candidates[0].hintAgainst).toBe(false);
   });
 
+  // A year is the Owner's own word on the line, so a Title it rules out is not a rival, however popular.
   it("finds the one of two exact names whose year matches the hint", () => {
     const remake = title("Dune", { year: 2021, popularity: 10 });
     const original = title("Dune", { year: 1984, popularity: 40 });

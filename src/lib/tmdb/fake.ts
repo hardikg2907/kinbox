@@ -14,6 +14,9 @@ import {
 import type { MovieDetails, SearchResult, SeasonDetails, SeriesDetails, TmdbClient } from "./types";
 
 const MAX_SEARCH_RESULTS = 20;
+// Fixtures are well-known Titles. Import matching asks to check anything with too little
+// popularity, so a realistic value lets offline matching find them.
+const FIXTURE_POPULARITY = 10;
 
 // Parsed once at load, so a fixture that drifts from the contract fails every test run
 // and every offline dev session instead of producing odd screens.
@@ -33,7 +36,7 @@ function toSearchResult(title: MovieDetails | SeriesDetails): SearchResult {
     originalName: title.name,
     year: title.year,
     releaseDate: title.releaseDate,
-    popularity: 0,
+    popularity: FIXTURE_POPULARITY,
     posterPath: title.posterPath,
   };
 }
