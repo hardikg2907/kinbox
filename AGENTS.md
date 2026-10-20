@@ -36,7 +36,7 @@ Several sessions and agents work at once, so work never shares a checkout.
 - Before a merge: rebase onto the target branch, then `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
 - Merging into `main` and pushing need the owner's approval. Show the owner the reviewed and checked result first: code review done, quality checks passed, and how to try it.
 - After a merge, delete the branch and its worktree.
-- Git hooks guard every worktree (installed by `pnpm install` through `simple-git-hooks`, next to the owner's own `post-checkout`). **pre-commit** refuses code commits on `main`, staged `.env*` files and secret-looking values, then lints the staged files and typechecks. **pre-push** runs lint, typecheck and the tests under the test lock. Fix what they report; never skip them with `--no-verify` or `SKIP_SIMPLE_GIT_HOOKS=1`. Only the owner may skip a hook.
+- Git hooks guard every worktree (installed by `pnpm install` through `simple-git-hooks`, next to the owner's own `post-checkout`). **pre-commit** refuses code commits on `main`, staged `.env*` files and secret-looking values, then runs `lint-staged` (ESLint `--fix` on the staged files, and a typecheck when TypeScript is staged). The hooks need Node 22.22.1 or later. **pre-push** runs lint, typecheck and the tests under the test lock. Fix what they report; never skip them with `--no-verify` or `SKIP_SIMPLE_GIT_HOOKS=1`. Only the owner may skip a hook.
 
 ## Layout
 

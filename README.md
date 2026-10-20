@@ -56,14 +56,24 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build
 
 `pnpm test` runs the domain and TMDB unit tests and the data-layer tests against the separate `kinbox_test` database (it wipes that database, never the main one).
 
-Git hooks run the same checks for you. `pnpm install` installs them. Before a commit they lint the staged files, typecheck, and stop code commits on `main`, `.env*` files and secret-looking values. Before a push they run lint, typecheck and the tests.
+Git hooks run the same checks for you. `pnpm install` installs them. Before a commit they stop code commits on `main`, `.env*` files and secret-looking values. Then they run ESLint with `--fix` on the staged files, so simple problems are fixed for you, and typecheck when a TypeScript file is staged. The hooks need Node 22.22.1 or later. Before a push they run lint, typecheck and the tests.
 
-## Deploying (later)
+## Deploying
 
-Vercel Hobby with Neon Postgres (Vercel → Storage sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`). Add `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the site's `https://` URL; plain http is refused in production) and `TMDB_API_READ_TOKEN` in the Vercel project settings.
+The app is live at https://kinbox-three.vercel.app. Every push to `main` deploys to production, because the GitHub repo is connected to the Vercel project.
+
+Vercel Hobby with Neon Postgres (Vercel → Storage sets `DATABASE_URL` and `DATABASE_URL_UNPOOLED`). Functions run in `sin1` (Singapore, `regions` in `vercel.json`) and the Neon database `kinbox-db` is in Singapore too, so queries stay close. Add `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` (the site's `https://` URL; plain http is refused in production) and `TMDB_API_READ_TOKEN` in the Vercel project settings.
 
 - `vercel.json` sets the Next.js preset and the build command `pnpm db:migrate:deploy && pnpm build`. Production deploys apply the database migrations first, through `DATABASE_URL_UNPOOLED`; preview deploys skip them, so a preview never changes the production schema. A failed migration fails the deploy.
 - Node 22 (`engines.node`), the same as local.
-- After the first production deploy, create your account against Neon: run `pnpm user:create` with `DATABASE_URL` set to the Neon URL in that shell only (for example from `vercel env pull`).
+- To create your account against Neon: production env vars are sensitive, so `vercel env pull` returns them empty. Copy `DATABASE_URL_UNPOOLED` from Vercel → Storage → kinbox-db. Then run this in zsh:
+
+  ```sh
+  read -rs "DATABASE_URL?Neon connection string (hidden): "; echo
+  DATABASE_URL="$DATABASE_URL" pnpm user:create
+  unset DATABASE_URL
+  ```
+
+  The script prints the target host first. It must contain `ap-southeast-1` and end in `neon.tech`.
 
 Vercel Hobby and TMDB's free tier are non-commercial. Both need paid plans once Kinbox earns money.
