@@ -10,7 +10,8 @@ import { SearchResultRow } from "@/components/search/search-result-row";
 import { SearchSkeleton } from "@/components/search/search-skeleton";
 import { SEARCH_INPUT_ID } from "@/components/search/search-ids";
 import { SearchSheetContext } from "@/components/search/search-sheet-context";
-import { useTitleSearch, type SearchOutcome } from "@/components/search/use-title-search";
+import type { SearchOutcome } from "@/components/search/search-view";
+import { useTitleSearch } from "@/components/search/use-title-search";
 
 /**
  * Owns the search state and the sheet it shows in. The dock and the desktop sidebar open the
