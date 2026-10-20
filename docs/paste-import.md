@@ -108,7 +108,7 @@ The numbers are starting values. The evaluation script (build step 3) tunes them
 ### Requests
 - `POST /api/import/match`, a route handler with the same shape as `src/app/api/search/route.ts`. Matching is a read, so it is not a Server Action: `runAction` calls `refresh()` after every call, and 25 match requests would re-render the page 25 times.
 - Body (strict Zod): `{ lines: [{ id: 0..499, query: 1..100 chars, altQuery?: 1..100 chars, year?: int, kind?: "movie" | "series", several: boolean }] }`, 1 to 10 lines. The body is read with a 16 KB cap before parsing.
-- `getOwner()`; no session gives 401. The handler calls `matchImportLines(owner, lines)` in `src/data/import.ts`.
+- `getOwner()`; no session gives 401. The handler calls `matchImportLines(owner, lines)` in `src/data/import-match.ts`.
 - Searches go through the cached `searchTitles` (`src/lib/tmdb/cached.ts`), so a repeat or a re-check costs no TMDB call. At most 4 lines are searched at once. One database read per request marks which candidates are already in the Library.
 - Response: `{ lines: [{ id, result: "found" | "check" | "not_found" | "error", candidates: [{ kind, tmdbId, name, year, posterPath, inLibrary }] }] }`, with at most 3 candidates, best first. A line whose TMDB search failed comes back as `error`; the other lines in the request still return.
 - The browser sends one request at a time. After two requests in a row fail completely, it stops and shows the TMDB-down message with "Try again", which continues from the first unchecked line.
@@ -209,7 +209,7 @@ Words:
 
 ## Security
 
-- **Session and ownership.** The match route calls `getOwner()` and returns 401 without a session. Every action goes through `runAction`. Every query in `src/data/import.ts` filters by `owner.id`; an `importId` from the browser is only used together with `user_id = owner.id`.
+- **Session and ownership.** The match route calls `getOwner()` and returns 401 without a session. Every action goes through `runAction`. Every query in `src/data/import-match.ts` and `src/data/import.ts` filters by `owner.id`; an `importId` from the browser is only used together with `user_id = owner.id`.
 - **Strict input.** Every body is a Zod `.strictObject`. Caps per request: 10 lines, 100 characters per search text, 5 rows, positive integer TMDB ids, a 16 KB body. The 500-line and 50,000-character limits are browser checks; the per-request caps bound what one request can cost.
 - **Cross-site requests.** The match route accepts only `Content-Type: application/json`, so a cross-site form cannot send it, and Better Auth's `SameSite=Lax` cookie is not sent on a cross-site POST. Server Actions keep Next.js's origin check.
 - **TMDB quota.** One Import searches at most 4 lines at once, and repeats come from the cache. Sign-up is closed, so per-Owner quotas stay in [future scope](future-scope.md) with the other abuse limits.
@@ -232,7 +232,7 @@ All work happens on the integration branch `feat/paste-import` (from `main`), in
 2. **TMDB data and retries** (`feat/import-tmdb`). `originalName`, `popularity`, `releaseDate` on `SearchResult`; `releaseDate` on `MovieDetails` and `SeriesDetails`; the 429 retry in `real.ts`; `src/lib/limit.ts`; the fake client and fixtures updated.
    - Tests: mapping with nulls; a 429 then 200 succeeds; three 429s throw `TmdbUnavailableError` with status 429; `Retry-After` is capped; the limiter never runs more than its limit.
    - Done when existing search and save tests still pass unchanged.
-3. **Matching and its evaluation** (`feat/import-match`). `rankMatches` in `src/domain/import-match.ts`, `matchImportLines` in `src/data/import.ts`, `POST /api/import/match`, and `scripts/import-eval.ts`.
+3. **Matching and its evaluation** (`feat/import-match`). `rankMatches` in `src/domain/import-match.ts`, `matchImportLines` in `src/data/import-match.ts`, `POST /api/import/match`, and `scripts/import-eval.ts`.
    - Tests: scoring cases (exact, compact, article, typo, both kinds, year agreeing and against, two exact names with close and far popularity, several-Titles lines never Found, the 0.6 floor, alternate text); the route's 401, 400 on an extra key or 11 lines or a large body, a TMDB failure on one line only; candidates marked `inLibrary` only for the right Owner.
    - The eval script reads a note from `.local/import-sample.txt` (add `/.local/` to `.gitignore` in this step), runs the reader and matcher against real TMDB, and prints each line with its result and best candidate. TMDB calls fail on the owner's home network unless the Mac uses a public DNS (see `AGENTS.md`).
    - Done when the owner has run the script on their note and confirmed: no wrong Match among Found rows.
