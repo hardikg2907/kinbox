@@ -51,11 +51,11 @@ async function loadLibrary(query: string, signal: AbortSignal): Promise<LibraryR
  * Debounced search against the route handlers. "Loading" is derived (a query with no
  * reply yet), so effects only set state from replies, never synchronously.
  */
-export function useTitleSearch(input: string, session: number): SearchOutcome {
+export function useTitleSearch(input: string, opening: number): SearchOutcome {
   const query = input.trim();
   // Replies carry the sheet opening they belong to, so reopening the sheet never shows an old answer.
-  const [replies, setReplies] = useState<{ session: number; library: LibraryReply | null; tmdb: TmdbReply | null }>({
-    session,
+  const [replies, setReplies] = useState<{ opening: number; library: LibraryReply | null; tmdb: TmdbReply | null }>({
+    opening,
     library: null,
     tmdb: null,
   });
@@ -65,9 +65,9 @@ export function useTitleSearch(input: string, session: number): SearchOutcome {
     const controller = new AbortController();
     const { signal } = controller;
     const setLibrary = (library: LibraryReply) =>
-      setReplies((current) => ({ session, library, tmdb: current.session === session ? current.tmdb : null }));
+      setReplies((current) => ({ opening, library, tmdb: current.opening === opening ? current.tmdb : null }));
     const setTmdb = (tmdb: TmdbReply) =>
-      setReplies((current) => ({ session, library: current.session === session ? current.library : null, tmdb }));
+      setReplies((current) => ({ opening, library: current.opening === opening ? current.library : null, tmdb }));
 
     const cached = readCached(query);
     if (cached) {
@@ -75,7 +75,7 @@ export function useTitleSearch(input: string, session: number): SearchOutcome {
       void Promise.resolve().then(() => {
         if (signal.aborted) return;
         const fromCache = repliesFromCache(query, cached);
-        setReplies({ session, library: fromCache.library, tmdb: fromCache.tmdb });
+        setReplies({ opening, library: fromCache.library, tmdb: fromCache.tmdb });
       });
       return () => controller.abort();
     }
@@ -100,8 +100,8 @@ export function useTitleSearch(input: string, session: number): SearchOutcome {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, session]);
+  }, [query, opening]);
 
-  const current = replies.session === session ? replies : { library: null, tmdb: null };
+  const current = replies.opening === opening ? replies : { library: null, tmdb: null };
   return deriveSearchView(query, current.library, current.tmdb);
 }

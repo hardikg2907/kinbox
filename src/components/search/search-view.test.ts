@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SearchItem } from "@/data/dto";
-import { deriveSearchView, repliesFromCache, type LibraryReply, type TmdbReply } from "./search-view";
+import { deriveSearchView, returnedToPage, repliesFromCache, type LibraryReply, type TmdbReply } from "./search-view";
 
 const item = (tmdbId: number, kind: SearchItem["kind"] = "movie", entry: SearchItem["entry"] = null): SearchItem => ({
   kind,
@@ -87,5 +87,14 @@ describe("deriveSearchView", () => {
     const view = deriveSearchView("dune part", lib([inLibrary(1)], "dune"), tmdbOk([item(2)], "dune"));
     expect(view).toEqual({ phase: "loading", library: [] });
     expect(deriveSearchView("dune part", lib([inLibrary(1)], "dune"), tmdbFail)).toEqual({ phase: "loading", library: [] });
+  });
+});
+
+describe("returnedToPage", () => {
+  it("is true only when the route comes back to the sheet's page", () => {
+    expect(returnedToPage("/entry/1", "/", "/")).toBe(true);
+    expect(returnedToPage("/", "/entry/1", "/")).toBe(false);
+    expect(returnedToPage("/", "/", "/")).toBe(false);
+    expect(returnedToPage("/entry/1", "/entry/2", "/")).toBe(false);
   });
 });

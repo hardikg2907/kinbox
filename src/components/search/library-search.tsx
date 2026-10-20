@@ -2,6 +2,7 @@
 
 import { Search, SearchX, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Sheet } from "@/components/library/sheet";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { SearchResultRow } from "@/components/search/search-result-row";
 import { SearchSkeleton } from "@/components/search/search-skeleton";
 import { SEARCH_INPUT_ID } from "@/components/search/search-ids";
 import { SearchSheetContext } from "@/components/search/search-sheet-context";
-import type { SearchOutcome } from "@/components/search/search-view";
+import { returnedToPage, type SearchOutcome } from "@/components/search/search-view";
 import { useTitleSearch } from "@/components/search/use-title-search";
 
 /**
@@ -26,6 +27,20 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
   // Counts sheet openings: each one starts from a clear cache and ignores answers from before it.
   const [opening, setOpening] = useState(0);
   const outcome = useTitleSearch(query, opening);
+
+  // A Title opened from a result shows in a drawer over this page while the sheet stays open. When the
+  // drawer closes, its changes may have made the results stale, so the current query loads again.
+  // Opening the drawer changes nothing here, so no reload happens then.
+  const pathname = usePathname();
+  const [home] = useState(pathname);
+  const [seenPath, setSeenPath] = useState(pathname);
+  if (pathname !== seenPath) {
+    setSeenPath(pathname);
+    if (open && returnedToPage(seenPath, pathname, home)) {
+      clearSearchCache();
+      setOpening((count) => count + 1);
+    }
+  }
   const keyboard = useKeyboardInset(open);
 
   const openSheet = useCallback((element: HTMLElement) => {

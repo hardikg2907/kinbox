@@ -50,3 +50,8 @@ export function deriveSearchView(
   if (libraryItems.length === 0 && items.length === 0) return { phase: "empty", query };
   return { phase: "results", query, library: libraryItems, items };
 }
+
+/** True when the route comes back to the sheet's own page from another one, such as a closed drawer. */
+export function returnedToPage(previous: string, current: string, home: string): boolean {
+  return previous !== current && current === home;
+}
