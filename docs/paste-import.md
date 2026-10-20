@@ -62,7 +62,7 @@ One page, `/import`, in three steps. It is reached from the account menu ("Impor
 For each line, in this order:
 
 1. Unicode NFC, then remove the emoji presentation selector (U+FE0F) and zero-width characters, and turn no-break spaces into spaces. Trim.
-2. Blank line: ignored. A line over 200 characters: skipped as "Too long". A line that is a URL (`http://`, `https://`, `www.`): skipped as "Not a title".
+2. Blank line: ignored. A line over 200 characters: skipped as "Too long". A line that is a URL (`http://`, `https://`, `www.`, or one word such as `example.com/list`): skipped as "Not a title".
 3. **Heading**: after removing a trailing `:`, `-`, `–` or `—` and spaces, the whole line is one known heading word. It sets a hint for the lines under it, until the next heading.
    - Kind: `tv`, `tv shows`, `tv series`, `shows`, `series`, `web series`, `anime` → Series; `movies`, `movie`, `films`, `film` → Movie.
    - Status: `to watch`, `watchlist`, `want to watch` → To watch; `watching`, `currently watching` → Watching; `watched`, `seen`, `done` → Watched; `dropped` → Dropped.
@@ -71,11 +71,11 @@ For each line, in this order:
 4. **Watched marks**: any of `✔ ✓ ☑ ✅ [x] [X]` anywhere in the line makes it Watched. An empty box (`☐`, `[ ]`) makes it To watch; a Watched mark wins over an empty box. All marks and boxes, a stray `X` or `x` directly after a mark, leading bullets or numbering (`-`, `–`, `*`, `•`, `1.`, `1)`), and brackets left empty are removed.
 5. **Several Titles**, decided before the brackets are removed: a line with ` and <digit>`, `<digit>/<digit>`, `/`, `, ` between words, `(all parts)` or `trilogy`, or that starts with `all ` or `more ` and ends with `movies`, `films`, `parts` or `series`, is flagged as several Titles. `All the old knives` stays one Title, and so does a line with a trailing comma. It is never split; its result is at best "Check this".
 6. **Bracket groups** (`(...)`, `[...]`) are removed from the search text:
-   - A year from 1874 to the current year + 5 is the year hint.
+   - A year from 1874 to the current year + 5 is the year hint. A bracketed year out of that range is dropped.
    - `series`, `tv`, `tv series`, `tv show`, `web series`, `show`, `anime` → Series; `movie`, `film` → Movie. This kind hint wins over the heading's kind.
    - A language name (`malayalam`, `hindi`, `korean` and other common ones) is dropped. Searched on its own, it could find a Title with that name.
    - Other text with a word of 3 or more letters, which is not itself a several-Titles pattern, becomes the alternate search text (the first such group only). `(One Day)` qualifies; `(1 and 2)` and `(all parts)` do not.
-   - A year at the end without brackets (`Name 2010`) is also the year hint, unless the whole line is a year (`1917`). A year out of the range stays in the search text (`Blade Runner 2049`).
+   - A year at the end without brackets (`Name 2010`, `Name, 2010`) is also the year hint, unless the whole line is a year (`1917`). A year out of the range stays in the search text (`Blade Runner 2049`).
 7. Trailing `,`, `.` and `;` are removed. The search text is capped at 100 characters (the search cache's key limit). A line with no search text left (only marks or bullets) is skipped as "Not a title".
 
 The Status a line asks for: its own Watched mark or empty box, else the heading's Status, else To watch.
