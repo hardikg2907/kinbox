@@ -29,6 +29,8 @@ export const testState = {
   today: TODAY,
   tmdbDown: false,
   tmdbDownFor: new Set<number>(),
+  /** Search texts whose search fails, written as the client receives them: trimmed and lower case. */
+  tmdbSearchDownFor: new Set<string>(),
   afterTasks: [] as Promise<unknown>[],
 };
 
@@ -37,6 +39,7 @@ export function resetTestState(): void {
   testState.today = TODAY;
   testState.tmdbDown = false;
   testState.tmdbDownFor.clear();
+  testState.tmdbSearchDownFor.clear();
   testState.afterTasks = [];
 }
 
@@ -87,6 +90,7 @@ export function tmdbClientModule() {
   const client: TmdbClient = {
     searchMulti: async (query) => {
       guard();
+      if (testState.tmdbSearchDownFor.has(query)) throw new TmdbUnavailableError({ status: 503 });
       return fake.searchMulti(query);
     },
     getMovie: async (tmdbId) => {
