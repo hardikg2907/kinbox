@@ -39,15 +39,15 @@ One page, `/import`, in three steps. It is reached from the account menu ("Impor
 - Order on screen: "Check these" first, then "Not found", then "Couldn't check", then one folded line "198 look right" that opens to show the Found rows. Each group keeps the order of the paste.
 - Each row shows the Match's poster, name, year and kind, the original line in small text under it, and what the Title will become ("To watch", "Watched"). For a Series marked as watched, the helper says "Ticks all aired episodes".
 - Tapping a row's poster or name opens a sheet: the top 3 candidates, a search field to find another Title, and "Skip this line". One tap on a Title picks it and closes the sheet. A skipped row shows "Skipped" with "Include".
-- Each row has two status pills, "To watch" and "Watched", in the save-button style; the chosen one is filled.
+- Each row has two status pills, "To watch" and "Watched", in the save-button style; the chosen one is filled. A line read as Watching or Dropped from a heading also gets that status as a third pill.
 - A Match already in the Library shows "Already in your library" and is never added or changed.
-- When two Import lines get the same Match, they merge into one row. The row is "Watched" if either line was marked.
+- When two Import lines get the same Match, they merge into one row. The row is "Watched" if either line was marked. Each original line in a merged row opens the pick sheet for that line alone, so a wrong merge can be split.
 - After checking ends, the bar at the bottom shows "Add 238 titles".
 
 ### 3. Add
 - Kinbox adds about 5 Titles per request and shows "Adding 120 of 238". Each Title is added on its own, so one failure never blocks the rest.
 - Titles are added from the bottom of the paste to the top. The Library shows the newest first, so the Library then shows them in the order of the note.
-- Leaving the page while adding asks the browser to confirm. Titles already added stay.
+- Leaving the page while adding asks the browser to confirm. Titles already added stay. The Close button while adding asks first: "Stop adding?" with the body "Titles already added stay in your library." and the buttons "Stop adding" and "Keep adding".
 - The result screen:
   - "Added 236 titles" and a breakdown: "180 to watch, 50 watched, 6 caught up".
   - "2 couldn't be added", with their names and "Try again".
@@ -148,7 +148,7 @@ Server Actions in `src/actions/import.ts`, each through `runAction` (session, st
 
 - `startImport()` → `{ importId }`. In one transaction it closes any open Import of this Owner and opens a new one, so one Import runs at a time per Owner.
 - `addToImport({ importId, rows })`, with 1 to 5 rows of `{ kind, tmdbId, intent }`. It fails with "This import has finished. Start a new one." when the Import is closed or belongs to someone else.
-- `finishImport({ importId })` closes the Import.
+- `finishImport({ importId })` closes the Import. The browser calls it when the Owner leaves the result screen, so "Try again" there still adds under the same Import. If the tab just closes, the next `startImport` closes it.
 - `undoImport({ importId })` → `{ removed, kept }`.
 
 `addToImport` calls `addImportRows(owner, importId, rows)` in `src/data/import.ts`. Per row:
@@ -185,7 +185,7 @@ The import page sits outside the dock: a focused full page with a top bar (close
 
 Entry points:
 - Account menu: "Import a list", between About and Sign out.
-- Empty Library (no Entries at all): under the To watch empty text, the link "Have a list somewhere? Paste it".
+- Empty Library (no Entries at all, and no kind filter set): under the To watch empty text, the link "Have a list somewhere? Paste it".
 
 Words:
 
@@ -204,7 +204,8 @@ Words:
 | Row buttons | Include / Try again |
 | Add button | Add 238 titles |
 | Result | Added 236 titles / 180 to watch, 50 watched, 6 caught up / 2 couldn't be added |
-| Copy | Copy the 14 lines not added → toast "Copied" |
+| Copy | Copy the 14 lines not added → toast "Copied" (on failure: "Couldn't copy the lines. Try again.") |
+| Stop while adding | Stop adding? / Titles already added stay in your library. / Stop adding / Keep adding |
 | Undo | Undo this import → dialog "Remove the 236 titles this import added?" body "Titles you've changed since stay in your library." buttons "Remove them" / "Cancel" → toast "Removed 234 titles. Kept 2 you changed." |
 | Closed import | This import has finished. Start a new one. |
 | TMDB down | Can't reach the movie database right now. Try again in a minute. |
