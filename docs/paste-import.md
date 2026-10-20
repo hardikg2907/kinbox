@@ -163,9 +163,9 @@ Postgres fixes `now()` for a whole transaction, so an Entry inserted by an impor
 - `status_changed_at = created_at`,
 - `progress_moved_at` is null or equals `created_at`,
 - `rating_half_stars` and `note` are null,
-- no Watch has `created_at` later than the Entry's.
+- every Watch has the Entry's `created_at` and no date (an import adds a Watch with an unknown date, so a date set later is a change).
 
-`undoImport` deletes, in one transaction, the Owner's Entries with this `import_id` that are unchanged (Watches and ticks cascade), and closes the Import. Titles snapshots stay. When a later Undo of a Status move restores the old stamps, the Entry counts as unchanged again, which is correct.
+`undoImport` deletes, in one transaction, the Owner's Entries with this `import_id` that are unchanged (Watches and ticks cascade), and closes the Import. It locks the Import row first, and each row that `addToImport` writes checks under that lock that the Import is still open, so a row can never land after the Undo. Titles snapshots stay. When a later Undo of a Status move restores the old stamps, the Entry counts as unchanged again, which is correct.
 
 ## Screens
 
