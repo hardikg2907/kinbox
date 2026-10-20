@@ -232,7 +232,7 @@ function ActionBarContent({ flow, count, addCount }: { flow: ImportFlow; count: 
       const check = flow.check;
       if (flow.checkRun === "stopped") {
         message = TMDB_DOWN_MESSAGE;
-        primary = { label: "Try again", enabled: true, onPress: flow.continueChecking };
+        primary = { label: "Try again", enabled: flow.retrying.size === 0, onPress: flow.continueChecking };
       } else if (flow.checkRun === "signed_out") {
         message = SIGN_IN_MESSAGE;
         primary = "sign-in";
