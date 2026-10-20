@@ -92,6 +92,12 @@ describe("nameScore", () => {
     expect(nameScore("aaa", "aa")).toBeCloseTo(2 / 3, 10);
   });
 
+  it("stays below 1 for different names made of the same character pairs", () => {
+    // ab ba ac ca against ac ca ab ba: every pair is shared, yet the names differ.
+    expect(nameScore("abaca", "acaba")).toBeLessThan(1);
+    expect(nameScore("Ananta", "Antana")).toBeLessThan(1);
+  });
+
   it("is 0 when either side has fewer than 2 characters to compare", () => {
     expect(nameScore("M", "Mx")).toBe(0);
     expect(nameScore("Mx", "M")).toBe(0);
@@ -184,6 +190,12 @@ describe("rankMatches", () => {
   it("finds a name typed without accents or with 'and' for '&'", () => {
     expect(rankMatches(line("Amelie"), [title("Amélie")]).result).toBe("found");
     expect(rankMatches(line("Fast and Furious"), [title("Fast & Furious")]).result).toBe("found");
+  });
+
+  it("never finds a different name made of the same character pairs", () => {
+    const ranking = rankMatches(line("Ananta"), [title("Antana", { popularity: 80 })]);
+    expect(ranking.result).toBe("check");
+    expect(ranking.candidates[0].nameScore).toBeLessThan(1);
   });
 
   it("asks to check a typo", () => {
