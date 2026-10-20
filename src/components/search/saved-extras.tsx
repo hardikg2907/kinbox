@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RatingStars } from "@/components/rating-stars";
 import { useRatingSaveDelay } from "@/components/rating-save-delay";
+import { clearSearchCache } from "@/components/search/search-cache";
 import { NativeSelect } from "@/components/search/native-select";
 import { setNote, setRating } from "@/actions/entries";
 import { setNextToWatch } from "@/actions/progress";
@@ -48,6 +49,7 @@ function InlineRating({ entryId }: { entryId: string }) {
         toast.error(result.error);
         return;
       }
+      clearSearchCache();
       startTransition(() => setConfirmed(result.data.ratingHalfStars));
     });
   }
@@ -84,6 +86,7 @@ function NextToWatchPicker({ entryId, seasons }: { entryId: string; seasons: Non
         toast.error(result.error);
         return;
       }
+      clearSearchCache();
       const line = placeLine(result.data.progress);
       startTransition(() => setDone(line));
     });
@@ -185,6 +188,7 @@ function NoteField({ entryId }: { entryId: string }) {
         toast.error(result.error);
         return;
       }
+      clearSearchCache();
       startTransition(() => setSaved(true));
     });
   }
