@@ -15,6 +15,30 @@ export type SearchItem = {
   entry: EntryRef | null;
 };
 
+/** A Title offered as the Match for an Import line. */
+export type ImportCandidate = {
+  kind: TitleKind;
+  tmdbId: number;
+  name: string;
+  year: number | null;
+  posterPath: string | null;
+  /** Already in the Owner's Library, so an Import never adds or changes it. */
+  inLibrary: boolean;
+};
+
+/** "error" means TMDB could not be searched for this line; checking it again may work. */
+export type ImportMatchResult = "found" | "check" | "not_found" | "error";
+
+export type ImportLineMatch = {
+  /** The Import line's id, as the request sent it. */
+  id: number;
+  result: ImportMatchResult;
+  /** Up to 3, best first. */
+  candidates: ImportCandidate[];
+};
+
+export type ImportMatches = { lines: ImportLineMatch[] };
+
 export type KindFilter = "all" | "movie" | "series";
 
 export type NextEpisode = EpisodeKey & {
