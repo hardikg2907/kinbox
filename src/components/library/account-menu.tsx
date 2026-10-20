@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleUserRound, Info, LogOut } from "lucide-react";
+import { CircleUserRound, ClipboardPaste, Info, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -52,6 +52,12 @@ export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
           <Link href="/about">
             <Info aria-hidden />
             About
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="min-h-11 gap-2 px-3 text-base md:min-h-10 md:text-sm">
+          <Link href="/import">
+            <ClipboardPaste aria-hidden />
+            Import a list
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={signOut} className="min-h-11 gap-2 px-3 text-base md:min-h-10 md:text-sm">
