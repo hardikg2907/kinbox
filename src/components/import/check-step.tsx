@@ -45,6 +45,8 @@ type Props = RowHandlers & {
   checking: boolean;
 };
 
+type ListProps = RowHandlers & { rows: Row[]; retrying: ReadonlySet<number>; checking: boolean };
+
 export function CheckStep({ rows, retrying, checking, ...handlers }: Props) {
   const groups = rowsByGroup(rows);
   const problems = (["check", "not_found", "error"] as const).filter((group) => groups[group].length > 0);
@@ -59,16 +61,18 @@ export function CheckStep({ rows, retrying, checking, ...handlers }: Props) {
               {groups[group].length}
             </span>
           </h2>
-          <RowList rows={groups[group]} retrying={retrying} {...handlers} />
+          <RowList rows={groups[group]} retrying={retrying} checking={checking} {...handlers} />
         </section>
       ))}
-      {groups.found.length > 0 ? <FoldedRows rows={groups.found} retrying={retrying} {...handlers} /> : null}
+      {groups.found.length > 0 ? (
+        <FoldedRows rows={groups.found} retrying={retrying} checking={checking} {...handlers} />
+      ) : null}
       {checking ? <RowsSkeleton rows={rows.length === 0 ? 4 : 2} /> : null}
     </div>
   );
 }
 
-function RowList({ rows, retrying, ...handlers }: RowHandlers & { rows: Row[]; retrying: ReadonlySet<number> }) {
+function RowList({ rows, retrying, checking, ...handlers }: ListProps) {
   return (
     <ul className="glass flex flex-col rounded-3xl border p-1">
       {rows.map((row) => (
@@ -76,6 +80,7 @@ function RowList({ rows, retrying, ...handlers }: RowHandlers & { rows: Row[]; r
           key={row.anchorId}
           row={row}
           retrying={row.lines.some((line) => retrying.has(line.id))}
+          checking={checking}
           {...handlers}
         />
       ))}
@@ -84,7 +89,7 @@ function RowList({ rows, retrying, ...handlers }: RowHandlers & { rows: Row[]; r
 }
 
 // The rows that look right, folded into one row that opens in place, like a Season.
-function FoldedRows({ rows, retrying, ...handlers }: RowHandlers & { rows: Row[]; retrying: ReadonlySet<number> }) {
+function FoldedRows({ rows, retrying, checking, ...handlers }: ListProps) {
   const [open, setOpen] = useState(false);
   return (
     <section aria-labelledby="import-group-found">
@@ -105,15 +110,21 @@ function FoldedRows({ rows, retrying, ...handlers }: RowHandlers & { rows: Row[]
         </button>
       </h2>
       <div id="import-found-rows" hidden={!open} className="mt-2 animate-in duration-200 fade-in">
-        {open ? <RowList rows={rows} retrying={retrying} {...handlers} /> : null}
+        {open ? <RowList rows={rows} retrying={retrying} checking={checking} {...handlers} /> : null}
       </div>
     </section>
   );
 }
 
-type RowProps = RowHandlers & { row: Row; retrying: boolean };
+type RowProps = RowHandlers & {
+  row: Row;
+  /** This row's lines are being checked again. */
+  retrying: boolean;
+  /** The list is still being checked. */
+  checking: boolean;
+};
 
-export function MatchRow({ row, retrying, onPick, onChoose, onInclude, onRetry }: RowProps) {
+export function MatchRow({ row, retrying, checking, onPick, onChoose, onInclude, onRetry }: RowProps) {
   const ids = row.lines.map((line) => line.id);
   const nameId = `import-row-${row.anchorId}-name`;
   const merged = row.lines.length > 1;
@@ -129,6 +140,7 @@ export function MatchRow({ row, retrying, onPick, onChoose, onInclude, onRetry }
       nameId={nameId}
       beside={beside}
       retrying={retrying}
+      checking={checking}
       onChoose={onChoose}
       onInclude={onInclude}
       onRetry={onRetry}
@@ -202,6 +214,7 @@ function RowActions({
   nameId,
   beside,
   retrying,
+  checking,
   onChoose,
   onInclude,
   onRetry,
@@ -212,7 +225,10 @@ function RowActions({
   /** Sits in the text column beside the poster rather than under the row. */
   beside: boolean;
   retrying: boolean;
+  checking: boolean;
 }) {
+  // One match request at a time: a row waits for the list's check to end before it checks again.
+  const canRetry = !retrying && !checking;
   switch (row.display) {
     case "choose":
       return (
@@ -258,9 +274,9 @@ function RowActions({
           <Button
             type="button"
             variant="outline"
-            aria-disabled={retrying}
+            aria-disabled={!canRetry}
             onClick={() => {
-              if (!retrying) onRetry(ids);
+              if (canRetry) onRetry(ids);
             }}
             className="relative z-10 aria-disabled:cursor-wait aria-disabled:opacity-70"
           >
