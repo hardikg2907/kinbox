@@ -45,3 +45,6 @@ next-env.d.ts
 # local tooling state
 .claude/settings.local.json
 .claude/worktrees/
+
+# private sample lists for the import evaluation; never commit them
+/.local/
