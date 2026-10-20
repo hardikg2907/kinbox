@@ -51,19 +51,8 @@ if (findings.length > 0) {
   ]);
 }
 
-const lintable = staged.filter((path) => /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(path));
-if (lintable.length > 0) {
-  try {
-    execFileSync("pnpm", ["exec", "eslint", "--max-warnings=0", "--", ...lintable], { stdio: "inherit" });
-  } catch {
-    fail(["ESLint found problems in staged files. `pnpm exec eslint --fix -- <file>` fixes many of them."]);
-  }
-}
-
-if (staged.some((path) => /\.(ts|tsx)$/.test(path))) {
-  try {
-    execFileSync("pnpm", ["-s", "typecheck"], { stdio: "inherit" });
-  } catch {
-    fail(["Type errors. Fix them before you commit."]);
-  }
+try {
+  execFileSync("pnpm", ["exec", "lint-staged"], { stdio: "inherit" });
+} catch {
+  fail(["Lint or type errors in staged files. Fix what is reported above, then commit again."]);
 }
