@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   useDeferredValue,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -57,6 +58,8 @@ import { ResultStep } from "./result-step";
 import { readStoredText, useImportFlow, type ImportFlow } from "./use-import-flow";
 
 const LIMIT_MESSAGE = "Up to 500 lines at a time. Paste the rest after this import.";
+/** Space kept between a focused control and the bars, in px. */
+const FOCUS_CLEARANCE = 12;
 
 const noop = () => () => {};
 
@@ -86,6 +89,7 @@ function ImportFlowView() {
 
   const pick = usePick(flow);
   const bar = useBarHeight();
+  useFocusClearOfBars();
 
   function onClose(event: MouseEvent<HTMLAnchorElement>) {
     if (flow.step === "add") {
@@ -364,6 +368,28 @@ function originFrom(element: HTMLElement): string {
   if (!panel) return "50% 50%";
   const rect = element.getBoundingClientRect();
   return `${Math.round(rect.left + rect.width / 2 - panel.offsetLeft)}px ${Math.round(rect.top + rect.height / 2 - panel.offsetTop)}px`;
+}
+
+// The top bar and the action bar float over the content. The browser scrolls a focused control into
+// the viewport but not out from under them, so focus moved by the keyboard is nudged clear.
+function useFocusClearOfBars() {
+  useEffect(() => {
+    function onFocusIn(event: FocusEvent) {
+      const element = event.target;
+      if (!(element instanceof HTMLElement) || !element.closest("#import-content")) return;
+      requestAnimationFrame(() => {
+        if (document.activeElement !== element || !element.matches(":focus-visible")) return;
+        // A row's name button rings the whole Title block, so the block is what has to show.
+        const box = (element.closest("[data-pick-block]") ?? element).getBoundingClientRect();
+        const top = document.querySelector("#import-top-bar > div")?.getBoundingClientRect().bottom ?? 0;
+        const bottom = document.querySelector("[data-import-bar] > div")?.getBoundingClientRect().top ?? window.innerHeight;
+        if (box.bottom > bottom - FOCUS_CLEARANCE) window.scrollBy({ top: box.bottom - bottom + FOCUS_CLEARANCE });
+        else if (box.top < top + FOCUS_CLEARANCE) window.scrollBy({ top: box.top - top - FOCUS_CLEARANCE });
+      });
+    }
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, []);
 }
 
 /** Publishes the action bar's height, so the content and the toasts clear it as it grows. */
