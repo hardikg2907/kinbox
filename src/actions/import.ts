@@ -17,3 +17,9 @@ export async function addToImport(
 export async function finishImport(input: data.ImportIdInput): Promise<ActionResult<null>> {
   return runAction("finishImport", data.importIdInput, input, data.finishImport);
 }
+
+export async function undoImport(
+  input: data.ImportIdInput,
+): Promise<ActionResult<{ removed: number; kept: number }>> {
+  return runAction("undoImport", data.importIdInput, input, data.undoImport);
+}

@@ -1,11 +1,11 @@
 import "server-only";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { airedNumberedEpisodes, isFinished } from "@/domain/series";
 import { importNeedsAiredEpisodes, statusOnImport, type ImportChange } from "@/domain/status";
 import type { Episode, IsoDate } from "@/domain/types";
 import { db } from "@/db/client";
-import { imports, user } from "@/db/schema";
+import { entries, imports, user, watches } from "@/db/schema";
 import { createLimit } from "@/lib/limit";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { ImportRowResult } from "./dto";
@@ -166,6 +166,61 @@ export async function addImportRows(
     );
   }
   return results;
+}
+
+/**
+ * Closes the Import and removes the Entries it added that the Owner has not changed since,
+ * with their Watches and ticks. Title snapshots stay. An unknown id, or another Owner's, changes
+ * nothing and reports nothing, so an id never shows it exists. A second Undo removes nothing.
+ */
+export async function undoImport(
+  owner: Owner,
+  input: ImportIdInput,
+): Promise<{ removed: number; kept: number }> {
+  return db().transaction(async (tx) => {
+    // Rows being added hold a share lock on the Import, so this waits for them, and every row
+    // that comes after it sees the Import closed.
+    const [locked] = await tx
+      .select({ id: imports.id })
+      .from(imports)
+      .where(and(eq(imports.id, input.importId), eq(imports.userId, owner.id)))
+      .for("update");
+    if (!locked) return { removed: 0, kept: 0 };
+
+    await tx
+      .update(imports)
+      .set({ finishedAt: sql`now()` })
+      .where(and(eq(imports.id, locked.id), isNull(imports.finishedAt)));
+
+    const fromThisImport = and(eq(entries.userId, owner.id), eq(entries.importId, locked.id));
+    // An import writes an Entry, its Watch and its ticks under one now(), and every later change
+    // moves a stamp, adds a Watch, dates a Watch, or sets a Rating or Note. The stamps are compared
+    // in Postgres: a JS Date drops the microseconds, so two different times could look equal.
+    const changedWatch = tx
+      .select({ id: watches.id })
+      .from(watches)
+      .where(
+        and(
+          eq(watches.entryId, entries.id),
+          or(ne(watches.createdAt, entries.createdAt), isNotNull(watches.watchedOn)),
+        ),
+      );
+    const removed = await tx
+      .delete(entries)
+      .where(
+        and(
+          fromThisImport,
+          eq(entries.statusChangedAt, entries.createdAt),
+          or(isNull(entries.progressMovedAt), eq(entries.progressMovedAt, entries.createdAt)),
+          isNull(entries.ratingHalfStars),
+          isNull(entries.note),
+          notExists(changedWatch),
+        ),
+      )
+      .returning({ id: entries.id });
+    const kept = await tx.$count(entries, fromThisImport);
+    return { removed: removed.length, kept };
+  });
 }
 
 /** Closes the Owner's open Import. A closed or unknown id changes nothing, so a retry is safe. */
