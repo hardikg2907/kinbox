@@ -6,6 +6,7 @@ A mobile-first web app where one Owner keeps the Movies and Series they want to 
 
 - `docs/v0.1-scope.md`: what v0.1 builds. It is the spec. Build nothing outside it.
 - `CONTEXT.md`: the glossary. Use its terms (Title, Entry, Status, Watch, Progress, Run, Rating, Note) in code, names and tests. Never invent synonyms.
+- `docs/backlog.md`: the build queue, in order, with each item's state.
 - `docs/future-scope.md`: ideas ruled out for now. Do not build them.
 - `.scratch/kinbox-v1/`: the planning map toward v1. Background only; v0.1 scope wins when they differ.
 
