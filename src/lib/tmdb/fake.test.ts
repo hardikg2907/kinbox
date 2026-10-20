@@ -63,6 +63,24 @@ describe("fixtures", () => {
     },
   );
 
+  it.each(fixtureFiles)("%s has a release date that agrees with its year", (fileName) => {
+    const raw = readFixture(fileName);
+    const title = fileName.startsWith("movie-")
+      ? movieDetailsSchema.parse(raw)
+      : seriesFixtureSchema.parse(raw).details;
+    expect(title.releaseDate).not.toBeNull();
+    expect(Number(title.releaseDate?.slice(0, 4))).toBe(title.year);
+  });
+
+  it.each(fixtureFiles.filter((name) => name.startsWith("series-")))(
+    "%s releases on the first air date of its first numbered Season",
+    (fileName) => {
+      const { details } = seriesFixtureSchema.parse(readFixture(fileName));
+      const first = details.seasons.find((season) => season.seasonNumber >= 1);
+      expect(details.releaseDate).toBe(first?.airDate);
+    },
+  );
+
   it("has an ended Series with Specials and at least two numbered Seasons", async () => {
     const ended = (await client.searchMulti("breaking")).at(0);
     const series = ended && (await client.getSeries(ended.tmdbId));
@@ -116,9 +134,26 @@ describe("searchMulti", () => {
       kind: "movie",
       tmdbId: 603,
       name: "The Matrix",
+      originalName: "The Matrix",
       year: 1999,
+      releaseDate: "1999-03-31",
+      popularity: 0,
       posterPath: expect.stringMatching(/^\/.+\.jpg$/),
     });
+  });
+
+  it("gives every result the original name, popularity and release date the matcher reads", async () => {
+    const results = await client.searchMulti("e");
+    expect(results.length).toBeGreaterThan(0);
+    for (const result of results) {
+      expect(result.originalName).toBe(result.name);
+      expect(result.popularity).toBe(0);
+      const details =
+        result.kind === "movie"
+          ? await client.getMovie(result.tmdbId)
+          : await client.getSeries(result.tmdbId);
+      expect(result.releaseDate).toBe(details?.releaseDate);
+    }
   });
 
   it("returns nothing for an empty or unmatched query", async () => {

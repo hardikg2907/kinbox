@@ -4,7 +4,13 @@ export type SearchResult = {
   kind: TitleKind;
   tmdbId: number;
   name: string;
+  /** TMDB's `original_title` / `original_name`: the name in the Title's original language. */
+  originalName: string | null;
   year: number | null;
+  /** TMDB's `release_date` / `first_air_date`; null when TMDB has none. */
+  releaseDate: IsoDate | null;
+  /** TMDB's popularity score; 0 when TMDB sends none or a value that is not a number of 0 or more. */
+  popularity: number;
   posterPath: string | null;
 };
 
@@ -13,6 +19,8 @@ export type MovieDetails = {
   tmdbId: number;
   name: string;
   year: number | null;
+  /** TMDB's `release_date`; null when TMDB has none. */
+  releaseDate: IsoDate | null;
   posterPath: string | null;
   overview: string | null;
   runtimeMinutes: number | null;
@@ -30,6 +38,8 @@ export type SeriesDetails = {
   tmdbId: number;
   name: string;
   year: number | null;
+  /** TMDB's `first_air_date`; null when TMDB has none. */
+  releaseDate: IsoDate | null;
   posterPath: string | null;
   overview: string | null;
   /** TMDB's raw status, such as "Returning Series", "Ended" or "Canceled". */
