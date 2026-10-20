@@ -4,11 +4,17 @@ Ideas that are not part of v1. Each one waits for a later effort. Add new ideas 
 
 ## Next, right after v1 ships
 
-- **File import** from Letterboxd, IMDb and Trakt exports. (Pasting a list is being built now: see [paste import](paste-import.md).)
+- **File import** from Letterboxd, IMDb and Trakt exports. (Pasting a list exists: see [paste import](paste-import.md).)
 - **Episode places in a pasted list** (`S2E4`, `till S3`): the line becomes Watching from that Episode. Paste import reads Status only.
 - **Splitting pasted lines that name several Titles** ("Name 1 and 2", "all parts", "trilogy", "All <franchise> movies").
 - **An import that updates Titles already in the Library**, for example To watch to Watched. Paste import only adds.
 - **Undo an earlier import later**, from the account menu. Paste import offers Undo on its result screen only.
+- **Short forms in a pasted list** (`ZNMD`, `YJHD`, `FF9`): a small dictionary or the Owner's own past picks. Today they are Not found and picked by hand.
+- **Whole sets from one line** (`All Rocky movies`, `Before trilogy`): add every Title of a TMDB collection. Today such a line stays Not found.
+- **The same-name rival as a candidate**: when a Series with the same name forces "Check this" on a line under a Movies heading (or the other way round), offer it among the candidates. Today it can be missing from the top 3.
+- **Word variants TMDB search misses** (`Mr and Ms Smith` for `Mr. & Mrs. Smith`): a second search with common variants.
+- **Skipped lines as rows on the Check step** ("Too long", "Not a title"), so the Owner sees them before adding. Today they are counted on the Paste step and copied with the lines not added.
+- **A confirm on Back while adding.** Today only a reload or closing the tab asks; adding carries on either way.
 
 ## Later
 
