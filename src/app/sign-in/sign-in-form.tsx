@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function SignInForm() {
   }
 
   return (
-    <form id="sign-in-form" onSubmit={onSubmit} className="glass mt-10 border flex flex-col gap-5 rounded-3xl p-5" noValidate>
+    <form id="sign-in-form" onSubmit={onSubmit} className="glass flex flex-col gap-5 rounded-3xl border p-5" noValidate>
       <div className="flex flex-col gap-2">
         <Label htmlFor="email" className="pl-1">
           Email
@@ -59,8 +60,8 @@ export function SignInForm() {
           aria-describedby={error ? "sign-in-error" : undefined}
         />
       </div>
-      {/* The error has a slot of its own between the password and the button, as tall as the longest
-          message, so it appears without moving anything; empty, it is only a little wider than a gap. */}
+      {/* The error has a slot of its own between the password and the button, as tall as two lines
+          with clear space above and below them, so it appears without moving anything. */}
       <div className="flex flex-col">
         <div className="flex flex-col gap-2">
           <Label htmlFor="password" className="pl-1">
@@ -77,8 +78,17 @@ export function SignInForm() {
             aria-describedby={error ? "sign-in-error" : undefined}
           />
         </div>
-        <p id="sign-in-error" role="alert" className="flex min-h-9 items-center px-1 text-sm leading-tight text-destructive">
-          {error}
+        <p
+          id="sign-in-error"
+          role="alert"
+          className="flex min-h-[calc(2lh+1.5rem)] items-center gap-2 px-1 py-3 text-sm leading-snug text-destructive"
+        >
+          {error ? (
+            <>
+              <CircleAlert aria-hidden className="size-4 shrink-0" />
+              <span>{error}</span>
+            </>
+          ) : null}
         </p>
         <Button id="sign-in-submit" type="submit" size="lg" disabled={pending}>
           {pending ? "Signing in…" : "Sign in"}
