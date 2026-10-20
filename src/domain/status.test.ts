@@ -4,13 +4,17 @@ import {
   afterEpisodeUnticked,
   changeStatus,
   entryAfterMove,
+  importNeedsAiredEpisodes,
   isUnchangedSinceMove,
   markSeriesWatched,
   moveChangedAnything,
   statusAfterUndo,
   statusAfterWatchDeleted,
+  statusOnImport,
   statusOnSave,
   watchAgain,
+  type ImportChange,
+  type ImportedTitle,
   type MovedEntry,
   type StatusMoveRecord,
 } from "./status";
@@ -286,5 +290,83 @@ describe("statusAfterUndo", () => {
     expect(statusAfterUndo(move({ previousStatus: "watched", status: "dropped", watchCount: 3 }))).toBe(
       "watched",
     );
+  });
+});
+
+describe("statusOnImport", () => {
+  const MOVIE: ImportedTitle = { kind: "movie", releaseDate: "2010-07-15" };
+  const UNDATED_MOVIE: ImportedTitle = { kind: "movie", releaseDate: null };
+  const UPCOMING_MOVIE: ImportedTitle = { kind: "movie", releaseDate: "2026-12-18" };
+  const FINISHED: ImportedTitle = { kind: "series", releaseDate: "2008-01-20", finished: true, airedEpisodeCount: 20 };
+  const ONGOING: ImportedTitle = { kind: "series", releaseDate: "2025-01-09", finished: false, airedEpisodeCount: 25 };
+  const PREMIERING: ImportedTitle = { kind: "series", releaseDate: "2026-11-02", finished: false, airedEpisodeCount: null };
+  const NOTHING_AIRED: ImportedTitle = { kind: "series", releaseDate: null, finished: false, airedEpisodeCount: 0 };
+  const OUT = [MOVIE, UNDATED_MOVIE, FINISHED, ONGOING, NOTHING_AIRED];
+
+  const TO_WATCH: ImportChange = { status: "to_watch", addWatch: NO_WATCH, tickAired: false, caughtUp: false };
+
+  it.each(STATUSES)("saves a Title that is not out yet as To watch, whatever the intent (%s)", (intent) => {
+    expect(statusOnImport(intent, UPCOMING_MOVIE, TODAY)).toEqual(TO_WATCH);
+    expect(statusOnImport(intent, PREMIERING, TODAY)).toEqual(TO_WATCH);
+    expect(
+      statusOnImport(intent, { kind: "series", releaseDate: "2026-11-02", finished: true, airedEpisodeCount: 3 }, TODAY),
+    ).toEqual(TO_WATCH);
+  });
+
+  it.each(["to_watch", "watching", "dropped"] as const)("saves %s as asked, with no Watch and no ticks", (intent) => {
+    for (const title of OUT) {
+      expect(statusOnImport(intent, title, TODAY)).toEqual({
+        status: intent,
+        addWatch: NO_WATCH,
+        tickAired: false,
+        caughtUp: false,
+      });
+    }
+  });
+
+  it("saves a watched Movie as Watched with a Watch of unknown date", () => {
+    const watched: ImportChange = { status: "watched", addWatch: { watchedOn: null }, tickAired: false, caughtUp: false };
+    expect(statusOnImport("watched", MOVIE, TODAY)).toEqual(watched);
+    expect(statusOnImport("watched", UNDATED_MOVIE, TODAY)).toEqual(watched);
+    expect(statusOnImport("watched", { kind: "movie", releaseDate: TODAY }, TODAY)).toEqual(watched);
+  });
+
+  it("saves a watched finished Series as Watched with a Watch of unknown date, ticking the aired Episodes", () => {
+    expect(statusOnImport("watched", FINISHED, TODAY)).toEqual({
+      status: "watched",
+      addWatch: { watchedOn: null },
+      tickAired: true,
+      caughtUp: false,
+    });
+  });
+
+  it("saves a watched unfinished Series as Watching and caught up, with no Watch", () => {
+    expect(statusOnImport("watched", ONGOING, TODAY)).toEqual({
+      status: "watching",
+      addWatch: NO_WATCH,
+      tickAired: true,
+      caughtUp: true,
+    });
+  });
+
+  it("saves a watched Series with no aired Episode as To watch", () => {
+    expect(statusOnImport("watched", NOTHING_AIRED, TODAY)).toEqual(TO_WATCH);
+    expect(statusOnImport("watched", { ...NOTHING_AIRED, finished: true }, TODAY)).toEqual(TO_WATCH);
+  });
+
+  it("refuses to decide a watched Series that is out without its aired Episode count", () => {
+    expect(() => statusOnImport("watched", { ...ONGOING, airedEpisodeCount: null }, TODAY)).toThrow();
+  });
+});
+
+describe("importNeedsAiredEpisodes", () => {
+  it("needs the aired Episodes only for a watched Series that is out", () => {
+    expect(importNeedsAiredEpisodes("watched", { kind: "series", releaseDate: "2025-01-09" }, TODAY)).toBe(true);
+    expect(importNeedsAiredEpisodes("watched", { kind: "series", releaseDate: null }, TODAY)).toBe(true);
+    expect(importNeedsAiredEpisodes("watched", { kind: "series", releaseDate: "2026-11-02" }, TODAY)).toBe(false);
+    expect(importNeedsAiredEpisodes("watched", { kind: "movie", releaseDate: "2010-07-15" }, TODAY)).toBe(false);
+    for (const intent of ["to_watch", "watching", "dropped"] as const) {
+      expect(importNeedsAiredEpisodes(intent, { kind: "series", releaseDate: "2025-01-09" }, TODAY)).toBe(false);
+    }
   });
 });
