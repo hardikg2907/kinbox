@@ -138,7 +138,7 @@ export function MatchRow({ row, retrying, onPick, onChoose, onInclude, onRetry }
   return (
     <li id={`import-row-${row.anchorId}`} data-row-lines={ids.join(" ")} className="p-3 not-last:border-b">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative grid min-w-0 flex-1 grid-cols-[4rem_1fr] gap-x-3">
+        <div data-pick-block="" className="relative grid min-w-0 flex-1 grid-cols-[4rem_1fr] gap-x-3">
           {title ? (
             <Poster path={title.posterPath} name={title.name} size="w92" decorative className="w-16" />
           ) : (

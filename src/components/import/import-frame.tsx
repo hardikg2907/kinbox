@@ -18,7 +18,7 @@ export const PASTE_HELP = "One title per line. Put ✔ after the ones you've wat
 
 export function ImportTopBar({ onClose }: { onClose?: (event: MouseEvent<HTMLAnchorElement>) => void }) {
   return (
-    <header className={cn("sticky top-0 z-30 pt-[calc(env(safe-area-inset-top)+10px)]", SIDES)}>
+    <header id="import-top-bar" className={cn("sticky top-0 z-30 pt-[calc(env(safe-area-inset-top)+10px)]", SIDES)}>
       <div className={cn(COLUMN, FLOAT_SHADOW, "glass-strong flex h-13 items-center gap-3 rounded-full border pr-5 pl-1")}>
         <Link
           id="import-close"
@@ -57,7 +57,7 @@ export function ImportActionBar({ children, innerRef }: { children: ReactNode; i
 
 export function ImportContent({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={SIDES}>
+    <div id="import-content" className={SIDES}>
       <div
         className={cn(
           COLUMN,
