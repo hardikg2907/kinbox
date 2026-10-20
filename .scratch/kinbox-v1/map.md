@@ -17,7 +17,7 @@ Every decision `/to-spec` needs for Kinbox v1 is closed on this map: product beh
   - A Title is anything the movie database lists as a movie or a TV show (incl. anime, miniseries, documentaries, specials).
   - Free in v1, money later is possible. Every third-party choice checks its commercial-use terms.
 - **Plain words on screen.** Every label and action must make sense to a user in 2 seconds. Glossary terms (Entry, Watch, Status) are for planning and code, not screen copy. Prototype tickets pick the words, using `ux-writing`.
-- **v0.1 ships first.** A usable single-Owner version is cut in [v0.1 scope](../../docs/v0.1-scope.md) and built now, while this map continues toward v1. Its stack is Next.js, Postgres (Neon), Drizzle, Better Auth and Vercel; the owner does not want Elixir for Kinbox.
+- **v0.1 is live** at https://kinbox-three.vercel.app (cut in [v0.1 scope](../../docs/v0.1-scope.md); every product decision since is in [decisions-v0.1.md](../../docs/decisions-v0.1.md)). Paste import ([spec](../../docs/paste-import.md)) is the next build; this map continues toward v1 behind it. Its stack is Next.js, Postgres (Neon, Singapore), Drizzle, Better Auth and Vercel; the owner does not want Elixir for Kinbox.
 - **Builder.** One developer. [Stack and hosting](issues/12-stack-and-hosting.md) confirms or changes the v0.1 stack for the public launch. Prototypes stay framework-free.
 - **Skills.** By ticket type: grilling → `grilling` + `domain-modeling`; prototype → `prototype`; research → `research`. These stack-neutral skills join where they fit:
   - [Scope check after research](issues/15-scope-check-after-research.md): `feature-prioritization-assistant` (RICE), `opportunity-solution-trees`.

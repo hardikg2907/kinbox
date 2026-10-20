@@ -17,6 +17,7 @@ Your training data is out of date for this Next.js version. Read the guide in `n
 
 ## Commands
 
+- Node 22.22.1 or later (the owner's shell runs 22.23.3 through nvm). A Claude Code session keeps the `PATH` it started with, so an older session may still run 22.20; if `node -v` is older, put `$HOME/.nvm/versions/node/v22.23.3/bin` first on `PATH` before `pnpm` or `git commit`.
 - `pnpm dev` (port 3100; 3000 is taken on the owner's Mac), `pnpm build`, `pnpm lint` (ESLint; `next lint` no longer exists), `pnpm typecheck`, `pnpm test`.
 - The managed `nextjs-agent-rules` block at the end of this file is written by `next dev`. Never edit inside its markers; keep project rules outside them.
 - Never install skills with the skills.sh CLI (`npx skills add`).
