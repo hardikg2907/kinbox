@@ -138,7 +138,7 @@ Vercel Hobby functions with Fluid Compute run up to 300 s, which is also the def
 | Watched | Series with no aired Episode | To watch | none | none |
 
 - "Finished" is TMDB status Ended or Canceled, as everywhere in Kinbox. Specials are never ticked (decision 7).
-- "Not out yet" is `isOutYet(releaseDate, today)` in `src/domain/release.ts`: true when the release date is after today. A missing date counts as out. Saving one Title uses the same function when it adopts decision 15.
+- "Not out yet" means `isOutYet(releaseDate, today)` in `src/domain/release.ts` is false: the release date is after today. A missing date counts as out. Saving one Title uses the same function when it adopts decision 15.
 - The browser sends only the intent. The server loads the Title's details and decides the Status itself.
 
 ### Requests
