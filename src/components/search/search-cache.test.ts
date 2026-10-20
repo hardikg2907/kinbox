@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  cacheGeneration,
   cacheKey,
   CACHE_TTL_MS,
   clearSearchCache,
@@ -49,5 +50,11 @@ describe("search cache", () => {
     writeCached("dune", answer("a"));
     clearSearchCache();
     expect(readCached("dune")).toBeNull();
+  });
+
+  it("changes its generation on every clear", () => {
+    const before = cacheGeneration();
+    clearSearchCache();
+    expect(cacheGeneration()).toBe(before + 1);
   });
 });

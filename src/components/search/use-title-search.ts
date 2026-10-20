@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { readCached, writeCached } from "@/components/search/search-cache";
+import { cacheGeneration, readCached, writeCached } from "@/components/search/search-cache";
 import {
   deriveSearchView,
   MIN_QUERY_LENGTH,
@@ -51,29 +51,37 @@ async function loadLibrary(query: string, signal: AbortSignal): Promise<LibraryR
  * Debounced search against the route handlers. "Loading" is derived (a query with no
  * reply yet), so effects only set state from replies, never synchronously.
  */
-export function useTitleSearch(input: string): SearchOutcome {
+export function useTitleSearch(input: string, session: number): SearchOutcome {
   const query = input.trim();
-  const [tmdb, setTmdb] = useState<TmdbReply | null>(null);
-  const [library, setLibrary] = useState<LibraryReply | null>(null);
+  // Replies carry the sheet opening they belong to, so reopening the sheet never shows an old answer.
+  const [replies, setReplies] = useState<{ session: number; library: LibraryReply | null; tmdb: TmdbReply | null }>({
+    session,
+    library: null,
+    tmdb: null,
+  });
 
   useEffect(() => {
     if (query.length < MIN_QUERY_LENGTH) return;
     const controller = new AbortController();
     const { signal } = controller;
+    const setLibrary = (library: LibraryReply) =>
+      setReplies((current) => ({ session, library, tmdb: current.session === session ? current.tmdb : null }));
+    const setTmdb = (tmdb: TmdbReply) =>
+      setReplies((current) => ({ session, library: current.session === session ? current.library : null, tmdb }));
 
     const cached = readCached(query);
     if (cached) {
       // A microtask, not a timer: no wait is felt, and the effect still sets state only from a callback.
       void Promise.resolve().then(() => {
         if (signal.aborted) return;
-        const replies = repliesFromCache(query, cached);
-        setLibrary(replies.library);
-        setTmdb(replies.tmdb);
+        const fromCache = repliesFromCache(query, cached);
+        setReplies({ session, library: fromCache.library, tmdb: fromCache.tmdb });
       });
       return () => controller.abort();
     }
 
     const timer = window.setTimeout(() => {
+      const generation = cacheGeneration();
       const libraryReply = loadLibrary(query, signal).then((result) => {
         if (result) setLibrary(result);
         return result;
@@ -83,7 +91,8 @@ export function useTitleSearch(input: string): SearchOutcome {
         return result;
       });
       void Promise.all([libraryReply, tmdbReply]).then(([libraryResult, tmdbResult]) => {
-        if (signal.aborted || !libraryResult?.items || !tmdbResult?.ok) return;
+        // A clear since the fetch began means a save may have changed the answer.
+        if (signal.aborted || generation !== cacheGeneration() || !libraryResult?.items || !tmdbResult?.ok) return;
         writeCached(query, { library: libraryResult.items, tmdb: tmdbResult.items });
       });
     }, DEBOUNCE_MS);
@@ -91,7 +100,8 @@ export function useTitleSearch(input: string): SearchOutcome {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, session]);
 
-  return deriveSearchView(query, library, tmdb);
+  const current = replies.session === session ? replies : { library: null, tmdb: null };
+  return deriveSearchView(query, current.library, current.tmdb);
 }

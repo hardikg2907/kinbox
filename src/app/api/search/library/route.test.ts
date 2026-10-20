@@ -26,14 +26,14 @@ afterAll(async () => {
 });
 
 describe("GET /api/search/library", () => {
-  it("returns the Owner's matching Titles, never cached, with only a session timing", async () => {
+  it("returns the Owner's matching Titles, never cached, with session and database timings", async () => {
     const { entryId } = await insertEntry({ owner: OWNER_A, status: "to_watch", name: "Dune" });
 
     const response = await GET(request("?q=dun"));
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-    expect(response.headers.get("Server-Timing")).toMatch(/^session;dur=\d+\.\d$/);
+    expect(response.headers.get("Server-Timing")).toMatch(/^session;dur=\d+\.\d, db;dur=\d+\.\d$/);
     expect(await response.json()).toEqual({
       results: [expect.objectContaining({ name: "Dune", entry: { id: entryId, status: "to_watch" } })],
     });

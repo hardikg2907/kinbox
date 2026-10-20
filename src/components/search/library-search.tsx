@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Sheet } from "@/components/library/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { clearSearchCache } from "@/components/search/search-cache";
 import { SearchResultRow } from "@/components/search/search-result-row";
 import { SearchSkeleton } from "@/components/search/search-skeleton";
 import { SEARCH_INPUT_ID } from "@/components/search/search-ids";
@@ -22,11 +23,15 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
   const opener = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const outcome = useTitleSearch(query);
+  // Counts sheet openings: each one starts from a clear cache and ignores answers from before it.
+  const [opening, setOpening] = useState(0);
+  const outcome = useTitleSearch(query, opening);
   const keyboard = useKeyboardInset(open);
 
   const openSheet = useCallback((element: HTMLElement) => {
     opener.current = element;
+    clearSearchCache();
+    setOpening((count) => count + 1);
     setOpen(true);
   }, []);
   const context = useMemo(() => ({ open: openSheet }), [openSheet]);
@@ -126,41 +131,38 @@ function useKeyboardInset(active: boolean): number {
 
 function SearchResults({ outcome }: { outcome: SearchOutcome }) {
   const library = outcome.phase === "loading" || outcome.phase === "results" || outcome.phase === "error" ? outcome.library : [];
-  const libraryRows =
-    library.length > 0 ? (
-      <section aria-labelledby="search-library-heading">
-        <h2 id="search-library-heading" className="px-3 pt-2 pb-1 text-sm font-medium text-muted-foreground">
-          In your library
-        </h2>
-        <ul id="search-library-list" className="flex flex-col">
-          {library.map((item) => (
-            <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
-          ))}
-        </ul>
-      </section>
-    ) : null;
+  const loading = outcome.phase === "loading";
+  const hasTmdbRows = outcome.phase === "results" && outcome.items.length > 0;
 
+  // The children keep fixed positions, so the status node is never remounted. After an error it is moved
+  // below the Library rows with CSS order, which keeps screen readers and focus undisturbed.
   return (
-    <div id="search-results" aria-busy={outcome.phase === "loading"}>
-      {outcome.phase === "error" ? (
-        <>
-          {libraryRows}
-          <SearchStatus outcome={outcome} />
-        </>
-      ) : (
-        <>
-          <SearchStatus outcome={outcome} />
-          {libraryRows}
-          {outcome.phase === "loading" ? <SearchSkeleton /> : null}
-          {outcome.phase === "results" && outcome.items.length > 0 ? (
+    <div id="search-results" className="flex flex-col">
+      <SearchStatus outcome={outcome} />
+      {library.length > 0 ? (
+        <section aria-labelledby="search-library-heading">
+          <h2 id="search-library-heading" className="px-3 pt-2 pb-1 text-sm font-medium text-muted-foreground">
+            In your library
+          </h2>
+          <ul id="search-library-list" className="flex flex-col">
+            {library.map((item) => (
+              <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {loading || hasTmdbRows ? (
+        <div aria-busy={loading}>
+          {loading ? <SearchSkeleton /> : null}
+          {outcome.phase === "results" && hasTmdbRows ? (
             <ul id="search-list" className={library.length > 0 ? "flex flex-col border-t" : "flex flex-col"}>
               {outcome.items.map((item) => (
                 <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
               ))}
             </ul>
           ) : null}
-        </>
-      )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -185,7 +187,7 @@ function SearchStatus({ outcome }: { outcome: SearchOutcome }) {
       );
     case "error":
       return (
-        <p id="search-status" role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 px-2 py-12 text-center text-base text-pretty">
+        <p id="search-status" role="status" className="order-last mx-auto flex max-w-sm flex-col items-center gap-3 px-2 py-12 text-center text-base text-pretty">
           <TriangleAlert aria-hidden className="size-6 text-muted-foreground" />
           <span>{outcome.message}</span>
           {outcome.signedOut ? (

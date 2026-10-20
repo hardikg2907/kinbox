@@ -44,6 +44,10 @@ describe("deriveSearchView", () => {
     expect(deriveSearchView("dune", null, tmdbOk([]))).toEqual({ phase: "loading", library: [] });
   });
 
+  it("stays loading when TMDB has rows but the Library answer is pending, so no row moves later", () => {
+    expect(deriveSearchView("dune", null, tmdbOk([item(2)]))).toEqual({ phase: "loading", library: [] });
+  });
+
   it("shows the Library rows and the error when TMDB fails", () => {
     expect(deriveSearchView("dune", lib([inLibrary(1)]), tmdbFail)).toEqual({
       phase: "error",
