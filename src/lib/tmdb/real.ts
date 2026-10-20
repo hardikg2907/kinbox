@@ -12,6 +12,13 @@ import type { MovieDetails, SearchResult, SeasonDetails, SeriesDetails, TmdbClie
 
 const BASE_URL = "https://api.themoviedb.org/3";
 const REQUEST_TIMEOUT_MS = 8000;
+// A 429 gets two more tries, so one request makes at most three.
+const MAX_RETRIES = 2;
+// A long Retry-After is cut to this, so one request cannot stall for long.
+const MAX_RETRY_WAIT_MS = 2000;
+const RETRY_BACKOFF_MS = 300;
+// Retry-After may also be an HTTP date; that form is ignored in favour of the backoff.
+const RETRY_AFTER_SECONDS = /^\d+(?:\.\d+)?$/;
 const MAX_QUERY_LENGTH = 100;
 // TMDB rejects append_to_response lists longer than 20.
 const MAX_APPENDED_SEASONS = 20;
@@ -26,12 +33,17 @@ export type RealTmdbClientOptions = {
   token: string;
   /** Replaces the global `fetch`; tests use it to avoid the network. */
   fetch?: FetchLike;
+  /** Replaces the timer that waits between 429 retries; tests use it to skip real delays. */
+  sleep?: (ms: number) => Promise<void>;
+  /** Replaces `Math.random` for the retry jitter; tests use it for fixed waits. */
+  random?: () => number;
 };
 
 /**
  * TMDB could not give a usable answer: the network failed, the request timed out, TMDB
- * answered 429 or an error status, or the body was not what we expect. The message is
- * generic on purpose. Servers read `status`, `path` and `cause` for logs.
+ * kept answering 429 through every retry or answered an error status, or the body was not
+ * what we expect. The message is generic on purpose. Servers read `status`, `path` and
+ * `cause` for logs.
  */
 export class TmdbUnavailableError extends Error {
   /** HTTP status when TMDB answered, otherwise null. Never carries the token. */
@@ -65,6 +77,19 @@ function capQuery(query: string): string {
     : characters.slice(0, MAX_QUERY_LENGTH).join("");
 }
 
+function sleepFor(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryWaitMs(response: Response, retry: number, random: () => number): number {
+  const header = response.headers.get("retry-after")?.trim() ?? "";
+  if (RETRY_AFTER_SECONDS.test(header)) {
+    return Math.min(Number(header) * 1000, MAX_RETRY_WAIT_MS);
+  }
+  // Jitter stops searches that were limited at the same moment from retrying together.
+  return RETRY_BACKOFF_MS * 2 ** retry * (0.5 + random() * 0.5);
+}
+
 function parseBody<T>(path: string, body: unknown, map: (json: unknown) => T): T {
   try {
     return map(body);
@@ -82,39 +107,52 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
   }
   // Resolved per call so a patched global fetch (such as Next's) is used.
   const send: FetchLike = options.fetch ?? ((input, init) => fetch(input, init));
+  const sleep = options.sleep ?? sleepFor;
+  // Jitter is not a security value, so Math.random is enough.
+  const random = options.random ?? (() => Math.random());
 
+  // The 429 retry lives here, inside the cached call, so only the final answer reaches
+  // `settle` in cached.ts. A retry outside the cache would read the cached failure.
   async function getJson(path: string, params: Record<string, string>): Promise<JsonResult> {
     const url = new URL(`${BASE_URL}${path}`);
     for (const [name, value] of Object.entries(params)) {
       url.searchParams.set(name, value);
     }
 
-    let response: Response;
-    try {
-      response = await send(url.toString(), {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-        // The base URL is fixed; a redirect would be an attempt to send the token elsewhere.
-        redirect: "error",
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new TmdbUnavailableError({ path, cause: error });
-    }
+    for (let retry = 0; ; retry += 1) {
+      let response: Response;
+      try {
+        response = await send(url.toString(), {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+          // The base URL is fixed; a redirect would be an attempt to send the token elsewhere.
+          redirect: "error",
+          // A new signal per try: the time spent waiting must not eat into the next try.
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+      } catch (error) {
+        throw new TmdbUnavailableError({ path, cause: error });
+      }
 
-    if (response.status === 404) {
-      await response.body?.cancel().catch(() => undefined);
-      return { found: false };
-    }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new TmdbUnavailableError({ status: response.status, path });
-    }
+      if (response.status === 429 && retry < MAX_RETRIES) {
+        await response.body?.cancel().catch(() => undefined);
+        await sleep(retryWaitMs(response, retry, random));
+        continue;
+      }
+      if (response.status === 404) {
+        await response.body?.cancel().catch(() => undefined);
+        return { found: false };
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new TmdbUnavailableError({ status: response.status, path });
+      }
 
-    try {
-      return { found: true, body: await response.json() };
-    } catch (error) {
-      throw new TmdbUnavailableError({ status: response.status, path, cause: error });
+      try {
+        return { found: true, body: await response.json() };
+      } catch (error) {
+        throw new TmdbUnavailableError({ status: response.status, path, cause: error });
+      }
     }
   }
 
