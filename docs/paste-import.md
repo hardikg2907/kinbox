@@ -215,10 +215,9 @@ Words:
 
 ## Build steps
 
-All work happens on the integration branch `feat/paste-import` (from `main`), in its own worktree, as `AGENTS.md` ("Branches and worktrees") describes. Each step is a branch off `feat/paste-import` with its own worktree, merged back after `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass. Steps 1-3 touch no screens and no file the design branch changes, so they can start before the design merge. Steps 4-6 wait until the design (with Undo for every Status move) is on `main`; then `feat/paste-import` rebases onto `main`. Merging `feat/paste-import` into `main` needs the owner's approval. The git hooks run lint and typecheck on every commit and the tests (under the test lock) on every push, so each step commits only green work.
+All work happens on the integration branch `feat/paste-import` (from `main`), in its own worktree, as `AGENTS.md` ("Branches and worktrees") describes. Each step is a branch off `feat/paste-import` with its own worktree, merged back after `pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass. Steps 1 and 2 touch different files and run in parallel; the arrows below show what each step needs first. Merging `feat/paste-import` into `main` needs the owner's approval, and a push to `main` deploys production. The git hooks fix and lint staged files and typecheck on every commit, and run the tests (under the test lock) on every push, so each step commits only green work.
 
 ```
-before the design merge          after the design merge
 1 reader ──┐
            ├─> 3 matching + eval ──┐
 2 TMDB ────┤                       ├─> 6 screens ─> 7 owner check ─> merge to main
@@ -235,14 +234,14 @@ before the design merge          after the design merge
    - Tests: scoring cases (exact, compact, article, typo, both kinds, year agreeing and against, two exact names with close and far popularity, several-Titles lines never Found, the 0.6 floor, alternate text); the route's 401, 400 on an extra key or 11 lines or a large body, a TMDB failure on one line only; candidates marked `inLibrary` only for the right Owner.
    - The eval script reads a note from `.local/import-sample.txt` (add `/.local/` to `.gitignore` in this step), runs the reader and matcher against real TMDB, and prints each line with its result and best candidate. TMDB calls fail on the owner's home network unless the Mac uses a public DNS (see `AGENTS.md`).
    - Done when the owner has run the script on their note and confirmed: no wrong Match among Found rows.
-4. **Adding** (`feat/import-add`). It changes `saveTitle` in `src/data/entries.ts`, which the Undo work on `design/dock` also edits, so it starts after the design merge. The migration (`pnpm db:generate`, `pnpm db:migrate`), `statusOnImport` and `isOutYet`, `insertNewEntry` shared with `saveTitle`, `startImport`, `addImportRows`, `finishImport`, and the actions.
+4. **Adding** (`feat/import-add`). It changes `saveTitle` in `src/data/entries.ts`; keep every existing save, Undo and status-move test passing. The migration (`pnpm db:generate`, `pnpm db:migrate`), `statusOnImport` and `isOutYet`, `insertNewEntry` shared with `saveTitle`, `startImport`, `addImportRows`, `finishImport`, and the actions.
    - Tests: every row of the "What gets saved" table; `import_id` set; a Title already in the Library returns `already` and is unchanged; one failing row does not stop the others; rows insert in the given order; a second `startImport` closes the first and `addToImport` on it fails; another Owner's `importId` fails; all existing `saveTitle` tests pass unchanged.
 5. **Undo this import** (`feat/import-undo`). `undoImport` data and action.
    - Tests: removes unchanged Entries with their Watches and ticks; keeps an Entry with a Status move, a tick, an untick, a Rating, a Note or a new Watch; counts are right; leaves Entries from other Imports and saved by hand; another Owner's `importId` removes nothing.
-6. **Screens** (`feat/import-screens`, after the design merge). `/import` with the three steps, the device copy of the text, the pick sheet, the result screen, Copy, and the two entry points.
+6. **Screens** (`feat/import-screens`). Built inside the current design system (`docs/design.md`): its sheets, toasts, status pills and tokens. `/import` with the three steps, the device copy of the text, the pick sheet, the result screen, Copy, and the two entry points.
    - Checks: the flow at 375 px and on desktop in light and dark; every control reachable by keyboard and labelled; the pick sheet traps and returns focus; a reload in the Check step keeps the text; leaving while adding asks first.
    - Screenshots at 375 px come from headless Chrome over CDP, not Claude-in-Chrome.
-7. **Owner check.** The owner imports their real note into the local database on `feat/paste-import`, then reviews the result. After that, `feat/paste-import` merges into `main` with the owner's approval, and the owner imports into production after creating their account.
+7. **Owner check.** The owner imports their real note into the local database on `feat/paste-import` and reviews the result. After that, `feat/paste-import` merges into `main` with the owner's approval, and the owner imports into production (their production account exists).
 
 ## Open questions
 
