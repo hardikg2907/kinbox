@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   compactName,
+  CONTAINED_NAME_SCORE,
   KIND_HINT_WEIGHT,
   matchLine,
   MAX_CANDIDATES,
@@ -100,6 +101,62 @@ describe("nameScore", () => {
     expect(nameScore("?!", "...")).toBe(0);
     expect(nameScore("?!", "Up")).toBe(0);
   });
+
+  describe("when one name holds the other's whole words at its start or end", () => {
+    it("exports a floor below 1", () => {
+      expect(CONTAINED_NAME_SCORE).toBe(0.8);
+    });
+
+    it.each([
+      ["Hobbs and Shaw", "Fast & Furious Presents: Hobbs & Shaw"],
+      ["Shang chi", "Shang-Chi and the Legend of the Ten Rings"],
+      ["Manhunt Unabomber", "Manhunt"],
+    ])("scores %j against %j at the floor, whichever side is longer", (a, b) => {
+      expect(nameScore(a, b)).toBe(CONTAINED_NAME_SCORE);
+      expect(nameScore(b, a)).toBe(CONTAINED_NAME_SCORE);
+    });
+
+    it("lifts a prefix and a suffix of two words, and a prefix of one word with 6 letters", () => {
+      expect(nameScore("Big Fish", "Big Fish and Begonia")).toBe(CONTAINED_NAME_SCORE);
+      expect(nameScore("Big Fish", "The Giant Big Fish")).toBe(CONTAINED_NAME_SCORE);
+      expect(nameScore("Matrix", "Matrix Reloaded")).toBe(CONTAINED_NAME_SCORE);
+    });
+
+    it("ignores a leading article, accents and punctuation when it lines the words up", () => {
+      expect(nameScore("The Quiet Orchard", "Quiet Orchard Returns")).toBe(CONTAINED_NAME_SCORE);
+      expect(nameScore("Amelie Poulain", "Le Fabuleux Destin: Amélie Poulain")).toBe(CONTAINED_NAME_SCORE);
+    });
+
+    it("keeps a higher character-pair score", () => {
+      const score = nameScore("Mission Impossible Fallout", "Mission Impossible Fallout 7");
+      expect(score).toBeGreaterThan(CONTAINED_NAME_SCORE);
+      expect(score).toBeLessThan(1);
+    });
+
+    it("does not lift a single short word", () => {
+      expect(nameScore("Run", "Run Lola Run")).toBeLessThan(CONTAINED_NAME_SCORE);
+      expect(nameScore("Alien", "Alien Nation")).toBeLessThan(NAME_FLOOR);
+      expect(nameScore("Heat", "Heat Wave")).toBeLessThanOrEqual(NAME_FLOOR);
+    });
+
+    it("does not lift words found only in the middle", () => {
+      expect(nameScore("Lantern Garden", "Glass Lantern Garden Keeper")).toBeLessThan(CONTAINED_NAME_SCORE);
+      expect(nameScore("Lantern", "Glass Lantern Keeper")).toBeLessThan(CONTAINED_NAME_SCORE);
+    });
+
+    it("does not lift words that match only part of a word", () => {
+      expect(nameScore("Shang", "Shanghai Blues")).toBeLessThan(CONTAINED_NAME_SCORE);
+      expect(nameScore("Moonlit", "Moonlitting Harbor")).toBeLessThan(CONTAINED_NAME_SCORE);
+    });
+
+    it("does not lift words in a different order", () => {
+      expect(nameScore("Shaw and Hobbs", "Fast & Furious Presents: Hobbs & Shaw")).toBeLessThan(CONTAINED_NAME_SCORE);
+    });
+
+    it("still scores 1 for equal names", () => {
+      expect(nameScore("Hobbs and Shaw", "Hobbs & Shaw")).toBe(1);
+    });
+  });
 });
 
 describe("rankMatches", () => {
@@ -139,10 +196,25 @@ describe("rankMatches", () => {
   });
 
   it("finds nothing just under the name floor, and still offers the candidates", () => {
-    const reloaded = title("Matrix Reloaded");
-    const ranking = rankMatches(line("Matrix"), [reloaded]);
+    const nation = title("Alien Nation");
+    const ranking = rankMatches(line("Alien"), [nation]);
     expect(ranking.candidates[0].nameScore).toBeLessThan(NAME_FLOOR);
-    expect(ranking).toEqual({ result: "not_found", candidates: [expect.objectContaining({ title: reloaded })] });
+    expect(ranking).toEqual({ result: "not_found", candidates: [expect.objectContaining({ title: nation })] });
+  });
+
+  it("asks to check a longer official name that holds the line's whole words, never finds it", () => {
+    const official = title("Fast & Furious Presents: Hobbs & Shaw", { popularity: 80 });
+    const ranking = rankMatches(line("Hobbs and Shaw"), [official]);
+    expect(ranking.result).toBe("check");
+    expect(ranking.candidates[0]).toMatchObject({ title: official, nameScore: CONTAINED_NAME_SCORE });
+  });
+
+  it("keeps a found line found when a longer name holds its words", () => {
+    const exact = title("Manhunt", { kind: "series", popularity: 40 });
+    const longer = title("Manhunt Unabomber", { kind: "series", popularity: 90 });
+    const ranking = rankMatches(line("Manhunt", { kind: "series" }), [longer, exact]);
+    expect(ranking.result).toBe("found");
+    expect(ranking.candidates[0].title).toBe(exact);
   });
 
   it("asks to check at the name floor and just over it", () => {
@@ -314,7 +386,7 @@ describe("matchLine", () => {
     const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
     expect(match).toMatchObject({ result: "found", fromAltQuery: true });
     expect(match.candidates[0].title).toBe(umDia);
-    expect(search.mock.calls).toEqual([["One Day"], ["Um Dia"]]);
+    expect(search.mock.calls).toEqual([["One Day"], ["OneDay"], ["Um Dia"]]);
   });
 
   it("keeps the main results when the alternate text is not found", async () => {
@@ -339,9 +411,9 @@ describe("matchLine", () => {
     expect(search).toHaveBeenCalledTimes(1);
   });
 
-  it("searches once for a line without alternate text", async () => {
+  it("searches once for a one-word line without alternate text", async () => {
     const search = searchFrom({});
-    expect(await matchLine({ query: "One Day", several: false }, search)).toEqual({
+    expect(await matchLine({ query: "Dune", several: false }, search)).toEqual({
       result: "not_found",
       candidates: [],
       fromAltQuery: false,
@@ -356,6 +428,108 @@ describe("matchLine", () => {
     ).rejects.toBe(failure);
     const search = vi.fn(async (text: string) => (text === "Um Dia" ? Promise.reject(failure) : []));
     await expect(matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search)).rejects.toBe(failure);
+  });
+
+  describe("the joined-up search", () => {
+    it("finds a name typed with a space only through the joined search", async () => {
+      const westworld = title("Westworld", { kind: "series", popularity: 96 });
+      const search = searchFrom({ "West world": [title("Wild West", { kind: "series" })], Westworld: [westworld] });
+      const west = { query: "West world", kind: "series" as const, several: false };
+      expect(rankMatches(west, [title("Wild West", { kind: "series" })]).result).toBe("not_found");
+
+      const match = await matchLine(west, search);
+      expect(match).toMatchObject({ result: "found", fromAltQuery: false });
+      expect(match.candidates[0]).toMatchObject({ title: westworld, nameScore: 1 });
+      expect(search.mock.calls).toEqual([["West world"], ["Westworld"]]);
+    });
+
+    it("keeps the case and the letters and drops only the spaces", async () => {
+      const search = searchFrom({});
+      await matchLine({ query: "Old  Boy  Two", several: false }, search);
+      expect(search.mock.calls).toEqual([["Old  Boy  Two"], ["OldBoyTwo"]]);
+    });
+
+    it("merges the joined results into the main ones without repeating a Title, main results first", async () => {
+      const obscure = title("West World", { kind: "movie", popularity: 0.5 });
+      const westworld = title("Westworld", { kind: "series", popularity: 96 });
+      const other = title("West Side Story", { kind: "movie" });
+      const search = searchFrom({ "West world": [obscure, other], Westworld: [westworld, { ...obscure }] });
+      const match = await matchLine({ query: "West world", kind: "series", several: false }, search);
+      expect(match.result).toBe("found");
+      expect(match.candidates.map((candidate) => candidate.title)).toEqual([westworld, obscure, other]);
+    });
+
+    it("lets the main results lead when they tie with the joined ones", async () => {
+      const first = title("Westworld", { kind: "series", popularity: 0 });
+      const second = title("Westworld", { kind: "movie", popularity: 0, tmdbId: first.tmdbId + 1000 });
+      const search = searchFrom({ "West world": [first], Westworld: [second] });
+      const match = await matchLine({ query: "West world", several: false }, search);
+      expect(match.candidates.map((candidate) => candidate.title)).toEqual([first, second]);
+    });
+
+    it("asks to check when the joined results hold two same-name rivals", async () => {
+      const series = title("Westworld", { kind: "series", popularity: 50 });
+      const movie = title("Westworld", { kind: "movie", popularity: 40 });
+      const search = searchFrom({ Westworld: [series, movie] });
+      const match = await matchLine({ query: "West world", kind: "series", several: false }, search);
+      expect(match.result).toBe("check");
+      expect(match.candidates.map((candidate) => candidate.title)).toEqual([series, movie]);
+    });
+
+    it("asks to check when a main result and a joined result are same-name rivals", async () => {
+      const movie = title("West World", { kind: "movie", popularity: 40 });
+      const series = title("Westworld", { kind: "series", popularity: 50 });
+      const search = searchFrom({ "West world": [movie], Westworld: [series] });
+      const west = { query: "West world", kind: "series" as const, several: false };
+      expect(rankMatches(west, [movie]).result).toBe("check");
+
+      const match = await matchLine(west, search);
+      expect(match.result).toBe("check");
+      expect(match.candidates.map((candidate) => candidate.title)).toEqual([series, movie]);
+    });
+
+    it("does not search the joined text for a one-word query", async () => {
+      const search = searchFrom({});
+      await matchLine({ query: "Westworld", several: false }, search);
+      expect(search.mock.calls).toEqual([["Westworld"]]);
+    });
+
+    it("does not search the joined text when the main results are found", async () => {
+      const search = searchFrom({ "Old boy": [title("Old Boy", { popularity: 20 })] });
+      const match = await matchLine({ query: "Old boy", several: false }, search);
+      expect(match.result).toBe("found");
+      expect(search.mock.calls).toEqual([["Old boy"]]);
+    });
+
+    it("does not search the joined text for a line that names several Titles", async () => {
+      const search = searchFrom({ Westworld: [title("Westworld", { kind: "series" })] });
+      const match = await matchLine({ query: "West world", several: true }, search);
+      expect(match.result).toBe("not_found");
+      expect(search.mock.calls).toEqual([["West world"]]);
+    });
+
+    it("searches the alternate text after the joined text, and the alternate results still win only when found", async () => {
+      const umDia = title("Um Dia", { popularity: 20 });
+      const search = searchFrom({ "Um Dia": [umDia] });
+      const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
+      expect(match).toMatchObject({ result: "found", fromAltQuery: true });
+      expect(match.candidates[0].title).toBe(umDia);
+      expect(search.mock.calls).toEqual([["One Day"], ["OneDay"], ["Um Dia"]]);
+    });
+
+    it("keeps the merged ranking when the alternate text is not found", async () => {
+      const joined = title("Oneday", { popularity: 0 });
+      const search = searchFrom({ OneDay: [joined], "Um Dia": [title("Other Film")] });
+      const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
+      expect(match).toMatchObject({ result: "check", fromAltQuery: false });
+      expect(match.candidates.map((candidate) => candidate.title)).toEqual([joined]);
+    });
+
+    it("passes a failed joined search on to the caller", async () => {
+      const failure = new Error("search failed");
+      const search = vi.fn(async (text: string) => (text === "OneDay" ? Promise.reject(failure) : []));
+      await expect(matchLine({ query: "One Day", several: false }, search)).rejects.toBe(failure);
+    });
   });
 });
 

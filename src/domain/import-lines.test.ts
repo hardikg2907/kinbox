@@ -374,29 +374,81 @@ describe("a year without brackets", () => {
 
 describe("lines that name several Titles", () => {
   it.each([
-    ["Moonlit Harbor 1 and 2", "Moonlit Harbor 1 and 2"],
-    ["Moonlit Harbor 1 AND 2", "Moonlit Harbor 1 AND 2"],
-    ["Moonlit Harbor 1/2", "Moonlit Harbor 1/2"],
+    // A trailing number run goes, also when it is glued to the word before it.
+    ["Moonlit Harbor 1 and 2", "Moonlit Harbor"],
+    ["Moonlit Harbor 1 AND 2", "Moonlit Harbor"],
+    ["Moonlit Harbor 1/2", "Moonlit Harbor"],
+    ["Moonlit Harbor1 and 2", "Moonlit Harbor"],
+    ["Moonlit Harbor1/2", "Moonlit Harbor"],
+    ["Moonlit Harbor 1 / 2", "Moonlit Harbor"],
+    ["Moonlit Harbor 1/ 2", "Moonlit Harbor"],
+    ["Moonlit Harbor 1 & 2 (all parts)", "Moonlit Harbor"],
+    ["Moonlit Harbor 1 and 2 and 3", "Moonlit Harbor"],
+    ["Moonlit Harbor 1/2/3", "Moonlit Harbor"],
     ["Moonlit Harbor (all parts)", "Moonlit Harbor"],
     ["Moonlit Harbor (1 and 2)", "Moonlit Harbor"],
-    ["Moonlit Harbor trilogy", "Moonlit Harbor trilogy"],
-    ["Moonlit Harbor Trilogy.", "Moonlit Harbor Trilogy"],
-    ["Moonlit Harbor, Paper Lanterns 2", "Moonlit Harbor, Paper Lanterns 2"],
-    ["Moonlit Harbor, 2 and 3", "Moonlit Harbor, 2 and 3"],
-    ["Moonlit Harbor 1, 2, 3", "Moonlit Harbor 1, 2, 3"],
-    ["Moonlit Harbor/ Paper lanterns", "Moonlit Harbor/ Paper lanterns"],
-    ["Moonlit Harbor/Paper lanterns", "Moonlit Harbor/Paper lanterns"],
-    ["All Lantern movies", "All Lantern movies"],
-    ["all lantern FILMS", "all lantern FILMS"],
-    ["All Lantern parts", "All Lantern parts"],
-    ["all lantern series", "all lantern series"],
+    // A trailing "trilogy" goes.
+    ["Moonlit Harbor trilogy", "Moonlit Harbor"],
+    ["Moonlit Harbor Trilogy.", "Moonlit Harbor"],
+    // "All ... movies" keeps the franchise name.
+    ["All Lantern movies", "Lantern"],
+    ["all lantern FILMS", "lantern"],
+    ["All Lantern parts", "Lantern"],
+    ["all lantern series", "lantern"],
+    ["All Moonlit Harbor movies", "Moonlit Harbor"],
+    // The first part before a slash or a comma and a space is the first Title.
+    ["Moonlit Harbor/ Paper lanterns", "Moonlit Harbor"],
+    ["Moonlit Harbor/Paper lanterns", "Moonlit Harbor"],
+    ["Moonlit Harbor, Paper Lanterns 2", "Moonlit Harbor"],
+    ["Moonlit Harbor, 2 and 3", "Moonlit Harbor"],
+    ["Moonlit Harbor 1, 2, 3", "Moonlit Harbor 1"],
+    ["Moonlit Harbor/ Paper Lanterns, Glass Garden", "Moonlit Harbor"],
+    ["Moonlit Harbor, Paper Lanterns, 2010", "Moonlit Harbor"],
+    // A line that lists Titles beyond its own name has no first Title, so it keeps its text.
     ["More Harbor movies", "More Harbor movies"],
     ["More Harbor movies,", "More Harbor movies"],
     ["more harbor films", "more harbor films"],
-  ])("flags %j and never splits it", (text, query) => {
+    ["More Harbor/ Lantern movies", "More Harbor/ Lantern movies"],
+    // Nothing left to search for, or one character: the text stays as it was.
+    ["Trilogy", "Trilogy"],
+    ["all movies", "all movies"],
+    ["1 and 2", "1 and 2"],
+    ["/Moonlit Harbor", "/Moonlit Harbor"],
+    ["A/ Moonlit Harbor", "A/ Moonlit Harbor"],
+  ])("flags %j and searches for %j", (text, query) => {
     const line = readOne(text);
     expect(line.several).toBe(true);
     expect(line.query).toBe(query);
+  });
+
+  it("keeps the pasted line and every hint when it picks the first Title", () => {
+    expect(readOne("Movies\n- Moonlit Harbor 1 and 2 (2010) ✔")).toStrictEqual({
+      id: 0,
+      position: 1,
+      original: "- Moonlit Harbor 1 and 2 (2010) ✔",
+      query: "Moonlit Harbor",
+      year: 2010,
+      kind: "movie",
+      intent: "watched",
+      several: true,
+    });
+    expect(readOne("All Lantern movies").original).toBe("All Lantern movies");
+    expect(readOne("  Moonlit Harbor/ Paper Lanterns ").original).toBe("Moonlit Harbor/ Paper Lanterns");
+  });
+
+  it("keeps the whole search text of a line that is not flagged", () => {
+    for (const text of [
+      "Moonlit Harbor 1 & 2",
+      "Moonlit Harbor and Paper Lanterns",
+      "Moonlit Harbor 2",
+      "Moonlit Harbor trilogies",
+      "All the Quiet Orchards",
+      "More Than Honey",
+    ]) {
+      const line = readOne(text);
+      expect(line.several).toBe(false);
+      expect(line.query).toBe(text);
+    }
   });
 
   it.each([
@@ -563,7 +615,7 @@ describe("cleaning", () => {
   });
 
   it("keeps punctuation inside a Title", () => {
-    expect(readOne("Mission: Moonlit, Part 2!").query).toBe("Mission: Moonlit, Part 2!");
+    expect(readOne("Mission: Moonlit - Part 2!").query).toBe("Mission: Moonlit - Part 2!");
     expect(readOne("Tide & Tallow").query).toBe("Tide & Tallow");
   });
 });
@@ -670,7 +722,7 @@ describe("a whole note", () => {
           id: 2,
           position: 3,
           original: "- Quiet Orchard 1 and 2",
-          query: "Quiet Orchard 1 and 2",
+          query: "Quiet Orchard",
           kind: "series",
           intent: "to_watch",
           several: true,
@@ -708,7 +760,7 @@ describe("a whole note", () => {
           id: 6,
           position: 11,
           original: "All Lantern movies",
-          query: "All Lantern movies",
+          query: "Lantern",
           kind: "movie",
           intent: "to_watch",
           several: true,

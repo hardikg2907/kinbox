@@ -3,6 +3,14 @@ import type { TitleKind } from "./types";
 
 /** Below this name score no result is good enough to offer as a Match. */
 export const NAME_FLOOR = 0.6;
+/**
+ * The least a name scores when the shorter name's whole words open or close the longer one
+ * (`Shang chi` in `Shang-Chi and the Legend of the Ten Rings`). Below 1, so it never makes a Found.
+ */
+export const CONTAINED_NAME_SCORE = 0.8;
+/** A lone word needs this many letters to count as contained; `Run` opens `Run Lola Run` by chance. */
+const MIN_CONTAINED_LETTERS = 6;
+const MIN_CONTAINED_WORDS = 2;
 /** Added when a result's kind agrees with the line's kind hint, taken off when it does not. */
 export const KIND_HINT_WEIGHT = 0.15;
 /** Added when a result's year is within `YEAR_TOLERANCE` of the line's year hint. */
@@ -66,7 +74,9 @@ export type LineMatch<T> = Ranking<T> & {
 const COMBINING_MARKS = /\p{M}/gu;
 const APOSTROPHES = /['’‘ʼ`]/g;
 const NOT_LETTER_OR_DIGIT = /[^\p{L}\p{N}]+/gu;
+const NOT_A_LETTER = /\P{L}/gu;
 const LEADING_ARTICLE = /^(?:the|a|an) (?=\S)/;
+const WHITESPACE = /\s+/g;
 
 /** A name reduced to what people keep when they type it from memory: no accents, case, punctuation or leading article. */
 export function normaliseName(text: string): string {
@@ -86,14 +96,38 @@ export function compactName(text: string): string {
   return normaliseName(text).replaceAll(" ", "");
 }
 
-/** 1 for the same name once normalised; otherwise how many character pairs the two share, from 0 to 1. */
+/**
+ * 1 for the same name once normalised; otherwise how many character pairs the two share, from 0 to 1,
+ * and at least `CONTAINED_NAME_SCORE` when one name's whole words open or close the other.
+ */
 export function nameScore(lineText: string, resultName: string): number {
   const lineCompact = compactName(lineText);
   const resultCompact = compactName(resultName);
   // Text that is only punctuation normalises to nothing, and nothing equals nothing.
   if (lineCompact === "" || resultCompact === "") return 0;
-  if (lineCompact === resultCompact || normaliseName(lineText) === normaliseName(resultName)) return 1;
-  return dice(lineCompact, resultCompact);
+  const lineNormal = normaliseName(lineText);
+  const resultNormal = normaliseName(resultName);
+  if (lineCompact === resultCompact || lineNormal === resultNormal) return 1;
+
+  const pairScore = dice(lineCompact, resultCompact);
+  return holdsWholeWords(lineNormal, resultNormal) ? Math.max(pairScore, CONTAINED_NAME_SCORE) : pairScore;
+}
+
+// Official names add a franchise or a subtitle around the name people type, always at one end.
+function holdsWholeWords(a: string, b: string): boolean {
+  const wordsA = a.split(" ");
+  const wordsB = b.split(" ");
+  const [short, long] = wordsA.length <= wordsB.length ? [wordsA, wordsB] : [wordsB, wordsA];
+  if (short.length === long.length) return false;
+  if (short.length < MIN_CONTAINED_WORDS && letterCount(short[0]) < MIN_CONTAINED_LETTERS) return false;
+
+  const startsWith = short.every((word, index) => word === long[index]);
+  const offset = long.length - short.length;
+  return startsWith || short.every((word, index) => word === long[offset + index]);
+}
+
+function letterCount(word: string): number {
+  return Array.from(word.replace(NOT_A_LETTER, "")).length;
 }
 
 function dice(a: string, b: string): number {
@@ -191,18 +225,42 @@ export function rankMatches<T extends MatchCandidate>(
 }
 
 /**
- * Searches the line's text and ranks the results. When that finds nothing clear and the line
- * has alternate text, the alternate text is searched too, and its results win only when they
- * are found. Errors from `search` reach the caller.
+ * Searches the line's text and ranks the results. When that does not find a clear Match and the
+ * text has two or more words, the text with its spaces removed is searched too and its results
+ * join the main ones. When that still finds nothing clear and the line has alternate text, the
+ * alternate text is searched as well, and its results win only when they are found. Errors from
+ * `search` reach the caller.
  */
 export async function matchLine<T extends MatchCandidate>(
   line: MatchableLine,
   search: (text: string) => Promise<T[]>,
 ): Promise<LineMatch<T>> {
-  const main = rankMatches(line, await search(line.query));
+  const results = await search(line.query);
+  let main = rankMatches(line, results);
+  if (main.result !== "found" && !line.several && hasSeveralWords(line.query)) {
+    // Search splits text into words, so it never returns `Westworld` for `West world`.
+    const joined = await search(line.query.replace(WHITESPACE, ""));
+    main = rankMatches(line, mergeResults(results, joined));
+  }
   if (main.result === "found" || line.several || line.altQuery === undefined) {
     return { ...main, fromAltQuery: false };
   }
   const alternate = rankMatches(line, await search(line.altQuery), line.altQuery);
   return alternate.result === "found" ? { ...alternate, fromAltQuery: true } : { ...main, fromAltQuery: false };
+}
+
+function hasSeveralWords(text: string): boolean {
+  return text.trim().split(WHITESPACE).length >= 2;
+}
+
+/** The main results first, then any joined-search result for a Title the main results do not hold. */
+function mergeResults<T extends MatchCandidate>(main: readonly T[], extra: readonly T[]): T[] {
+  const seen = new Set(main.map((result) => `${result.kind}:${result.tmdbId}`));
+  const added = extra.filter((result) => {
+    const key = `${result.kind}:${result.tmdbId}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return [...main, ...added];
 }
