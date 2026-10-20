@@ -179,4 +179,11 @@ export type SaveResult = {
   seasons: { seasonNumber: number; name: string; episodeCount: number }[] | null;
 };
 
+/** What adding one import row did. "already" means the Library had the Title, and it was left as it was. */
+export type ImportRowResult = { kind: TitleKind; tmdbId: number } & (
+  | { result: "added"; status: Status; caughtUp: boolean }
+  | { result: "already" }
+  | { result: "failed" }
+);
+
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
