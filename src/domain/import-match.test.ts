@@ -328,11 +328,23 @@ describe("rankMatches", () => {
     expect(ranking.candidates[0].hintAgainst).toBe(true);
   });
 
-  it("ignores the year hint for a Title without a year", () => {
+  it("neither adds nor takes off for a Title without a year, but asks to check it when the line gives one", () => {
     const ranking = rankMatches(line("Inception", { year: 2010 }), [title("Inception", { year: null })]);
-    expect(ranking.result).toBe("found");
+    expect(ranking.result).toBe("check");
     expect(ranking.candidates[0].score).toBeCloseTo(1 + popularityBonus(POPULARITY), 10);
     expect(ranking.candidates[0].hintAgainst).toBe(false);
+  });
+
+  it("asks to check an exact name without a year over a near name in the line's year", () => {
+    const yearless = title("Nomad", { year: null });
+    const dated = title("Nomads", { year: 2002 });
+    const ranking = rankMatches(line("Nomad", { year: 2002 }), [dated, yearless]);
+    expect(ranking.candidates.map((candidate) => candidate.title)).toEqual([yearless, dated]);
+    expect(ranking.result).toBe("check");
+  });
+
+  it("still finds an exact name without a year when the line gives no year", () => {
+    expect(rankMatches(line("Nomad"), [title("Nomad", { year: null })]).result).toBe("found");
   });
 
   // A year is the Owner's own word on the line, so a Title it rules out is not a rival, however popular.

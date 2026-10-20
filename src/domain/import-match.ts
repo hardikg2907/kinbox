@@ -224,6 +224,8 @@ export function rankMatches<T extends MatchCandidate>(
   const found =
     best.nameScore === 1 &&
     !best.hintAgainst &&
+    // A year the Owner wrote is evidence a result with no year cannot confirm.
+    !(line.year !== undefined && best.title.year === null) &&
     !line.several &&
     best.title.popularity >= MIN_FOUND_POPULARITY &&
     !ranked.some((candidate) => isRival(candidate, best));
