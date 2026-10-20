@@ -4,15 +4,15 @@ The build queue after paste import, most valuable first. An item is **Ready** wh
 
 ## 1. Getting around a large Library — Needs a plan
 
-With a few hundred imported Titles, moving between them is slow. The plan starts from what is hard today (finding one Title, browsing a tab, going from one Title to the next) and may cover sorting, a jump-to-letter index, a fuller search of the Library, and moving between Titles inside the drawer.
+With a few hundred imported Titles, moving around is slow. The owner's pain points are **browsing a long tab** and **losing their place** (the wall jumps back to the top). Finding one known Title and moving from Title to Title are not the problem. Today: tabs have one fixed order each, no sort choice, no A–Z jump, and search shows at most 5 Library matches. Ideas to plan from: keeping each tab's scroll position, sort choices, an A–Z jump strip, and narrowing a tab by length and genre (which overlaps item 5).
 
 ## 2. Open any Title's page — Needs a plan
 
-A Title that is not in the Library opens on its own page too (from search, and later from other lists), with its details and the save buttons. A Title already in the Library keeps opening its Entry. Open questions: what the page shows, its address, and what happens when the Owner saves from it.
+A Title that is not in the Library opens on its own preview page (the owner chose a page over a smaller sheet), with its details and the save buttons. A Title already in the Library keeps opening its Entry. Open questions: what the page shows, its address, and what happens when the Owner saves from it.
 
-## 3. IMDb rating on a Title's page — Needs research
+## 3. IMDb rating on a Title's page — Needs a plan
 
-Show the IMDb rating, when one exists, on each Title's page. TMDB gives the IMDb id but not the rating, so the rating needs another source; its terms (non-commercial now, paid later) and freshness decide the design.
+Show the IMDb rating, when one exists, on the Title page of Movies and Series (not on Library tiles). TMDB gives the IMDb id but not the rating. The research is done: [imdb-ratings.md](../.scratch/kinbox-v1/research/imdb-ratings.md). IMDb's free daily ratings file is the only source with clear terms, and it allows personal, non-commercial use only, with a credit line; OMDb and MDBList lack clear rights; scraping is banned. Open questions: the source, how ratings reach preview pages, and what happens if Kinbox earns money.
 
 ## 4. Bloom on every move to Watched — Ready
 
