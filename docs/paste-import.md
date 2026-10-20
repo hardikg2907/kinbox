@@ -47,7 +47,7 @@ One page, `/import`, in three steps. It is reached from the account menu ("Impor
 ### 3. Add
 - Kinbox adds about 5 Titles per request and shows "Adding 120 of 238". Each Title is added on its own, so one failure never blocks the rest.
 - Titles are added from the bottom of the paste to the top. The Library shows the newest first, so the Library then shows them in the order of the note.
-- Leaving the page while adding asks the browser to confirm. Titles already added stay. The Close button while adding asks first: "Stop adding?" with the body "Titles already added stay in your library." and the buttons "Stop adding" and "Keep adding".
+- Reloading or closing the tab while adding asks the browser to confirm. Back inside Kinbox does not ask: adding carries on, and Titles already added stay. The Close button while adding asks first: "Stop adding?" with the body "Titles already added stay in your library." and the buttons "Stop adding" and "Keep adding".
 - The result screen:
   - "Added 236 titles" and a breakdown: "180 to watch, 50 watched, 6 caught up".
   - "2 couldn't be added", with their names and "Try again".
@@ -199,7 +199,7 @@ Words:
 | Check button | Check list |
 | Progress | Checking 120 of 248 / Adding 120 of 238 |
 | Groups | Check these / Not found / Couldn't check / 198 look right |
-| Row helpers | Already in your library / Skipped / Too long / Not a title / Ticks all aired episodes |
+| Row helpers | Already in your library / Skipped / Ticks all aired episodes |
 | Pick sheet | Pick the right title / Search / Skip this line |
 | Row buttons | Include / Try again |
 | Add button | Add 238 titles |
