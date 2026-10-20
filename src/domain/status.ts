@@ -1,4 +1,5 @@
-import type { IsoDate, Status } from "./types";
+import { isOutYet } from "./release";
+import type { IsoDate, Status, TitleKind } from "./types";
 
 export type StatusChange = {
   status: Status;
@@ -8,6 +9,54 @@ export type StatusChange = {
 
 export function statusOnSave(target: Status): StatusChange {
   return { status: target, addWatch: target === "watched" ? { watchedOn: null } : null };
+}
+
+/** What an Import needs to know about a Title to decide its Status. */
+export type ImportedTitle =
+  | { kind: "movie"; releaseDate: IsoDate | null }
+  | {
+      kind: "series";
+      releaseDate: IsoDate | null;
+      finished: boolean;
+      /** Aired Episodes of the numbered Seasons; null when not counted (see importNeedsAiredEpisodes). */
+      airedEpisodeCount: number | null;
+    };
+
+export type ImportChange = StatusChange & {
+  /** Tick every aired Episode of the numbered Seasons, in the same transaction. */
+  tickAired: boolean;
+  /** A watched Series that is still running: every aired Episode ticked, so it stays Watching. */
+  caughtUp: boolean;
+};
+
+/** Only a watched Series that is out needs its Episodes loaded before statusOnImport can decide. */
+export function importNeedsAiredEpisodes(
+  intent: Status,
+  title: { kind: TitleKind; releaseDate: IsoDate | null },
+  today: IsoDate,
+): boolean {
+  return intent === "watched" && title.kind === "series" && isOutYet(title.releaseDate, today);
+}
+
+/**
+ * An Import only ever adds, and a pasted mark carries no date, so a Watch it adds has an unknown
+ * date. A mark on a running Series means "watched what was out", so it stays Watching.
+ */
+export function statusOnImport(intent: Status, title: ImportedTitle, today: IsoDate): ImportChange {
+  const nothingMore = { addWatch: null, tickAired: false, caughtUp: false };
+  // Logging a Title that is not out yet as watched is almost always a mistake.
+  if (!isOutYet(title.releaseDate, today)) return { status: "to_watch", ...nothingMore };
+  if (intent !== "watched") return { status: intent, ...nothingMore };
+  if (title.kind === "movie") {
+    return { status: "watched", addWatch: { watchedOn: null }, tickAired: false, caughtUp: false };
+  }
+  if (title.airedEpisodeCount === null) {
+    throw new Error("A watched Series needs its aired Episode count");
+  }
+  if (title.airedEpisodeCount === 0) return { status: "to_watch", ...nothingMore };
+  return title.finished
+    ? { status: "watched", addWatch: { watchedOn: null }, tickAired: true, caughtUp: false }
+    : { status: "watching", addWatch: null, tickAired: true, caughtUp: true };
 }
 
 export function changeStatus(current: Status, target: Status, today: IsoDate): StatusChange {
