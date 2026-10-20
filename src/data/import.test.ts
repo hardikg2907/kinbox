@@ -721,4 +721,56 @@ describe("addImportRows: an Import that closes while its rows load", () => {
     expect(await entryCount(OWNER_A)).toBe(0);
     expect((await importsOf(OWNER_A)).find((row) => row.id === importId)?.open).toBe(false);
   });
+
+  // Undo locks the Import row before it closes it; finishing or a newer start only updates it.
+  it.each([
+    ["undone", true],
+    ["finished", false],
+  ])("waits while the Import is being %s, then writes no row", async (_, lockFirst) => {
+    const { importId } = await startImport(OWNER_A);
+    let closed!: () => void;
+    const isClosed = new Promise<void>((resolve) => (closed = resolve));
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    // The Import is closed in a transaction that stays open until the test releases it.
+    const closing = db().transaction(async (tx) => {
+      if (lockFirst) {
+        await tx.select({ id: imports.id }).from(imports).where(eq(imports.id, importId)).for("update");
+      }
+      await tx.update(imports).set({ finishedAt: sql`now()` }).where(eq(imports.id, importId));
+      closed();
+      await released;
+    });
+
+    let adding: Promise<unknown> | null = null;
+    let settled = false;
+    try {
+      // The race fails the test at once if the closing transaction fails instead of hanging.
+      await Promise.race([isClosed, closing]);
+      // The open check reads the last committed state, so it still sees the Import open.
+      adding = addImportRows(OWNER_A, { importId, rows: [movie(TMDB.inception, "to_watch")] }).finally(() => {
+        settled = true;
+      });
+      await vi.waitFor(async () => expect(await sessionsWaitingOnALock()).toBeGreaterThan(0), {
+        timeout: 2000,
+        interval: 10,
+      });
+      expect(settled).toBe(false);
+      expect(await importedEntryIds(importId)).toEqual([]);
+    } finally {
+      release();
+      await closing;
+    }
+
+    expect(await adding).toEqual([{ kind: "movie", tmdbId: TMDB.inception, result: "failed" }]);
+    expect(await importedEntryIds(importId)).toEqual([]);
+    expect(await importsOf(OWNER_A)).toEqual([{ id: importId, open: false }]);
+  });
 });
+
+async function sessionsWaitingOnALock(): Promise<number> {
+  const { rows } = await db().execute<{ waiting: number }>(
+    sql`select count(*)::int as waiting from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'`,
+  );
+  return rows[0]?.waiting ?? 0;
+}
