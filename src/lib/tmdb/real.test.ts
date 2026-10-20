@@ -10,10 +10,41 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function clientWith(handler: FetchLike) {
+// A fixed random value makes the jitter of a retry wait predictable: 0.75 of the plain backoff.
+const FIXED_RANDOM = 0.5;
+
+// Waiting is recorded instead of done, so no test pays for a retry delay.
+function clientWith(handler: FetchLike, options: { random?: () => number } = {}) {
   const fetchMock = vi.fn<FetchLike>(handler);
-  return { client: createRealTmdbClient({ token: TOKEN, fetch: fetchMock }), fetchMock };
+  const sleep = vi.fn<(ms: number) => Promise<void>>(async () => undefined);
+  const client = createRealTmdbClient({
+    token: TOKEN,
+    fetch: fetchMock,
+    sleep,
+    random: options.random ?? (() => FIXED_RANDOM),
+  });
+  return { client, fetchMock, sleep };
 }
+
+function tooManyRequests(retryAfter?: string): Response {
+  return new Response("{}", {
+    status: 429,
+    headers: retryAfter === undefined ? {} : { "retry-after": retryAfter },
+  });
+}
+
+// Answers the given responses in order, then repeats the last one.
+function inOrder(...responses: Array<() => Response>): FetchLike {
+  let call = 0;
+  return async () => {
+    const respond = responses[Math.min(call, responses.length - 1)];
+    call += 1;
+    if (!respond) throw new Error("no response given");
+    return respond();
+  };
+}
+
+const movieOk = () => jsonResponse({ id: 1, title: "A", release_date: "2000-01-01" });
 
 function calledUrl(fetchMock: ReturnType<typeof vi.fn<FetchLike>>, call = 0): URL {
   const first = fetchMock.mock.calls[call];
@@ -256,6 +287,212 @@ describe("getSeasons", () => {
     });
     const wanted = Array.from({ length: 25 }, (_, index) => index + 1);
     await expect(client.getSeasons(5, wanted)).rejects.toBeInstanceOf(TmdbUnavailableError);
+  });
+});
+
+describe("429 retry", () => {
+  it("retries a 429 and returns the answer of the next try", async () => {
+    const { client, fetchMock, sleep } = clientWith(inOrder(() => tooManyRequests(), movieOk));
+    expect(await client.getMovie(1)).toMatchObject({ kind: "movie", tmdbId: 1, releaseDate: "2000-01-01" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(calledUrl(fetchMock, 1).toString()).toBe(calledUrl(fetchMock, 0).toString());
+  });
+
+  it("succeeds on the third try after two 429s", async () => {
+    const { client, fetchMock, sleep } = clientWith(
+      inOrder(() => tooManyRequests(), () => tooManyRequests(), movieOk),
+    );
+    expect((await client.getMovie(1))?.name).toBe("A");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after the third 429 with the status and path, without a fourth try", async () => {
+    const { client, fetchMock, sleep } = clientWith(async () => tooManyRequests());
+    const error = await client.getMovie(1).then(
+      () => null,
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(TmdbUnavailableError);
+    expect((error as TmdbUnavailableError).status).toBe(429);
+    expect((error as TmdbUnavailableError).path).toBe("/movie/1");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // No wait after the last try: there is nothing left to wait for.
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["30 seconds, capped at 2 seconds", "30", 2000],
+    ["2 seconds, exactly at the cap", "2", 2000],
+    ["1 second", "1", 1000],
+    ["0 seconds", "0", 0],
+    ["a fraction of a second", "0.5", 500],
+  ])("waits for Retry-After of %s", async (_label, header, expected) => {
+    const { client, sleep } = clientWith(inOrder(() => tooManyRequests(header), movieOk));
+    await client.getMovie(1);
+    expect(sleep.mock.calls).toEqual([[expected]]);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+    ["text", "soon"],
+    ["negative", "-5"],
+    ["not finite", "Infinity"],
+    ["a date", "Wed, 21 Oct 2026 07:28:00 GMT"],
+    ["hexadecimal", "0x10"],
+    ["a number with an exponent", "1e1"],
+  ])("backs off with jitter when Retry-After is %s", async (_label, header) => {
+    const { client, sleep } = clientWith(
+      inOrder(() => tooManyRequests(header), () => tooManyRequests(header), movieOk),
+      { random: () => 0.5 },
+    );
+    await client.getMovie(1);
+    // 300 ms then 600 ms, each scaled by 0.5 + 0.5 * 0.5.
+    expect(sleep.mock.calls).toEqual([[225], [450]]);
+  });
+
+  it("keeps the backoff within half to all of its plain value", async () => {
+    for (const [random, expected] of [
+      [0, [150, 300]],
+      [0.999, [299.85, 599.7]],
+    ] as const) {
+      const { client, sleep } = clientWith(
+        inOrder(() => tooManyRequests(), () => tooManyRequests(), movieOk),
+        { random: () => random },
+      );
+      await client.getMovie(1);
+      const waits = sleep.mock.calls.map(([ms]) => ms);
+      expect(waits[0]).toBeCloseTo(expected[0], 5);
+      expect(waits[1]).toBeCloseTo(expected[1], 5);
+    }
+  });
+
+  it("uses Retry-After for one try and the backoff step of that try for the next", async () => {
+    const { client, sleep } = clientWith(
+      inOrder(() => tooManyRequests("1"), () => tooManyRequests(), movieOk),
+    );
+    await client.getMovie(1);
+    expect(sleep.mock.calls).toEqual([[1000], [450]]);
+  });
+
+  it("retries a 429 on every endpoint", async () => {
+    const search = clientWith(
+      inOrder(() => tooManyRequests(), () => jsonResponse({ results: [] })),
+    );
+    expect(await search.client.searchMulti("x")).toEqual([]);
+    expect(search.fetchMock).toHaveBeenCalledTimes(2);
+
+    const series = clientWith(inOrder(() => tooManyRequests(), () => jsonResponse({ id: 1, name: "S" })));
+    expect((await series.client.getSeries(1))?.name).toBe("S");
+    expect(series.fetchMock).toHaveBeenCalledTimes(2);
+
+    let seasonCalls = 0;
+    const seasons = clientWith(async (input) => {
+      seasonCalls += 1;
+      return seasonCalls === 1 ? tooManyRequests() : seasonsResponse(new URL(input));
+    });
+    expect((await seasons.client.getSeasons(1, [1])).map((season) => season.seasonNumber)).toEqual([1]);
+    expect(seasons.fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("cancels the body of a 429 before it waits", async () => {
+    let cancelled = false;
+    const body = () =>
+      new Response(
+        new ReadableStream({
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 429 },
+      );
+    const { client, sleep } = clientWith(inOrder(body, movieOk));
+    let cancelledWhenWaiting: boolean | null = null;
+    sleep.mockImplementation(async () => {
+      cancelledWhenWaiting = cancelled;
+    });
+    await client.getMovie(1);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(cancelledWhenWaiting).toBe(true);
+  });
+
+  it("gives every try its own 8 second timeout", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const { client, fetchMock } = clientWith(
+      inOrder(() => tooManyRequests(), () => tooManyRequests(), movieOk),
+    );
+    await client.getMovie(1);
+
+    expect(timeout.mock.calls).toEqual([[8000], [8000], [8000]]);
+    const signals = fetchMock.mock.calls.map((call) => call[1].signal);
+    expect(new Set(signals).size).toBe(3);
+  });
+
+  it("does not retry a 500, other error statuses or a 404", async () => {
+    for (const status of [500, 502, 503, 400, 401, 403]) {
+      const { client, fetchMock, sleep } = clientWith(async () => jsonResponse({}, status));
+      await expect(client.getMovie(1)).rejects.toMatchObject({ status });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(sleep).not.toHaveBeenCalled();
+    }
+
+    const missing = clientWith(async () => jsonResponse({}, 404));
+    expect(await missing.client.getMovie(1)).toBeNull();
+    expect(missing.fetchMock).toHaveBeenCalledTimes(1);
+    expect(missing.sleep).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a network failure or a body that is not JSON", async () => {
+    const down = clientWith(async () => {
+      throw new TypeError("fetch failed");
+    });
+    await expect(down.client.getMovie(1)).rejects.toBeInstanceOf(TmdbUnavailableError);
+    expect(down.fetchMock).toHaveBeenCalledTimes(1);
+    expect(down.sleep).not.toHaveBeenCalled();
+
+    const html = clientWith(async () => new Response("<html>blocked</html>", { status: 200 }));
+    await expect(html.client.getMovie(1)).rejects.toBeInstanceOf(TmdbUnavailableError);
+    expect(html.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops at a failure on a later try and reports that failure", async () => {
+    const { client, fetchMock, sleep } = clientWith(
+      inOrder(() => tooManyRequests(), () => jsonResponse({}, 503)),
+    );
+    await expect(client.getMovie(1)).rejects.toMatchObject({ status: 503, path: "/movie/1" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+
+    let networkCalls = 0;
+    const network = clientWith(async () => {
+      networkCalls += 1;
+      if (networkCalls === 1) return tooManyRequests();
+      throw new TypeError("fetch failed");
+    });
+    await expect(network.client.getMovie(1)).rejects.toMatchObject({ status: null });
+    expect(network.fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe("with the default sleep and random", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("waits on a real timer, scaled by Math.random", async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      const fetchMock = vi.fn<FetchLike>(inOrder(() => tooManyRequests(), movieOk));
+      const client = createRealTmdbClient({ token: TOKEN, fetch: fetchMock });
+
+      const pending = client.getMovie(1);
+      await vi.advanceTimersByTimeAsync(149);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect((await pending)?.name).toBe("A");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 });
 
