@@ -52,6 +52,11 @@ async function importsOf(owner: Owner) {
     .orderBy(asc(imports.createdAt));
 }
 
+async function importedEntryIds(importId: string): Promise<string[]> {
+  const rows = await db().select({ id: entries.id }).from(entries).where(eq(entries.importId, importId));
+  return rows.map((row) => row.id).sort();
+}
+
 /**
  * Whether every stamp on an Entry and its rows equals the Entry's created_at. Compared in the
  * database, since a JS Date drops the microseconds Postgres keeps.
@@ -415,5 +420,31 @@ describe("Imports", () => {
 
     expect(await finishImport(OWNER_A, { importId })).toBeNull();
     expect(await importsOf(OWNER_B)).toEqual([{ id: importId, open: true }]);
+  });
+});
+
+describe("addImportRows: an Import that closes while its rows load", () => {
+  it.each([
+    ["finished", (importId: string) => finishImport(OWNER_A, { importId })],
+    ["replaced by a newer Import", () => startImport(OWNER_A)],
+  ])("writes no row once the Import is %s", async (_, close) => {
+    const { importId } = await startImport(OWNER_A);
+    // The Import passes the open check, then closes while the rows load, before any is written.
+    const client = getTmdbClient();
+    const getMovie = client.getMovie;
+    let closing: Promise<unknown> | null = null;
+    vi.spyOn(client, "getMovie").mockImplementation(async (tmdbId) => {
+      closing ??= close(importId);
+      await closing;
+      return getMovie(tmdbId);
+    });
+    const rows = [movie(TMDB.inception, "to_watch"), series(TMDB.breakingBad, "watched"), movie(TMDB.matrix, "watched")];
+
+    const results = await addImportRows(OWNER_A, { importId, rows });
+
+    expect(results).toEqual(rows.map(({ kind, tmdbId }) => ({ kind, tmdbId, result: "failed" })));
+    expect(await importedEntryIds(importId)).toEqual([]);
+    expect(await entryCount(OWNER_A)).toBe(0);
+    expect((await importsOf(OWNER_A)).find((row) => row.id === importId)?.open).toBe(false);
   });
 });
