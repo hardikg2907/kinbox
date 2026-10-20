@@ -7,17 +7,34 @@
 
 type Hold = (event: PopStateEvent) => boolean;
 
-let hold: Hold | null = null;
+type Gate = { hold: Hold | null };
+
+declare global {
+  interface Window {
+    kinboxHistoryGate?: Gate;
+  }
+}
+
+// The gate lives on the window, so a module that runs again (Fast Refresh in development) finds the
+// listener added the first time, still ahead of the router's, and adds no second one after it.
+function historyGate(): Gate | null {
+  if (typeof window === "undefined") return null;
+  if (!window.kinboxHistoryGate) {
+    const gate: Gate = { hold: null };
+    window.kinboxHistoryGate = gate;
+    window.addEventListener("popstate", (event) => {
+      if (gate.hold?.(event)) event.stopImmediatePropagation();
+    });
+  }
+  return window.kinboxHistoryGate;
+}
+
+historyGate();
 
 /** While set, `next` sees each Back or Forward first; returning true keeps that move from the router. */
 export function holdHistoryMoves(next: Hold | null): void {
-  hold = next;
-}
-
-if (typeof window !== "undefined") {
-  window.addEventListener("popstate", (event) => {
-    if (hold?.(event)) event.stopImmediatePropagation();
-  });
+  const gate = historyGate();
+  if (gate) gate.hold = next;
 }
 
 /** Renders nothing: the root layout renders it so this module loads with the app. */

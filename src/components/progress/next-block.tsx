@@ -51,8 +51,8 @@ function WatchedItButton(props: Pick<ComponentProps<typeof Button>, "id" | "aria
 }
 
 // A tap on "Watched it" in the drawer before its Title has loaded. The real button acts on it once
-// it is there, if it still offers the same Episode. A tap is only good for the drawer it was made
-// in: closing that drawer forgets it, and so does a load that never comes.
+// it is there, if it still offers the same Episode. A tap is only good for the view it was made
+// in: closing the drawer or leaving a Next block forgets it, and so does a load that never comes.
 const QUEUED_TAP_MS = 8000;
 let queuedTap: { entryId: string; label: string; at: number } | null = null;
 
@@ -77,6 +77,7 @@ export function NextBlock() {
   useEffect(() => {
     const label = takeQueuedTap(entryId);
     if (label !== null && label === nextLabel) watchNext();
+    return forgetQueuedTap;
     // Only the first render can owe a tap; later ones never find one queued for this Title.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
