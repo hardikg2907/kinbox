@@ -14,6 +14,7 @@ export const MESSAGES = {
   noteTooLong: "Notes can be up to 1,000 characters.",
   watchDate: "Pick a date between 1 Jan 1900 and today.",
   changedSince: "Can't undo. This title has changed since then.",
+  importFinished: "This import has finished. Start a new one.",
   tmdbDown: "Can't reach the movie database right now. Try again in a minute.",
   signIn: "Sign in to continue.",
   generic: "Couldn't save that. Try again.",
