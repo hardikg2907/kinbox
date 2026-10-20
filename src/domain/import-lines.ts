@@ -120,9 +120,7 @@ const TRILOGY = /\btrilogy\b/i;
 const ALL_OR_MORE_LIST = /^(?:all|more) .*(?:movies|films|parts|series)$/i;
 
 const TRAILING_NUMBER_RUN = /(?:\s*\d+\s*(?:and|&|\/))+\s*\d+$/i;
-const TRAILING_TRILOGY = /\s+trilogy$/i;
-const ALL_LIST_NAME = /^all\s+(.+?)\s+(?:movies|films|parts|series)$/i;
-const MORE_LINE = /^more /i;
+const ENDS_IN_TRILOGY = /(?:^|\s)trilogy$/i;
 const TITLE_SEPARATOR = /\/|,\s+/;
 const MIN_FIRST_TITLE_CHARACTERS = 2;
 
@@ -288,14 +286,12 @@ function namesSeveralTitles(text: string, lastYear: number): boolean {
 // Search matches one name, so a line that lists several Titles searches for the first one. The
 // line stays flagged, so it is never Found: the Owner still confirms which Titles to add.
 function firstTitle(text: string): string {
-  // The list is longer than any one name in it, so no single first Title exists.
-  if (MORE_LINE.test(text)) return text;
+  // A set (`Name trilogy`, `All Name movies`) has no single first Title, and searching its
+  // franchise name alone would pre-select one arbitrary Title from it.
+  if (ENDS_IN_TRILOGY.test(text) || ALL_OR_MORE_LIST.test(text)) return text;
 
   // The number run goes before the split, or `Name 1/2` would be cut at its slash.
   let name = tidy(text.replace(TRAILING_NUMBER_RUN, ""));
-  name = tidy(name.replace(TRAILING_TRILOGY, ""));
-  const franchise = ALL_LIST_NAME.exec(name);
-  if (franchise) name = franchise[1];
   name = tidy(name.split(TITLE_SEPARATOR)[0]);
 
   return Array.from(name).length < MIN_FIRST_TITLE_CHARACTERS ? text : name;
