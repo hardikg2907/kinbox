@@ -5,7 +5,7 @@ import { closeDb, db } from "@/db/client";
 import { entries, episodeProgress, imports, titles, watches } from "@/db/schema";
 import { getTmdbClient } from "@/lib/tmdb/client";
 import { entryRow, resetDatabase, setEntryTimes, tickKeys, watchRows } from "@/test/db";
-import { OWNER_A, OWNER_B, resetTestState, testState, TMDB } from "@/test/mocks";
+import { OWNER_A, OWNER_B, resetTestState, testState, TMDB, TODAY } from "@/test/mocks";
 import {
   deleteWatch,
   saveTitle,
@@ -575,6 +575,31 @@ describe("undoImport: what it removes", () => {
 
     expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 1, kept: 0 });
     expect(await entryCount(OWNER_A)).toBe(0);
+  });
+
+  it("keeps an imported Series with a later tick, even when its progress stamp was written back", async () => {
+    // Before Season 2 Episode 9 aired, so the import leaves the Series caught up with that one to come.
+    testState.today = "2026-03-01";
+    const { importId, results } = await addRows([series(TMDB.thePitt, "watched")]);
+    expect(results).toEqual([
+      { kind: "series", tmdbId: TMDB.thePitt, result: "added", status: "watching", caughtUp: true },
+    ]);
+    const entry = await entryOf(OWNER_A, "series", TMDB.thePitt);
+    testState.today = TODAY;
+    await tickEpisode(OWNER_A, { entryId: entry.id, seasonNumber: 2, episodeNumber: 9, watched: true });
+    // An Undo elsewhere writes this stamp back from the browser's copy, so it can land on created_at.
+    await db()
+      .update(entries)
+      .set({ progressMovedAt: sql`${entries.createdAt}` })
+      .where(eq(entries.id, entry.id));
+    const stamps = await stampsAgainstCreation(entry.id);
+    expect(stamps).toMatchObject({ statusChangedAt: true, progressMovedAt: true, watches: [] });
+    expect(new Set(stamps.ticks)).toEqual(new Set([true, false]));
+    const before = await entryWithRows(entry.id);
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 0, kept: 1 });
+
+    expect(await entryWithRows(entry.id)).toEqual(before);
   });
 
   it("counts what it removed and what it kept on a mixed Import", async () => {

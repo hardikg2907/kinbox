@@ -5,7 +5,7 @@ import { airedNumberedEpisodes, isFinished } from "@/domain/series";
 import { importNeedsAiredEpisodes, statusOnImport, type ImportChange } from "@/domain/status";
 import type { Episode, IsoDate } from "@/domain/types";
 import { db } from "@/db/client";
-import { entries, imports, user, watches } from "@/db/schema";
+import { entries, episodeProgress, imports, user, watches } from "@/db/schema";
 import { createLimit } from "@/lib/limit";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { ImportRowResult } from "./dto";
@@ -194,8 +194,8 @@ export async function undoImport(
 
     const fromThisImport = and(eq(entries.userId, owner.id), eq(entries.importId, locked.id));
     // An import writes an Entry, its Watch and its ticks under one now(), and every later change
-    // moves a stamp, adds a Watch, dates a Watch, or sets a Rating or Note. The stamps are compared
-    // in Postgres: a JS Date drops the microseconds, so two different times could look equal.
+    // moves a stamp, adds a Watch or a tick, dates a Watch, or sets a Rating or Note. The stamps are
+    // compared in Postgres: a JS Date drops the microseconds, so two different times could look equal.
     const changedWatch = tx
       .select({ id: watches.id })
       .from(watches)
@@ -205,6 +205,12 @@ export async function undoImport(
           or(ne(watches.createdAt, entries.createdAt), isNotNull(watches.watchedOn)),
         ),
       );
+    // Undoing an Episode tap writes the progress stamp back from the browser's copy, which can hide
+    // a tick made in between. Each tick keeps its own stamp, so that tick still shows.
+    const laterTick = tx
+      .select({ entryId: episodeProgress.entryId })
+      .from(episodeProgress)
+      .where(and(eq(episodeProgress.entryId, entries.id), ne(episodeProgress.createdAt, entries.createdAt)));
     const removed = await tx
       .delete(entries)
       .where(
@@ -215,6 +221,7 @@ export async function undoImport(
           isNull(entries.ratingHalfStars),
           isNull(entries.note),
           notExists(changedWatch),
+          notExists(laterTick),
         ),
       )
       .returning({ id: entries.id });
