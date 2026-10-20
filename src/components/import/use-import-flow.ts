@@ -106,7 +106,8 @@ export type ImportFlow = ReturnType<typeof useImportFlow>;
  * adding. Each run carries a token; anything that ends a run (Stop, leaving, a new run) changes
  * the token, and a reply for an older token is dropped. Next.js keeps a page it navigated away
  * from, hidden, and shows it again as it was. A run carries on there, so the page is right when it
- * comes back; an ending (the result, a lost session) is wrapped up as the page hides instead.
+ * comes back; an ending (the result, a lost session) is wrapped up as the page hides instead. The
+ * one exception is a result that a rejected call ended: it stays for the next visit.
  */
 export function useImportFlow(initialText: string) {
   const router = useRouter();
@@ -126,6 +127,9 @@ export function useImportFlow(initialText: string) {
 
   const run = useRef(0);
   const importId = useRef<string | null>(null);
+  // A rejected call can mean the session is gone and Next.js is off to the sign-in page, which hides
+  // this one. The result it ended must outlive that, or the failed rows and "Undo" are lost.
+  const endedByRejectedCall = useRef(false);
   // The latest Check state, for handlers that start a request from it.
   const latestCheck = useRef<CheckState | null>(null);
   useEffect(() => {
@@ -154,6 +158,7 @@ export function useImportFlow(initialText: string) {
   function reset(nextText: string) {
     run.current += 1;
     importId.current = null;
+    endedByRejectedCall.current = false;
     setText(nextText);
     setStep("paste");
     setCheck(null);
@@ -207,7 +212,7 @@ export function useImportFlow(initialText: string) {
   /** After a stop: carries on from the first line not checked yet. */
   function continueChecking() {
     const state = latestCheck.current;
-    if (!state) return;
+    if (!state || retrying.size > 0) return;
     void runChecks(state, ++run.current);
   }
 
@@ -237,6 +242,7 @@ export function useImportFlow(initialText: string) {
   }
 
   async function runAdds(rows: AddRow[], from: "check" | "result", token: number) {
+    endedByRejectedCall.current = false;
     setStep("add");
     setAdding({ done: 0, total: rows.length, from });
 
@@ -266,6 +272,7 @@ export function useImportFlow(initialText: string) {
         // page. The rows left count as failed so "Try again" can send them. No toast: the result
         // lists them, and the Owner may be on the sign-in page by now.
         setResults((current) => recordAddReply(current, batches.slice(index).flat(), null));
+        endedByRejectedCall.current = true;
         break;
       }
       if (!reply.ok) firstError ??= reply.error;
@@ -326,8 +333,11 @@ export function useImportFlow(initialText: string) {
 
   // Runs as the page hides (Back, a link, the sign-in page), so the next visit never opens on an
   // old result or a lost session. A run still going is left alone; see the note above the hook.
+  // In development, StrictMode and Fast Refresh also run this cleanup, so the wrap-up can run there
+  // without the page hiding; production runs it only when the page hides.
   const onHide = useEffectEvent(() => {
     if (step === "result") {
+      if (endedByRejectedCall.current) return;
       void closeImport();
       reset("");
     } else if (checkRun === "signed_out") {
