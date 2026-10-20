@@ -42,14 +42,23 @@ export function userMessage(error: unknown, tag: string): string {
 }
 
 /** A JSON reply from a route handler; per-Owner data must never sit in a shared cache. */
-export function jsonResponse(body: unknown, status = 200): Response {
-  return Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } });
+export function jsonResponse(body: unknown, status = 200, timings?: Record<string, number>): Response {
+  const headers: Record<string, string> = { "Cache-Control": "private, no-store" };
+  if (timings) headers["Server-Timing"] = serverTiming(timings);
+  return Response.json(body, { status, headers });
 }
 
-export function errorResponse(error: unknown, tag: string): Response {
+/** A `Server-Timing` value from fixed metric names and durations in ms. Never put text or ids in it. */
+export function serverTiming(timings: Record<string, number>): string {
+  return Object.entries(timings)
+    .map(([name, ms]) => `${name};dur=${ms.toFixed(1)}`)
+    .join(", ");
+}
+
+export function errorResponse(error: unknown, tag: string, timings?: Record<string, number>): Response {
   const status =
     error instanceof TmdbUnavailableError ? 503 : error instanceof UserError ? 400 : 500;
-  return jsonResponse({ error: userMessage(error, tag) }, status);
+  return jsonResponse({ error: userMessage(error, tag) }, status, timings);
 }
 
 export function logUnexpected(error: unknown, tag: string): void {

@@ -34,6 +34,7 @@ describe("GET /api/search", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Server-Timing")).toMatch(/^session;dur=\d+\.\d, tmdb;dur=\d+\.\d, db;dur=\d+\.\d$/);
     expect(await response.json()).toEqual({
       results: [expect.objectContaining({ tmdbId: TMDB.dune, entry: { id: entryId, status: "to_watch" } })],
     });
