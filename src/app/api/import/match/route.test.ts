@@ -148,7 +148,9 @@ describe("POST /api/import/match", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     testState.tmdbSearchDownFor.add("um dia");
 
-    const response = await POST(post({ lines: [{ id: 0, query: "Breaking", altQuery: "Um Dia", several: false }] }));
+    const response = await POST(
+      post({ lines: [{ id: 0, query: "Nothing like it", altQuery: "Um Dia", several: false }] }),
+    );
 
     expect(await response.json()).toEqual({ lines: [{ id: 0, result: "error", candidates: [] }] });
   });

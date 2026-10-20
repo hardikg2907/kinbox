@@ -392,21 +392,34 @@ describe("matchLine", () => {
     return vi.fn(async (text: string) => results[text] ?? []);
   }
 
-  it("uses the alternate text's results when they are found", async () => {
+  it("uses the alternate text's results when the main text finds nothing and they are found", async () => {
     const umDia = title("Um Dia", { originalName: "Um Dia" });
-    const search = searchFrom({ "One Day": [title("One Day Later")], "Um Dia": [umDia] });
+    const search = searchFrom({ "One Day": [title("Another Story")], "Um Dia": [umDia] });
     const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
     expect(match).toMatchObject({ result: "found", fromAltQuery: true });
     expect(match.candidates[0].title).toBe(umDia);
     expect(search.mock.calls).toEqual([["One Day"], ["OneDay"], ["Um Dia"]]);
   });
 
-  it("keeps the main results when the alternate text is not found", async () => {
-    const later = title("One Day Later");
-    const search = searchFrom({ "One Day": [later], "Um Dia": [title("Um Dia", { kind: "series" })] });
+  it("keeps the main results when the alternate text is not found either", async () => {
+    const other = title("Another Story");
+    const search = searchFrom({ "One Day": [other], "Um Dia": [title("Um Dia", { kind: "series" })] });
     const match = await matchLine({ query: "One Day", altQuery: "Um Dia", kind: "movie", several: false }, search);
+    expect(match).toMatchObject({ result: "not_found", fromAltQuery: false });
+    expect(match.candidates.map((candidate) => candidate.title)).toEqual([other]);
+    expect(search.mock.calls).toEqual([["One Day"], ["OneDay"], ["Um Dia"]]);
+  });
+
+  // A bracket note such as `(Netflix)` is alternate text too, and must never turn a line the
+  // Owner has to check into a sure Match with an unrelated Title of that name.
+  it("does not search the alternate text when the main results ask to check", async () => {
+    const remake = title("Dune", { year: 2021, popularity: 50 });
+    const original = title("Dune", { year: 1984, popularity: 40 });
+    const search = searchFrom({ Dune: [remake, original], Netflix: [title("Netflix", { popularity: 30 })] });
+    const match = await matchLine({ query: "Dune", altQuery: "Netflix", several: false }, search);
     expect(match).toMatchObject({ result: "check", fromAltQuery: false });
-    expect(match.candidates.map((candidate) => candidate.title)).toEqual([later]);
+    expect(match.candidates.map((candidate) => candidate.title)).toEqual([remake, original]);
+    expect(search.mock.calls).toEqual([["Dune"]]);
   });
 
   it("does not search the alternate text when the main text is found", async () => {
@@ -520,7 +533,7 @@ describe("matchLine", () => {
       expect(search.mock.calls).toEqual([["West world"]]);
     });
 
-    it("searches the alternate text after the joined text, and the alternate results still win only when found", async () => {
+    it("searches the alternate text after the joined text finds nothing, and its results win when found", async () => {
       const umDia = title("Um Dia", { popularity: 20 });
       const search = searchFrom({ "Um Dia": [umDia] });
       const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
@@ -529,12 +542,13 @@ describe("matchLine", () => {
       expect(search.mock.calls).toEqual([["One Day"], ["OneDay"], ["Um Dia"]]);
     });
 
-    it("keeps the merged ranking when the alternate text is not found", async () => {
+    it("does not search the alternate text when the merged results ask to check", async () => {
       const joined = title("Oneday", { popularity: 0 });
-      const search = searchFrom({ OneDay: [joined], "Um Dia": [title("Other Film")] });
+      const search = searchFrom({ OneDay: [joined], "Um Dia": [title("Um Dia", { popularity: 20 })] });
       const match = await matchLine({ query: "One Day", altQuery: "Um Dia", several: false }, search);
       expect(match).toMatchObject({ result: "check", fromAltQuery: false });
       expect(match.candidates.map((candidate) => candidate.title)).toEqual([joined]);
+      expect(search.mock.calls).toEqual([["One Day"], ["OneDay"]]);
     });
 
     it("passes a failed joined search on to the caller", async () => {
