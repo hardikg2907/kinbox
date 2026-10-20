@@ -11,6 +11,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
@@ -38,6 +39,24 @@ export const titles = pgTable(
   (t) => [unique("titles_kind_tmdb_id_key").on(t.kind, t.tmdbId)],
 );
 
+// finished_at stays null while rows are still being added; one Owner has at most one open Import.
+export const imports = pgTable(
+  "imports",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("imports_user_id_open_key")
+      .on(t.userId)
+      .where(sql`${t.finishedAt} is null`),
+  ],
+);
+
 export const entries = pgTable(
   "entries",
   {
@@ -55,10 +74,13 @@ export const entries = pgTable(
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     statusChangedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     progressMovedAt: timestamp({ withTimezone: true }),
+    // Lets "Undo this import" find the Entries an Import created; null for a Title saved by hand.
+    importId: uuid().references(() => imports.id, { onDelete: "set null" }),
   },
   (t) => [
     unique("entries_user_id_title_id_key").on(t.userId, t.titleId),
     index("entries_user_id_status_idx").on(t.userId, t.status),
+    index("entries_import_id_idx").on(t.importId),
     check(
       "entries_rating_half_stars_check",
       sql`${t.ratingHalfStars} is null or ${t.ratingHalfStars} between 1 and 10`,

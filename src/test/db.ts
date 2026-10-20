@@ -5,6 +5,7 @@ import {
   account,
   entries,
   episodeProgress,
+  imports,
   session,
   titles,
   user,
@@ -27,6 +28,7 @@ export async function resetDatabase(): Promise<void> {
   await database.delete(episodeProgress);
   await database.delete(watches);
   await database.delete(entries);
+  await database.delete(imports);
   await database.delete(titles);
   await database.delete(session);
   await database.delete(account);

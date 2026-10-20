@@ -8,6 +8,13 @@
       "when": 1792172380458,
       "tag": "0000_daffy_peter_quill",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792496247237,
+      "tag": "0001_hot_strong_guy",
+      "breakpoints": true
     }
   ]
 }
