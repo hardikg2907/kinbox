@@ -91,19 +91,25 @@ Output per Import line: `{ id, position, original, query, altQuery?, year?, kind
 `rankMatches(line, results)` in `src/domain/import-match.ts` is a pure function. Names are compared after this normalising: NFKD without accents, lower case, `&` → `and`, apostrophes removed, other punctuation → space, spaces collapsed, a leading `the`, `a` or `an` removed. The compact form also removes the spaces (`West world` = `Westworld`).
 
 For each search result, using the better of its name and original name:
-- **Name score**: 1 when the normalised or compact forms are equal; otherwise the Dice coefficient of the compact forms' character pairs (0 to 1). When the normalised words of the shorter name are the first words or the last words of the longer name (whole words, in order), and the shorter name has at least 2 words or at least 6 letters, the score is at least 0.8 (`CONTAINED_NAME_SCORE`). So `Hobbs and Shaw` against `Fast & Furious Presents: Hobbs & Shaw`, `Shang chi` against `Shang-Chi and the Legend of the Ten Rings`, and `Manhunt Unabomber` against `Manhunt` all score 0.8. `Run` against `Run Lola Run` does not (one short word), and neither do words in the middle or part of a word. It stays below 1, so it can never make a Found; it only moves a line from Not found to Check this.
+- **Name score**: 1 only when the normalised or compact forms are equal. Otherwise it is the Dice coefficient of the compact forms' character pairs, capped at 0.99 (`MAX_UNEQUAL_NAME_SCORE`): two different names made of the same pairs, such as `Ananta` and `Antana`, would otherwise score 1. When the normalised words of the shorter name are the first words or the last words of the longer name (whole words, in order), and the shorter name has at least 2 words or at least 6 letters, the score is at least 0.8 (`CONTAINED_NAME_SCORE`). So `Hobbs and Shaw` against `Fast & Furious Presents: Hobbs & Shaw`, `Shang chi` against `Shang-Chi and the Legend of the Ten Rings`, and `Manhunt Unabomber` against `Manhunt` all score 0.8. `Run` against `Run Lola Run` does not (one short word), and neither do words in the middle or part of a word. It stays below 1, so it can never make a Found; it only moves a line from Not found to Check this.
 - **Kind hint**: +0.15 when it agrees, −0.15 when it does not. A hint never removes a result, so a Movie under `Tv -` can still match.
 - **Year hint**: +0.1 within one year, −0.3 further off.
-- **Popularity**: up to +0.05 (`0.05 × log10(1 + popularity) / 3`, capped). It only breaks ties; it never beats a better name.
+- **Popularity**: up to +0.05 (`0.05 × log10(1 + popularity) / 3`, capped). The cap is well below the usual gap between two different names, so popularity breaks near-ties: it orders Titles with the same name, and only rarely lifts a near name over an exact one. When it does, the best result's name score is under 1, so the line is Check this, never a wrong Found.
 
 Results:
 - **Not found**: no result has a name score of at least 0.6.
-- **Found**: the best result has name score 1, no hint against it, the line is not flagged as several Titles, and no other result with name score 1 and no hint against it has more than a third of its popularity.
+- **Found**: all of these hold:
+  - the best result has name score 1, so its name equals the line's text once normalised;
+  - no hint is against it: its kind agrees with the kind hint and its year is within one year of the year hint, where the line has them;
+  - when the line has a year hint, the best result has a year. A result with no year is at best Check this, because a year the Owner wrote is evidence it cannot confirm;
+  - its popularity is at least 1 (`MIN_FOUND_POPULARITY`). Search splits text into words, so `Old boy` never returns `Oldboy`, only an obscure Title spelled `Old Boy`;
+  - the line is not flagged as several Titles;
+  - no rival: no other result with name score 1 has a third or more of the best one's popularity. A rival with no hint against it counts, and so does one whose only hint against it is the kind: a kind hint usually comes from a heading, and lists put Titles under the wrong heading. A result whose year is off the year hint is no rival.
 - **Check this**: every other case. The 3 best results are the candidates.
 
 TMDB search splits text into words, so `West world` never returns `Westworld`. When the main search text gives no Found result, the line is not flagged as several Titles, and the text has 2 or more words, the text with its spaces removed (`Westworld`) is searched too. Its results merge into the main results (a repeat of the same kind and TMDB id is dropped, and the main results come first), and the merged list is scored again against the main text. The merged scoring is the main scoring from here on.
 
-When that gives no Found result and the line has an alternate search text, that text is searched too. Its results are scored against the alternate text, and they replace the main results only when they reach Found. Otherwise the main results stand.
+When the main scoring is Not found and the line has an alternate search text, that text is searched too. Its results are scored against the alternate text, and they replace the main results only when they reach Found. Otherwise the main results stand. When the main scoring is Check this, the alternate text is not searched: it is often a note such as `(Netflix)`, and an exact name for it would turn a line the Owner has to check into a sure Match with an unrelated Title.
 
 The numbers are starting values. The evaluation script (build step 3) tunes them against the owner's real note. The aim: no wrong Match among Found rows, and as few Check this rows as that allows.
 
@@ -111,7 +117,7 @@ The numbers are starting values. The evaluation script (build step 3) tunes them
 - `POST /api/import/match`, a route handler with the same shape as `src/app/api/search/route.ts`. Matching is a read, so it is not a Server Action: `runAction` calls `refresh()` after every call, and 25 match requests would re-render the page 25 times.
 - Body (strict Zod): `{ lines: [{ id: 0..499, query: 1..100 chars, altQuery?: 1..100 chars, year?: int, kind?: "movie" | "series", several: boolean }] }`, 1 to 10 lines. The body is read with a 16 KB cap before parsing.
 - `getOwner()`; no session gives 401. The handler calls `matchImportLines(owner, lines)` in `src/data/import-match.ts`.
-- Searches go through the cached `searchTitles` (`src/lib/tmdb/cached.ts`), so a repeat or a re-check costs no TMDB call. At most 4 lines are searched at once. One database read per request marks which candidates are already in the Library.
+- Searches go through the cached `searchTitles` (`src/lib/tmdb/cached.ts`), so a repeat or a re-check costs no TMDB call. At most 4 searches run at once. One database read per request marks which candidates are already in the Library.
 - Response: `{ lines: [{ id, result: "found" | "check" | "not_found" | "error", candidates: [{ kind, tmdbId, name, year, posterPath, inLibrary }] }] }`, with at most 3 candidates, best first. A line whose TMDB search failed comes back as `error`; the other lines in the request still return.
 - The browser sends one request at a time. After two requests in a row fail completely, it stops and shows the TMDB-down message with "Try again", which continues from the first unchecked line.
 
@@ -121,7 +127,7 @@ The numbers are starting values. The evaluation script (build step 3) tunes them
 - A small concurrency limiter (`src/lib/limit.ts`, no dependency) caps the 4 parallel searches and the 4 parallel detail loads in adding.
 
 ### Time limits
-Vercel Hobby functions with Fluid Compute run up to 300 s, which is also the default. The worst match request (10 lines, 4 at once, each search up to 3 tries of 8 s) stays under 100 s; a normal one takes 1-3 s. No `maxDuration` export is needed.
+Vercel Hobby functions with Fluid Compute run up to 300 s, which is also the default. Each line runs up to 3 searches, one after another: the main text, the joined-up text and the alternate text. So the worst match request (10 lines) sends up to 30 searches, 4 at once. One search can take about 28 s: up to 3 tries of up to 8 s each, with retry waits of at most 2 s between them. 30 searches through 4 slots is 8 rounds, so the worst case is about 225 s. That stays under the 300 s limit, so no `maxDuration` export is needed. A normal request takes 1-3 s.
 
 ## Adding
 
@@ -165,7 +171,8 @@ Postgres fixes `now()` for a whole transaction, so an Entry inserted by an impor
 - `status_changed_at = created_at`,
 - `progress_moved_at` is null or equals `created_at`,
 - `rating_half_stars` and `note` are null,
-- every Watch has the Entry's `created_at` and no date (an import adds a Watch with an unknown date, so a date set later is a change).
+- every Watch has the Entry's `created_at` and no date (an import adds a Watch with an unknown date, so a date set later is a change),
+- every tick has the Entry's `created_at`. Undoing an Episode tap writes `progress_moved_at` back from the browser's copy, which can hide a tick made in between; the tick's own stamp still shows it.
 
 `undoImport` deletes, in one transaction, the Owner's Entries with this `import_id` that are unchanged (Watches and ticks cascade), and closes the Import. It locks the Import row first, and each row that `addToImport` writes checks under that lock that the Import is still open, so a row can never land after the Undo. Titles snapshots stay. When a later Undo of a Status move restores the old stamps, the Entry counts as unchanged again, which is correct.
 
