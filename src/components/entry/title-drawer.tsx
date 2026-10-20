@@ -162,6 +162,9 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
       if (closingNow) return;
       closingNow = true;
       target = null;
+      // A finger or a mouse still down must not pull the drawer back while it leaves.
+      touch = null;
+      pointer = null;
       motion?.stop();
       motion = spring({
         from: geometry.offset,
@@ -199,6 +202,8 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
         }
         return false;
       }
+      // A move that keeps this Title's address (a hash change, a Forward that goes nowhere) leaves the drawer open.
+      if (window.location.pathname === ownPath) return false;
       const animatedByBrowser = "hasUAVisualTransition" in event && event.hasUAVisualTransition === true;
       if (closingNow || animatedByBrowser || prefersReducedMotion()) return false;
       held = true;
@@ -287,7 +292,7 @@ export function TitleDrawer({ children }: { children: ReactNode }) {
 
     function onTouchMove(event: TouchEvent) {
       const point = event.touches[0];
-      if (!touch || !point) return;
+      if (!touch || !point || closingNow) return;
       if (touch.mode === null) {
         const dx = point.clientX - touch.x;
         const dy = point.clientY - touch.y;
