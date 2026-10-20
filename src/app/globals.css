@@ -599,14 +599,18 @@ html[data-drawer] [data-sonner-toast]:has([data-hold-hint]) {
 }
 
 /* Library posters fade in as they load instead of popping in. The head script marks each one as it
-   loads. During a view transition the mark shows at once, so the new snapshot already holds the poster. */
-img[data-fade] {
+   loads. During a view transition the mark shows at once, so the new snapshot already holds the poster.
+   A tile's copy for the poster morph follows its poster's mark: it fades in with a poster that is
+   loading, and a copy added over a poster that has loaded shows at once, never fading on its own. */
+img[data-fade],
+img[data-fade] ~ [data-poster-copy] img {
   transition: opacity 0.3s ease-out;
 }
-img[data-fade]:not([data-loaded]) {
+img[data-fade]:not([data-loaded]),
+img[data-fade]:not([data-loaded]) ~ [data-poster-copy] img {
   opacity: 0;
 }
-:root:active-view-transition img[data-fade] {
+:root:active-view-transition :is(img[data-fade], [data-poster-copy] img) {
   transition: none;
 }
 

@@ -24,7 +24,8 @@ import { WatchedStars } from "@/components/entry/watched-stars";
 import { useRatingSaveDelay } from "@/components/rating-save-delay";
 import { LibraryEmpty } from "@/components/library/library-empty";
 import { LibraryGrid } from "@/components/library/library-grid";
-import { glide, measure } from "@/components/library/wall-layout";
+import { crossFadeReshaped, glide, markWall, measure, placeCards, useWallLayout } from "@/components/library/wall-layout";
+import type { Layout } from "@/components/library/layout";
 
 const GENERIC_ERROR = "Couldn't save that. Try again.";
 const HOLD_MS = 450;
@@ -159,6 +160,11 @@ export function LibraryMoves({
   useLayoutEffect(() => {
     latest.current = { tab, kind, shown };
   });
+
+  // The skeleton's shape follows the marks on <html>, so they change with the tab and the kind.
+  useLayoutEffect(() => {
+    markWall({ tab, kind });
+  }, [tab, kind]);
 
   const hasCards = shown.cards.length > 0;
   useEffect(() => {
@@ -338,11 +344,22 @@ export function LibraryWall({ kind, className }: { kind: KindFilter; className?:
     open.current = openSheet;
   });
 
+  // A move from the sheet glides the cards from where they stood just before it. A change that comes
+  // from the server (a "Watched it" that makes a tile the lead) cross-fades the cards that changed
+  // shape, from where they stood after the last change. A new layout glides by itself, so it only
+  // starts a fresh record.
+  const layout = useWallLayout();
+  const placed = useRef<{ layout: Layout; cards: ReturnType<typeof placeCards> } | null>(null);
   useLayoutEffect(() => {
+    const list = wallRef.current?.querySelector("ul") ?? null;
     const first = beforeRef.current;
     beforeRef.current = null;
-    if (first) glide(wallRef.current?.querySelector("ul") ?? null, first);
-  }, [shown.cards, beforeRef, wallRef]);
+    // Read before any card starts to move.
+    const cards = placeCards(list);
+    if (first) glide(list, first);
+    else if (placed.current?.layout === layout) crossFadeReshaped(list, placed.current.cards);
+    placed.current = { layout, cards };
+  }, [shown.cards, beforeRef, wallRef, layout]);
 
   useEffect(() => {
     const root = wallRef.current;

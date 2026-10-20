@@ -14,6 +14,8 @@ import {
 import { cn } from "cn";
 import { GRID, WALL_CLASS, readLayoutCookie, writeLayoutCookie, type Layout } from "@/components/library/layout";
 import { wallMarks } from "@/components/library/wall-marks";
+import type { KindFilter } from "@/data/dto";
+import type { Status } from "@/domain/types";
 
 // One layout per page, shared by the top bar's Tiles and List buttons (in the static shell) and the
 // wall (which streams in later). It starts from the cookie, the same one the server and the head
@@ -58,14 +60,18 @@ export function showTiles(): void {
 
 /**
  * Sets the head script's marks again. React clears attributes it does not own from <html> when it
- * remounts the root in development, and a move to the Library from another page runs no head script.
+ * remounts the root in development, a move to the Library from another page runs no head script,
+ * and a move between tabs or kinds only changes the URL. `shown` is the tab and kind the Library
+ * renders; without it, they come from the address.
  */
-export function markWall(): void {
+export function markWall(shown?: { tab: Status; kind: KindFilter }): void {
   const root = document.documentElement;
   const marks = wallMarks(document.cookie, location.pathname, location.search);
   root.setAttribute("data-wall-layout", currentLayout());
-  if (marks["data-wall-tab"]) root.setAttribute("data-wall-tab", marks["data-wall-tab"]);
-  if (marks["data-wall-kind"]) root.setAttribute("data-wall-kind", marks["data-wall-kind"]);
+  const tab = shown?.tab ?? marks["data-wall-tab"];
+  const kind = shown?.kind ?? marks["data-wall-kind"];
+  if (tab) root.setAttribute("data-wall-tab", tab);
+  if (kind) root.setAttribute("data-wall-kind", kind);
 }
 
 type WallLayout = {
@@ -96,6 +102,60 @@ export function measure(root: HTMLElement | null): Map<string, DOMRect> {
   return map;
 }
 
+type Box = { left: number; top: number; width: number; height: number };
+
+function reshaped(from: Box, to: Box): boolean {
+  if (from.height === 0 || to.height === 0) return false;
+  return Math.abs(Math.log(from.width / from.height / (to.width / to.height))) > 0.15;
+}
+
+type PlacedCard = { element: HTMLElement; box: Box };
+
+/** Each card's element and its place on the page, for `crossFadeReshaped` after the next change. */
+export function placeCards(root: HTMLElement | null): Map<string, PlacedCard> {
+  const map = new Map<string, PlacedCard>();
+  if (!root) return map;
+  for (const card of root.querySelectorAll<HTMLElement>(":scope > li[id]")) {
+    const rect = card.getBoundingClientRect();
+    map.set(card.id, {
+      element: card,
+      box: { left: rect.left + window.scrollX, top: rect.top + window.scrollY, width: rect.width, height: rect.height },
+    });
+  }
+  return map;
+}
+
+/**
+ * A card that changed shape (a tile that became the lead tile, or the lead that became a tile) is a
+ * new element in its new place. The one it replaced, which React has just let go, stays a moment
+ * where it stood and fades out over whatever now sits there, so each place cross-fades.
+ */
+export function crossFadeReshaped(root: HTMLElement | null, before: Map<string, PlacedCard>) {
+  if (!root || prefersReducedMotion()) return;
+  for (const card of root.querySelectorAll<HTMLElement>(":scope > li[id]")) {
+    const old = before.get(card.id);
+    if (!old || old.element === card || old.element.isConnected) continue;
+    const ghost = old.element;
+    ghost.removeAttribute("id");
+    for (const named of ghost.querySelectorAll("[id]")) named.removeAttribute("id");
+    ghost.setAttribute("aria-hidden", "true");
+    ghost.inert = true;
+    // Inside the wall, so it keeps the wall's layout styles; out of the flow, so nothing moves.
+    Object.assign(ghost.style, { position: "absolute", margin: "0", pointerEvents: "none", zIndex: "11" });
+    root.append(ghost);
+    const parent = ghost.offsetParent;
+    const origin = parent?.getBoundingClientRect() ?? { left: -window.scrollX, top: -window.scrollY };
+    Object.assign(ghost.style, {
+      left: `${old.box.left - window.scrollX - origin.left - (parent?.clientLeft ?? 0)}px`,
+      top: `${old.box.top - window.scrollY - origin.top - (parent?.clientTop ?? 0)}px`,
+      width: `${old.box.width}px`,
+      height: `${old.box.height}px`,
+    });
+    const fade = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, easing: "ease-out", fill: "forwards" });
+    fade.onfinish = fade.oncancel = () => ghost.remove();
+  }
+}
+
 /** Moves each card from where `measure` saw it to where it sits now. Cards new to the wall just appear. */
 export function glide(root: HTMLElement | null, first: Map<string, DOMRect>) {
   if (!root) return;
@@ -110,8 +170,9 @@ export function glide(root: HTMLElement | null, first: Map<string, DOMRect>) {
     const dx = from.left - to.left;
     const dy = from.top - to.top;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(1 - scale) < 0.01) continue;
-    // A card that changes shape too much (grid to list) fades in instead of stretching.
-    const stretchy = Math.abs(1 - scale) > 0.6;
+    // A card that changes shape (grid to list, a tile to the lead tile) or size too much fades in at
+    // its new place: scaled, it would show another crop of its poster on the way.
+    const stretchy = reshaped(from, to) || Math.abs(1 - scale) > 0.6;
     const frames: Keyframe[] = stretchy
       ? [{ opacity: 0 }, { opacity: 1 }]
       : [{ transform: `translate(${dx}px, ${dy}px) scale(${scale})`, transformOrigin: "0 0" }, { transform: "none", transformOrigin: "0 0" }];
