@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codeFilesOnMain, isEnvFile, scanStagedDiff } from "./checks";
+import { codeFilesOnMain, isEnvFile, isNodeAtLeast, scanStagedDiff } from "./checks";
 
 describe("codeFilesOnMain", () => {
   it("allows docs on main", () => {
@@ -81,5 +81,27 @@ describe("scanStagedDiff", () => {
       diff("pnpm-lock.yaml", 1, [jwt]),
     ].join("\n");
     expect(scanStagedDiff(text)).toEqual([]);
+  });
+});
+
+describe("isNodeAtLeast", () => {
+  it("rejects an older version", () => {
+    expect(isNodeAtLeast("22.20.0", "22.22.1")).toBe(false);
+  });
+
+  it("accepts the same version", () => {
+    expect(isNodeAtLeast("22.22.1", "22.22.1")).toBe(true);
+  });
+
+  it("accepts a newer version", () => {
+    expect(isNodeAtLeast("22.23.3", "22.22.1")).toBe(true);
+  });
+
+  it("accepts a higher major", () => {
+    expect(isNodeAtLeast("24.0.0", "22.22.1")).toBe(true);
+  });
+
+  it("rejects a lower minor even with a higher patch", () => {
+    expect(isNodeAtLeast("22.21.9", "22.22.1")).toBe(false);
   });
 });

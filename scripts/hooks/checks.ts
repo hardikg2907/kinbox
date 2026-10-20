@@ -69,3 +69,16 @@ export function scanStagedDiff(diff: string): Finding[] {
   }
   return findings;
 }
+
+// lint-staged refuses to start on an older Node with an unhelpful error, so the hook checks first.
+export function isNodeAtLeast(version: string, minimum: string): boolean {
+  const parse = (v: string) => v.split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const have = parse(version);
+  const need = parse(minimum);
+  for (let i = 0; i < 3; i++) {
+    const a = have[i] ?? 0;
+    const b = need[i] ?? 0;
+    if (a !== b) return a > b;
+  }
+  return true;
+}
