@@ -387,15 +387,6 @@ describe("lines that name several Titles", () => {
     ["Moonlit Harbor 1/2/3", "Moonlit Harbor"],
     ["Moonlit Harbor (all parts)", "Moonlit Harbor"],
     ["Moonlit Harbor (1 and 2)", "Moonlit Harbor"],
-    // A trailing "trilogy" goes.
-    ["Moonlit Harbor trilogy", "Moonlit Harbor"],
-    ["Moonlit Harbor Trilogy.", "Moonlit Harbor"],
-    // "All ... movies" keeps the franchise name.
-    ["All Lantern movies", "Lantern"],
-    ["all lantern FILMS", "lantern"],
-    ["All Lantern parts", "Lantern"],
-    ["all lantern series", "lantern"],
-    ["All Moonlit Harbor movies", "Moonlit Harbor"],
     // The first part before a slash or a comma and a space is the first Title.
     ["Moonlit Harbor/ Paper lanterns", "Moonlit Harbor"],
     ["Moonlit Harbor/Paper lanterns", "Moonlit Harbor"],
@@ -404,11 +395,23 @@ describe("lines that name several Titles", () => {
     ["Moonlit Harbor 1, 2, 3", "Moonlit Harbor 1"],
     ["Moonlit Harbor/ Paper Lanterns, Glass Garden", "Moonlit Harbor"],
     ["Moonlit Harbor, Paper Lanterns, 2010", "Moonlit Harbor"],
-    // A line that lists Titles beyond its own name has no first Title, so it keeps its text.
+    // A line that names a set has no single first Title, so it keeps its whole text and no other rule applies.
+    ["Moonlit Harbor trilogy", "Moonlit Harbor trilogy"],
+    ["Moonlit Harbor Trilogy.", "Moonlit Harbor Trilogy"],
+    ["Moonlit Harbor 1 and 2 trilogy", "Moonlit Harbor 1 and 2 trilogy"],
+    ["Moonlit Harbor/ Paper Lanterns trilogy", "Moonlit Harbor/ Paper Lanterns trilogy"],
+    ["All Lantern movies", "All Lantern movies"],
+    ["all lantern FILMS", "all lantern FILMS"],
+    ["All Lantern parts", "All Lantern parts"],
+    ["all lantern series", "all lantern series"],
+    ["All Moonlit Harbor movies", "All Moonlit Harbor movies"],
+    ["All Harbor/ Lantern movies", "All Harbor/ Lantern movies"],
     ["More Harbor movies", "More Harbor movies"],
     ["More Harbor movies,", "More Harbor movies"],
     ["more harbor films", "more harbor films"],
     ["More Harbor/ Lantern movies", "More Harbor/ Lantern movies"],
+    // A line that starts with "more" but does not end in a list word is still one name and a rest.
+    ["More Than Honey/ Paper Lanterns", "More Than Honey"],
     // Nothing left to search for, or one character: the text stays as it was.
     ["Trilogy", "Trilogy"],
     ["all movies", "all movies"],
@@ -760,7 +763,7 @@ describe("a whole note", () => {
           id: 6,
           position: 11,
           original: "All Lantern movies",
-          query: "Lantern",
+          query: "All Lantern movies",
           kind: "movie",
           intent: "to_watch",
           several: true,
