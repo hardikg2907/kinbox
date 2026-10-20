@@ -257,43 +257,72 @@ function pickerSeasons(details: { seasons: { seasonNumber: number; name: string;
     .map(({ seasonNumber, name, episodeCount }) => ({ seasonNumber, name, episodeCount }));
 }
 
+export type NewEntry = {
+  titleId: string;
+  change: StatusChange;
+  /** Episodes to tick along with the Status. */
+  ticks: Episode[];
+  /** The Import adding this Entry; null for a Title saved by hand. */
+  importId: string | null;
+};
+
+/**
+ * Adds the Owner's Entry for a Title with its Status, Watch and ticks, in the caller's transaction.
+ * Every row it writes carries the transaction's now(), so an Entry nobody has touched since keeps
+ * created_at = status_changed_at; "Undo this import" relies on that. A Title already in the
+ * Library is left exactly as it was.
+ */
+export async function insertNewEntry(
+  tx: Tx,
+  ownerId: string,
+  entry: NewEntry,
+): Promise<{ entryId: string; status: Status; created: boolean }> {
+  const [created] = await tx
+    .insert(entries)
+    .values({
+      userId: ownerId,
+      titleId: entry.titleId,
+      status: entry.change.status,
+      importId: entry.importId,
+    })
+    .onConflictDoNothing({ target: [entries.userId, entries.titleId] })
+    .returning({ id: entries.id, status: entries.status });
+
+  if (!created) {
+    // A double tap, a second tab or an import line for a Title already in the Library.
+    const [existing] = await tx
+      .select({ id: entries.id, status: entries.status })
+      .from(entries)
+      .where(and(eq(entries.userId, ownerId), eq(entries.titleId, entry.titleId)));
+    if (!existing) throw new Error("Entry missing after a save conflict");
+    return { entryId: existing.id, status: existing.status, created: false };
+  }
+
+  await applyStatusChange(tx, created.id, created.status, entry.change);
+  await insertTicks(tx, created.id, entry.ticks);
+  return { entryId: created.id, status: created.status, created: true };
+}
+
 export async function saveTitle(owner: Owner, input: SaveTitleInput): Promise<SaveResult> {
   const { titleId, details } = await ensureTitle(input.kind, input.tmdbId);
   const change = statusOnSave(input.status);
 
-  let toTick: Episode[] = [];
+  let ticks: Episode[] = [];
   if (details.kind === "series" && change.status === "watched") {
     const [series, today] = await Promise.all([loadSeriesEpisodes(details.tmdbId), getToday()]);
-    toTick = airedNumberedEpisodes(series.episodes, today);
+    ticks = airedNumberedEpisodes(series.episodes, today);
   }
 
-  return db().transaction(async (tx) => {
-    const [created] = await tx
-      .insert(entries)
-      .values({ userId: owner.id, titleId, status: change.status })
-      .onConflictDoNothing({ target: [entries.userId, entries.titleId] })
-      .returning({ id: entries.id, status: entries.status });
-
-    if (!created) {
-      // A double tap or a second tab: the Title is already in the Library, so nothing changes.
-      const [existing] = await tx
-        .select({ id: entries.id, status: entries.status })
-        .from(entries)
-        .where(and(eq(entries.userId, owner.id), eq(entries.titleId, titleId)));
-      if (!existing) throw new Error("Entry missing after a save conflict");
-      return { entryId: existing.id, status: existing.status, created: false, seasons: null };
-    }
-
-    await applyStatusChange(tx, created.id, created.status, change);
-    await insertTicks(tx, created.id, toTick);
-    return {
-      entryId: created.id,
-      status: created.status,
-      created: true,
-      seasons:
-        details.kind === "series" && created.status === "watching" ? pickerSeasons(details) : null,
-    };
-  });
+  const saved = await db().transaction((tx) =>
+    insertNewEntry(tx, owner.id, { titleId, change, ticks, importId: null }),
+  );
+  return {
+    ...saved,
+    seasons:
+      saved.created && details.kind === "series" && saved.status === "watching"
+        ? pickerSeasons(details)
+        : null,
+  };
 }
 
 export async function setStatus(owner: Owner, input: SetStatusInput): Promise<StatusMove> {
