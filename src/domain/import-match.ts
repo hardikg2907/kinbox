@@ -233,9 +233,9 @@ export function rankMatches<T extends MatchCandidate>(
 /**
  * Searches the line's text and ranks the results. When that does not find a clear Match and the
  * text has two or more words, the text with its spaces removed is searched too and its results
- * join the main ones. When that still finds nothing clear and the line has alternate text, the
- * alternate text is searched as well, and its results win only when they are found. Errors from
- * `search` reach the caller.
+ * join the main ones. When that still finds nothing good enough to offer and the line has
+ * alternate text, the alternate text is searched as well, and its results win only when they are
+ * found. Errors from `search` reach the caller.
  */
 export async function matchLine<T extends MatchCandidate>(
   line: MatchableLine,
@@ -248,7 +248,9 @@ export async function matchLine<T extends MatchCandidate>(
     const joined = await search(line.query.replace(WHITESPACE, ""));
     main = rankMatches(line, mergeResults(results, joined));
   }
-  if (main.result === "found" || line.several || line.altQuery === undefined) {
+  // Alternate text is often a bracket note (`Netflix`, a cast name), so an exact name for it says
+  // nothing when the main text already offers candidates.
+  if (main.result !== "not_found" || line.several || line.altQuery === undefined) {
     return { ...main, fromAltQuery: false };
   }
   const alternate = rankMatches(line, await search(line.altQuery), line.altQuery);
