@@ -65,7 +65,7 @@ Mobile first at 375 px; desktop is a bigger view of the same screens. Respect sa
 ```
 Library (375)                        Title drawer (375)                Full view (375)
 +-------------------------------+    +-------------------------------+ +-------------------------------+
-| Kinbox            [▦] [≡]  (o)|    |  wall, dimmed                 | | (x)    full-bleed poster      |
+| Kinbox            [▦|≡]    (o)|    |  wall, dimmed                 | | (x)    full-bleed poster      |
 | +---------------------------+ |    |                               | |        (w500 over the w342)   |
 | | wide lead tile (Watching) | |    +==========  ----  ===========+ |                               |
 | | Andor  Next: S2 E5 [Watch]| |    | poster strip, tinted         | | Breaking Bad (44, display)    |
@@ -82,16 +82,16 @@ Library (375)                        Title drawer (375)                Full view
 
 ### Library
 
-- **Top:** the wordmark on the left; on the right the Tiles and List buttons, then a round account button (it opens the account menu: About, Import a list, Sign out; the menu arrives with Import a list). All scroll away with the wall.
+- **Top:** the wordmark on the left; on the right the Tiles and List toggle, then, apart from it, a round account button (it opens the account menu: About, Import a list, Sign out; the menu arrives with Import a list). All scroll away with the wall.
 - **The wall:** a grid with the name under each poster, not on it. Under the name: for a watching Series "Next: S2 E4" and a compact "Watched it" button; "Caught up" with its helper; for Watched the date; the not-out-yet label when it applies. The default is 2 columns, 3 from 40 rem (640 px) and 4 from 64 rem (1024 px). At 375 px that is 2 columns.
 - **Lead tile:** on the Watching tab only, the most recent Series gets a 4:3 crop of its poster, cut a quarter of the way down, where faces usually are, so they clear the text. On a phone it spans the whole row, at most about 40 % of the screen. On desktop it spans two columns and the height of its row, with the name at 30 px and the Next and episode lines at 16 px. The name, Next, the episode name and "Watched it" sit on a scrim that is solid (92 % page colour) only behind the text and eases out just above it, so the rest of the poster stays bright. Other tabs are a plain grid.
-- **Layout:** a view setting, not a filter: Tiles or List. Two round icon buttons in the top bar, a grid and a list, switch it; the pressed one is filled. They are plain buttons, not tabs, so they never look like the dock. Tiles shows the default grid, or the size last pinched to. Tile size is a shortcut: pinch the wall to switch between 2 and 3 columns on a phone; Ctrl/⌘ + wheel over the wall steps through 2, 3 and 4 columns on desktop. The choice belongs to the device, not the account: it is saved in a cookie (`kb_layout`, like the time-zone cookie). The server renders the right grid, and a script in the document head copies the saved layout (and, on the Library's address, the tab and the kind filter) onto the page before the first paint, so the loading skeleton already has the final shape. At 3 columns and more, names drop to one line and the "Watched it" button becomes an icon button with the same accessible name.
+- **Layout:** a view setting, not a filter: Tiles or List. One small glass pill in the top bar holds two icon buttons, a grid and a list, each a 44 px target; the pressed one shows a filled disc set in from the pill's edge, and the focus ring stays inside the pill. They are plain buttons with `aria-pressed`, not tabs: icons only, no counts and no sliding pill, so they never look like the dock. Tiles shows the default grid, or the size last pinched to. Tile size is a shortcut: pinch the wall to switch between 2 and 3 columns on a phone; Ctrl/⌘ + wheel over the wall steps through 2, 3 and 4 columns on desktop. The choice belongs to the device, not the account: it is saved in a cookie (`kb_layout`, like the time-zone cookie). The server renders the right grid, and a script in the document head copies the saved layout (and, on the Library's address, the tab and the kind filter) onto the page before the first paint, so the loading skeleton already has the final shape. At 3 columns and more, names drop to one line and the "Watched it" button becomes an icon button with the same accessible name.
 - **List view:** one row per Title: 46 px thumbnail (w92), name, and the Next line or date, with the action at the right edge. Rows are separated by spacing and a hairline.
 - **The dock:** floats at the bottom, inside the 16 px gutter, above the safe area, with 8 px between the round buttons and the tabs. On a phone the tab labels are 11 px, so each stays at least 6 px inside its pill. Left: a round search button. Middle: the four status tabs as a segmented glass control, each with its count; a solid pill slides to the active one. Right: a round filter button with a count badge when filters are set. On scroll down the dock shrinks to a slim pill showing the active status; on scroll up it grows back. While a sheet is open the dock steps back under it, and it returns as the sheet shrinks into it.
 - **Active filters** show as removable chips above the wall, only when any are set.
 - **Search sheet:** the search button grows up into a full-height glass sheet. The field sits at the bottom, in thumb reach; results fill the sheet above it. Before there are results or a no-match message, the empty space shows the quiet hint "Search for a movie or series to save it.", centred. Each result: poster (w92), name, year, kind badge, the not-out-yet label when it applies, and three save buttons: To watch, Watching, Watched. A Title already in the Library shows its status instead. After a save the row confirms in place and offers the optional Note, the "next to watch" picker and, after Watched, the stars.
 - **Filter sheet:** the filter button grows up into a glass sheet titled "Filters". The "Show" section holds kind (All, Movies, Series); length and genre join it when the tonight filters are built. "Clear filters" (only when a filter is set) and "Done" close it.
-- **Empty tabs** say what lands there, centred in the space above the dock. When the Library has no Titles at all, the To watch empty text adds the link "Have a list somewhere? Paste it", which opens Import a list. The link comes with Import a list.
+- **Empty tabs** say what lands there, a little above the middle of the space the wall would fill (above the dock on a phone, beside the sidebar on desktop). Above the words, three empty poster frames in the placeholder colour fan out like a corner of the wall, the front one carrying the tab's icon; on desktop the frames and the words are a step larger. When the Library has no Titles at all, the To watch empty text adds the link "Have a list somewhere? Paste it", which opens Import a list. The link comes with Import a list.
 
 ### Title: one set of sections, two containers
 
@@ -134,7 +134,7 @@ A focused full page (`/import`) outside the dock: nothing on it competes with th
 
 ### Sign-in and About
 
-The wordmark large on the page colour, with one glass panel holding the form or the data-source text and the TMDB logo.
+The wordmark large on the page colour, with one glass panel holding the form or the data-source text and the TMDB logo. On sign-in the form sits at the middle of the screen, the wordmark above it on a phone and beside it on desktop, and "About Kinbox" at the foot. A sign-in error has its own slot between the password and "Sign in", two lines tall with clear space above and below, so it appears without moving anything.
 
 ## Gradients
 
@@ -151,7 +151,7 @@ Things grow out of the thing you touched. Animate only `transform` and `opacity`
 
 - **Optimistic taps.** Every capture tap (save, tick, "Watched it", status change, rating) updates the screen at once, then the Server Action confirms. On failure, roll back and show a toast with the error.
 - **Dock:** shrinks and grows with `--spring`; the active-tab pill slides; search and filter sheets grow up out of the dock and shrink back into it.
-- **Wall changes:** switching status or filters crossfades the wall once, with the dock and the toasts held above it; switching Tiles, List or tile size moves the cards to their new places (FLIP); removed cards fade and scale out. Posters fade in as they load, never pop.
+- **Wall changes:** switching status or filters crossfades the wall once, with the dock and the toasts held above it; switching Tiles, List or tile size moves the cards to their new places (FLIP); a card that changes shape (into or out of the lead tile, or between tile and row) fades into its new place instead of scaling another crop of its poster; removed cards fade and scale out. Posters fade in as they load, never pop.
 - **Drawer:** follows the finger, then snaps with `--spring` using the release velocity; a fling down closes it. The hero strip grows into the full-bleed hero as the drawer rises.
 - **Poster morph:** React `<ViewTransition>` morphs the poster from its tile into the drawer strip or the page hero (see `node_modules/next/dist/docs/01-app/02-guides/view-transitions.md`).
 - **Ticks:** the check draws in and the row settles (scale 0.96 → 1).
