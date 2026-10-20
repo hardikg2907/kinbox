@@ -514,12 +514,15 @@ html[data-drawer="full"] [data-sonner-toaster] {
   padding-top: 0;
 }
 
-/* The pressed one of the top bar's Tiles and List buttons, right from the first paint. */
+/* The pressed one of the top bar's Tiles and List buttons, right from the first paint: its disc
+   inside the pill is filled. */
 :root:not([data-wall-layout="list"]) [data-layout-button="tiles"],
 :root[data-wall-layout="list"] [data-layout-button="list"] {
-  border-color: transparent;
-  background-color: var(--primary);
   color: var(--primary-foreground);
+}
+:root:not([data-wall-layout="list"]) [data-layout-button="tiles"]::before,
+:root[data-wall-layout="list"] [data-layout-button="list"]::before {
+  background-color: var(--primary);
 }
 
 /* The skeleton's dock and sidebar mark the tab and the kind filter from the URL, as the real ones will. */
