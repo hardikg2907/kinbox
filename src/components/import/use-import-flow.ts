@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { addToImport, finishImport, startImport, undoImport } from "@/actions/import";
 import type { ActionResult, ImportCandidate, ImportLineMatch } from "@/data/dto";
@@ -85,12 +85,15 @@ async function postMatch(lines: readonly ImportLine[]): Promise<MatchReply> {
   }
 }
 
-// A Server Action that throws (the network dropped) reads as an ordinary failure.
-async function call<T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+/** A call that threw: the network dropped, or the session is gone and Next.js is off to sign in. */
+type Rejected = { ok: false; error: string; rejected: true };
+
+// A Server Action that throws reads as a failure, marked so a loop knows to stop sending.
+async function call<T>(action: () => Promise<ActionResult<T>>): Promise<ActionResult<T> | Rejected> {
   try {
     return (await action()) ?? { ok: false, error: GENERIC_ERROR };
   } catch {
-    return { ok: false, error: GENERIC_ERROR };
+    return { ok: false, error: GENERIC_ERROR, rejected: true };
   }
 }
 
@@ -101,8 +104,9 @@ export type ImportFlow = ReturnType<typeof useImportFlow>;
 /**
  * Drives the three steps: one match request at a time while checking, one batch at a time while
  * adding. Each run carries a token; anything that ends a run (Stop, leaving, a new run) changes
- * the token, and a reply for an older token is dropped. Runs are not cancelled when the page hides:
- * Next.js keeps a page it navigated away from, so a run that finishes there leaves the page right.
+ * the token, and a reply for an older token is dropped. Next.js keeps a page it navigated away
+ * from, hidden, and shows it again as it was. A run carries on there, so the page is right when it
+ * comes back; an ending (the result, a lost session) is wrapped up as the page hides instead.
  */
 export function useImportFlow(initialText: string) {
   const router = useRouter();
@@ -110,7 +114,10 @@ export function useImportFlow(initialText: string) {
   const [step, setStep] = useState<Step>("paste");
   const [check, setCheck] = useState<CheckState | null>(null);
   const [checkRun, setCheckRun] = useState<CheckRun>("idle");
-  const [retrying, setRetrying] = useState<ReadonlySet<number>>(new Set());
+  // Each line being checked again, with the request checking it, so a late reply clears only its own.
+  const [retrying, setRetrying] = useState<ReadonlyMap<number, number>>(new Map());
+  const retryingIds = useMemo<ReadonlySet<number>>(() => new Set(retrying.keys()), [retrying]);
+  const retryRequest = useRef(0);
   const [plan, setPlan] = useState<AddRow[]>([]);
   const [results, setResults] = useState<AddResults>({});
   // `from` is the step whose screen stays up, out of reach, while the rows go in.
@@ -151,7 +158,7 @@ export function useImportFlow(initialText: string) {
     setStep("paste");
     setCheck(null);
     setCheckRun("idle");
-    setRetrying(new Set());
+    setRetrying(new Map());
     setPlan([]);
     setResults({});
     setAdding(null);
@@ -162,6 +169,8 @@ export function useImportFlow(initialText: string) {
     let local = from;
     let failures = 0;
     setCheckRun("running");
+    // The new token drops the reply of any row still being checked again, so its lines stop waiting now.
+    setRetrying(new Map());
     for (;;) {
       const batch = nextCheckBatch(local);
       if (batch.length === 0) break;
@@ -202,14 +211,17 @@ export function useImportFlow(initialText: string) {
     void runChecks(state, ++run.current);
   }
 
+  /** Checks "Couldn't check" lines again, only once the main check has ended: one request at a time. */
   function retryLines(ids: readonly number[]) {
     const state = latestCheck.current;
-    if (!state || ids.length === 0) return;
+    if (!state || ids.length === 0 || checkRun === "running") return;
     const token = run.current;
-    setRetrying((current) => new Set([...current, ...ids]));
+    const request = ++retryRequest.current;
+    setRetrying((current) => new Map([...current, ...ids.map((id): [number, number] => [id, request])]));
     void postMatch(ids.map((id) => state.lines[id])).then((reply) => {
+      // Cleared even for a reply dropped below, or "Add" would wait for these lines for ever.
+      setRetrying((current) => new Map([...current].filter(([, by]) => by !== request)));
       if (run.current !== token) return;
-      setRetrying((current) => new Set([...current].filter((id) => !ids.includes(id))));
       if (reply.kind === "signed_out") {
         setCheckRun("signed_out");
         return;
@@ -244,10 +256,18 @@ export function useImportFlow(initialText: string) {
 
     let firstError: string | null = null;
     let done = 0;
-    for (const batch of addBatches(rows)) {
+    const batches = addBatches(rows);
+    for (const [index, batch] of batches.entries()) {
       const openId = id;
       const reply = await call(() => addToImport({ importId: openId, rows: addInput(batch) }));
       if (run.current !== token) return;
+      if (!reply.ok && "rejected" in reply) {
+        // Every later call would fail the same way, or, signed out, go on adding behind the sign-in
+        // page. The rows left count as failed so "Try again" can send them. No toast: the result
+        // lists them, and the Owner may be on the sign-in page by now.
+        setResults((current) => recordAddReply(current, batches.slice(index).flat(), null));
+        break;
+      }
       if (!reply.ok) firstError ??= reply.error;
       setResults((current) => recordAddReply(current, batch, reply.ok ? reply.data : null));
       done += batch.length;
@@ -256,7 +276,6 @@ export function useImportFlow(initialText: string) {
 
     setAdding(null);
     setStep("result");
-    clearStoredText();
     if (firstError) toast.error(firstError);
   }
 
@@ -286,17 +305,38 @@ export function useImportFlow(initialText: string) {
     if (id !== null) void call(() => finishImport({ importId: id }));
   }
 
+  /** Closes the Import; its text leaves the device with it. */
+  async function closeImport() {
+    const id = importId.current;
+    // Both before the call: a second way out while it runs must not close it again, and a paste
+    // started meanwhile (the page can hide and come back) must keep its text.
+    importId.current = null;
+    clearStoredText();
+    if (id !== null) await call(() => finishImport({ importId: id }));
+  }
+
   /** Leaves the result screen: closes the Import and starts the next visit afresh. */
   async function leave() {
     if (leaving) return;
     setLeaving(true);
-    const id = importId.current;
-    if (id !== null) await call(() => finishImport({ importId: id }));
+    await closeImport();
     reset("");
     router.replace("/");
   }
 
-  /** Undo this import. Resolves false when it failed, so the dialog can stay open. */
+  // Runs as the page hides (Back, a link, the sign-in page), so the next visit never opens on an
+  // old result or a lost session. A run still going is left alone; see the note above the hook.
+  const onHide = useEffectEvent(() => {
+    if (step === "result") {
+      void closeImport();
+      reset("");
+    } else if (checkRun === "signed_out") {
+      reset(text);
+    }
+  });
+  useLayoutEffect(() => () => onHide(), []);
+
+  /** Undo this import. Resolves false when it failed, so the Undo button can be pressed again. */
   async function undo(): Promise<boolean> {
     const id = importId.current;
     if (id === null) return false;
@@ -318,7 +358,7 @@ export function useImportFlow(initialText: string) {
     step,
     check,
     checkRun,
-    retrying,
+    retrying: retryingIds,
     plan,
     results,
     adding,
