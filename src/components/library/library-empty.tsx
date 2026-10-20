@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "cn";
 import type { KindFilter } from "@/data/dto";
 import { GUTTER } from "@/components/gutter";
@@ -31,7 +32,16 @@ const FRAME = "absolute bottom-0 aspect-[2/3] rounded-tile border bg-muted";
 // Centred in the space the wall would fill (above the dock on a phone, beside the sidebar on
 // desktop), a little above the middle where the eye rests. Three empty poster frames, fanned like a
 // corner of the wall, carry the tab's icon, so the space reads as a wall waiting for posters.
-export function LibraryEmpty({ tab, kind }: { tab: Status; kind: KindFilter }) {
+export function LibraryEmpty({
+  tab,
+  kind,
+  noTitles = false,
+}: {
+  tab: Status;
+  kind: KindFilter;
+  /** The Library has no Titles at all, so a whole list can come in at once. */
+  noTitles?: boolean;
+}) {
   const Icon = STATUS_ICON[tab];
   return (
     <div
@@ -50,6 +60,15 @@ export function LibraryEmpty({ tab, kind }: { tab: Status; kind: KindFilter }) {
       </div>
       <p className="max-w-sm text-lg text-pretty lg:max-w-md lg:text-xl">{message(tab, kind)}</p>
       {tab === "to_watch" ? <FocusSearchButton /> : null}
+      {tab === "to_watch" && noTitles ? (
+        <Link
+          id="empty-import-link"
+          href="/import"
+          className="-mt-2 inline-flex min-h-11 items-center rounded-full px-3 text-base font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring focus-visible:outline-none lg:-mt-4"
+        >
+          Have a list somewhere? Paste it
+        </Link>
+      ) : null}
     </div>
   );
 }

@@ -472,7 +472,16 @@ export function LibraryWall({ kind, className }: { kind: KindFilter; className?:
 
   return (
     <div ref={wallRef} className={className}>
-      {shown.cards.length > 0 ? <LibraryGrid cards={shown.cards} /> : <LibraryEmpty tab={tab} kind={kind} />}
+      {shown.cards.length > 0 ? (
+        <LibraryGrid cards={shown.cards} />
+      ) : (
+        // With a kind filter on, the counts cover that kind only, so an empty Library is known only without one.
+        <LibraryEmpty
+          tab={tab}
+          kind={kind}
+          noTitles={kind === "all" && Object.values(shown.counts).every((count) => count === 0)}
+        />
+      )}
     </div>
   );
 }
