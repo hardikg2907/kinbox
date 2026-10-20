@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { codeFilesOnMain, isEnvFile, scanStagedDiff } from "./checks";
+import { codeFilesOnMain, isEnvFile, isNodeAtLeast, scanStagedDiff } from "./checks";
 
 function git(args: string[]): string {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
@@ -48,6 +48,14 @@ if (findings.length > 0) {
     "This commit looks like it contains a secret:",
     ...findings.map((f) => `  ${f.file}:${f.line}  ${f.kind}`),
     "Move the value to an env file and reference it by name.",
+  ]);
+}
+
+const MIN_NODE = "22.22.1";
+if (!isNodeAtLeast(process.versions.node, MIN_NODE)) {
+  fail([
+    `The commit hook needs Node ${MIN_NODE} or later. This shell runs ${process.versions.node}.`,
+    "Open a new terminal (or run `source ~/.zshrc`) so it picks up the newer Node, then commit again.",
   ]);
 }
 
