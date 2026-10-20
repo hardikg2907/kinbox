@@ -62,6 +62,14 @@ const optionalDate = z
     return ISO_DATE_PATTERN.test(trimmed) ? trimmed : null;
   });
 
+// Popularity only breaks ties between matches, so a bad value must not fail the whole search.
+const optionalPopularity = z
+  .unknown()
+  .optional()
+  .transform((value): number =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : 0,
+  );
+
 const optionalPosterPath = z
   .string()
   .nullish()
@@ -88,7 +96,9 @@ const rawSearchMovie = z.object({
   media_type: z.literal("movie"),
   id: tmdbId,
   title: optionalText(MAX_NAME_LENGTH),
+  original_title: optionalText(MAX_NAME_LENGTH),
   release_date: optionalDate,
+  popularity: optionalPopularity,
   poster_path: optionalPosterPath,
 });
 
@@ -96,7 +106,9 @@ const rawSearchTv = z.object({
   media_type: z.literal("tv"),
   id: tmdbId,
   name: optionalText(MAX_NAME_LENGTH),
+  original_name: optionalText(MAX_NAME_LENGTH),
   first_air_date: optionalDate,
+  popularity: optionalPopularity,
   poster_path: optionalPosterPath,
 });
 
@@ -178,7 +190,10 @@ export function mapSearchResponse(json: unknown): SearchResult[] {
         kind: "movie",
         tmdbId: item.id,
         name: item.title,
+        originalName: item.original_title,
         year: yearFromDate(item.release_date),
+        releaseDate: item.release_date,
+        popularity: item.popularity,
         posterPath: item.poster_path,
       });
     } else if (item.media_type === "tv" && item.name !== null) {
@@ -186,7 +201,10 @@ export function mapSearchResponse(json: unknown): SearchResult[] {
         kind: "series",
         tmdbId: item.id,
         name: item.name,
+        originalName: item.original_name,
         year: yearFromDate(item.first_air_date),
+        releaseDate: item.first_air_date,
+        popularity: item.popularity,
         posterPath: item.poster_path,
       });
     }
@@ -201,6 +219,7 @@ export function mapMovie(json: unknown): MovieDetails {
     tmdbId: raw.id,
     name: raw.title,
     year: yearFromDate(raw.release_date),
+    releaseDate: raw.release_date,
     posterPath: raw.poster_path,
     overview: raw.overview,
     runtimeMinutes: raw.runtime,
@@ -232,6 +251,7 @@ export function mapSeries(json: unknown): SeriesDetails {
     tmdbId: raw.id,
     name: raw.name,
     year: yearFromDate(raw.first_air_date),
+    releaseDate: raw.first_air_date,
     posterPath: raw.poster_path,
     overview: raw.overview,
     status: raw.status,
@@ -272,7 +292,10 @@ export const searchResultSchema: z.ZodType<SearchResult> = z.strictObject({
   kind: z.enum(["movie", "series"]),
   tmdbId,
   name: contractName,
+  originalName: contractName.nullable(),
   year: contractYear,
+  releaseDate: contractDate.nullable(),
+  popularity: z.number().min(0),
   posterPath: contractPosterPath,
 });
 
@@ -281,6 +304,7 @@ export const movieDetailsSchema: z.ZodType<MovieDetails> = z.strictObject({
   tmdbId,
   name: contractName,
   year: contractYear,
+  releaseDate: contractDate.nullable(),
   posterPath: contractPosterPath,
   overview: z.string().nullable(),
   runtimeMinutes: z.int().positive().nullable(),
@@ -297,6 +321,7 @@ export const seriesDetailsSchema: z.ZodType<SeriesDetails> = z.strictObject({
   tmdbId,
   name: contractName,
   year: contractYear,
+  releaseDate: contractDate.nullable(),
   posterPath: contractPosterPath,
   overview: z.string().nullable(),
   status: z.string().nullable(),

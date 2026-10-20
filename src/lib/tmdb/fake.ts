@@ -30,7 +30,10 @@ function toSearchResult(title: MovieDetails | SeriesDetails): SearchResult {
     kind: title.kind,
     tmdbId: title.tmdbId,
     name: title.name,
+    originalName: title.name,
     year: title.year,
+    releaseDate: title.releaseDate,
+    popularity: 0,
     posterPath: title.posterPath,
   };
 }

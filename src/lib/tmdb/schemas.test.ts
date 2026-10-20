@@ -13,6 +13,10 @@ import {
   yearFromDate,
 } from "./schemas";
 
+function without(value: Record<string, unknown>, key: string): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([name]) => name !== key));
+}
+
 describe("yearFromDate", () => {
   it("takes the first four digits of a well-formed date", () => {
     expect(yearFromDate("1999-03-31")).toBe(1999);
@@ -35,7 +39,9 @@ describe("mapSearchResponse", () => {
           media_type: "movie",
           id: 603,
           title: "The Matrix",
+          original_title: "The Matrix",
           release_date: "1999-03-31",
+          popularity: 61.5,
           poster_path: "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
           vote_average: 8.2,
         },
@@ -43,7 +49,9 @@ describe("mapSearchResponse", () => {
           media_type: "tv",
           id: 1396,
           name: "Breaking Bad",
+          original_name: "Breaking Bad",
           first_air_date: "2008-01-20",
+          popularity: 120.25,
           poster_path: "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
         },
       ],
@@ -53,24 +61,124 @@ describe("mapSearchResponse", () => {
         kind: "movie",
         tmdbId: 603,
         name: "The Matrix",
+        originalName: "The Matrix",
         year: 1999,
+        releaseDate: "1999-03-31",
+        popularity: 61.5,
         posterPath: "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
       },
       {
         kind: "series",
         tmdbId: 1396,
         name: "Breaking Bad",
+        originalName: "Breaking Bad",
         year: 2008,
+        releaseDate: "2008-01-20",
+        popularity: 120.25,
         posterPath: "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
       },
     ]);
   });
 
+  it("keeps the original name apart from the English name", () => {
+    const [movie, series] = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "Spirited Away", original_title: "千と千尋の神隠し" },
+        { media_type: "tv", id: 2, name: "Money Heist", original_name: "La casa de papel" },
+      ],
+    });
+    expect(movie).toMatchObject({ name: "Spirited Away", originalName: "千と千尋の神隠し" });
+    expect(series).toMatchObject({ name: "Money Heist", originalName: "La casa de papel" });
+  });
+
   it("strips fields that are not part of the contract", () => {
     const [result] = mapSearchResponse({
-      results: [{ media_type: "movie", id: 1, title: "A", popularity: 9, adult: false }],
+      results: [{ media_type: "movie", id: 1, title: "A", popularity: 9, adult: false, vote_count: 3 }],
     });
-    expect(Object.keys(result ?? {}).sort()).toEqual(["kind", "name", "posterPath", "tmdbId", "year"]);
+    expect(Object.keys(result ?? {}).sort()).toEqual([
+      "kind",
+      "name",
+      "originalName",
+      "popularity",
+      "posterPath",
+      "releaseDate",
+      "tmdbId",
+      "year",
+    ]);
+    expect(result?.popularity).toBe(9);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["empty", ""],
+    ["blank", "   "],
+  ])("reads an original name that is %s as null", (_label, original) => {
+    const [movie, series] = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "A", original_title: original },
+        { media_type: "tv", id: 2, name: "B", original_name: original },
+      ],
+    });
+    expect(movie?.originalName).toBeNull();
+    expect(series?.originalName).toBeNull();
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["negative", -3],
+    ["a text number", "12"],
+    ["text", "popular"],
+    ["a boolean", true],
+    ["a list", [5]],
+    ["an object", { value: 5 }],
+  ])("reads a popularity that is %s as 0 without failing the search", (_label, popularity) => {
+    const results = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "A", popularity },
+        { media_type: "tv", id: 2, name: "B", popularity },
+      ],
+    });
+    expect(results.map((result) => result.popularity)).toEqual([0, 0]);
+  });
+
+  it("keeps a popularity of 0 and a fractional popularity", () => {
+    const results = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "A", popularity: 0 },
+        { media_type: "movie", id: 2, title: "B", popularity: 0.0042 },
+      ],
+    });
+    expect(results.map((result) => result.popularity)).toEqual([0, 0.0042]);
+  });
+
+  it("reads a popularity that is not finite as 0", () => {
+    // JSON cannot carry these, but a parsed value could.
+    const results = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "A", popularity: Number.POSITIVE_INFINITY },
+        { media_type: "movie", id: 2, title: "B", popularity: Number.NaN },
+      ],
+    });
+    expect(results.map((result) => result.popularity)).toEqual([0, 0]);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["missing", undefined],
+    ["null", null],
+    ["not a date", "soon"],
+    ["a partial date", "1999-03"],
+  ])("reads a release date that is %s as null", (_label, date) => {
+    const [movie, series] = mapSearchResponse({
+      results: [
+        { media_type: "movie", id: 1, title: "A", release_date: date },
+        { media_type: "tv", id: 2, name: "B", first_air_date: date },
+      ],
+    });
+    expect(movie).toMatchObject({ releaseDate: null, year: null });
+    expect(series).toMatchObject({ releaseDate: null, year: null });
   });
 
   it("drops people and other result types without reading their fields", () => {
@@ -105,8 +213,20 @@ describe("mapSearchResponse", () => {
         { media_type: "tv", id: 2, name: "B", first_air_date: null },
       ],
     });
-    expect(movie).toMatchObject({ year: null, posterPath: null });
-    expect(series).toMatchObject({ year: null, posterPath: null });
+    expect(movie).toMatchObject({
+      year: null,
+      releaseDate: null,
+      originalName: null,
+      popularity: 0,
+      posterPath: null,
+    });
+    expect(series).toMatchObject({
+      year: null,
+      releaseDate: null,
+      originalName: null,
+      popularity: 0,
+      posterPath: null,
+    });
   });
 
   it("replaces a poster path that is not a plain image path with null", () => {
@@ -152,6 +272,7 @@ describe("mapMovie", () => {
       tmdbId: 27205,
       name: "Inception",
       year: 2010,
+      releaseDate: "2010-07-15",
       posterPath: "/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
       overview: "A thief enters dreams.",
       runtimeMinutes: 148,
@@ -161,13 +282,20 @@ describe("mapMovie", () => {
   it("reads missing, null and empty values as null", () => {
     expect(mapMovie({ id: 1, title: "A" })).toMatchObject({
       year: null,
+      releaseDate: null,
       posterPath: null,
       overview: null,
       runtimeMinutes: null,
     });
     expect(
       mapMovie({ id: 1, title: "A", release_date: "", poster_path: null, overview: "", runtime: null }),
-    ).toMatchObject({ year: null, posterPath: null, overview: null, runtimeMinutes: null });
+    ).toMatchObject({
+      year: null,
+      releaseDate: null,
+      posterPath: null,
+      overview: null,
+      runtimeMinutes: null,
+    });
   });
 
   it("reads a runtime of 0 as unknown", () => {
@@ -211,6 +339,7 @@ describe("mapSeries", () => {
       tmdbId: 1396,
       name: "Breaking Bad",
       year: 2008,
+      releaseDate: "2008-01-20",
       posterPath: "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
       overview: "A chemistry teacher.",
       status: "Ended",
@@ -242,6 +371,7 @@ describe("mapSeries", () => {
     });
     expect(series).toMatchObject({
       year: null,
+      releaseDate: null,
       posterPath: null,
       overview: null,
       status: null,
@@ -256,6 +386,10 @@ describe("mapSeries", () => {
 
   it("accepts a Series with no seasons list", () => {
     expect(mapSeries({ id: 5, name: "Bare" }).seasons).toEqual([]);
+  });
+
+  it("reads a missing first air date as no release date", () => {
+    expect(mapSeries({ id: 5, name: "Bare" })).toMatchObject({ year: null, releaseDate: null });
   });
 
   it.each([
@@ -324,9 +458,39 @@ describe("mapSeason", () => {
 
 describe("contract schemas", () => {
   it("reject fields that are not in the contract", () => {
-    const result = { kind: "movie", tmdbId: 1, name: "A", year: null, posterPath: null };
+    const result = {
+      kind: "movie",
+      tmdbId: 1,
+      name: "A",
+      originalName: null,
+      year: null,
+      releaseDate: null,
+      popularity: 0,
+      posterPath: null,
+    };
     expect(searchResultSchema.safeParse(result).success).toBe(true);
     expect(searchResultSchema.safeParse({ ...result, extra: 1 }).success).toBe(false);
+  });
+
+  it("require the matching fields of a search result", () => {
+    const result = {
+      kind: "series",
+      tmdbId: 1,
+      name: "A",
+      originalName: "A",
+      year: 2020,
+      releaseDate: "2020-05-01",
+      popularity: 3.5,
+      posterPath: null,
+    };
+    expect(searchResultSchema.safeParse(result).success).toBe(true);
+    expect(searchResultSchema.safeParse(without(result, "originalName")).success).toBe(false);
+    expect(searchResultSchema.safeParse(without(result, "releaseDate")).success).toBe(false);
+    expect(searchResultSchema.safeParse(without(result, "popularity")).success).toBe(false);
+    expect(searchResultSchema.safeParse({ ...result, popularity: -1 }).success).toBe(false);
+    expect(searchResultSchema.safeParse({ ...result, popularity: Number.NaN }).success).toBe(false);
+    expect(searchResultSchema.safeParse({ ...result, releaseDate: "2020-5-1" }).success).toBe(false);
+    expect(searchResultSchema.safeParse({ ...result, originalName: "" }).success).toBe(false);
   });
 
   it("reject a poster path that is not a plain image path", () => {
@@ -335,6 +499,7 @@ describe("contract schemas", () => {
       tmdbId: 1,
       name: "A",
       year: 2000,
+      releaseDate: "2000-06-01",
       posterPath: "/a/b.jpg",
       overview: null,
       runtimeMinutes: null,
@@ -343,12 +508,47 @@ describe("contract schemas", () => {
     expect(movieDetailsSchema.safeParse({ ...movie, posterPath: "/b.jpg" }).success).toBe(true);
   });
 
+  it("require a release date on Movies and Series, and check its format", () => {
+    const movie = {
+      kind: "movie",
+      tmdbId: 1,
+      name: "A",
+      year: 2000,
+      releaseDate: "2000-06-01",
+      posterPath: null,
+      overview: null,
+      runtimeMinutes: null,
+    };
+    expect(movieDetailsSchema.safeParse(movie).success).toBe(true);
+    expect(movieDetailsSchema.safeParse({ ...movie, releaseDate: null }).success).toBe(true);
+    expect(movieDetailsSchema.safeParse({ ...movie, releaseDate: "2000-6-1" }).success).toBe(false);
+    expect(movieDetailsSchema.safeParse(without(movie, "releaseDate")).success).toBe(false);
+
+    const series = {
+      kind: "series",
+      tmdbId: 1,
+      name: "A",
+      year: 2000,
+      releaseDate: "2000-06-01",
+      posterPath: null,
+      overview: null,
+      status: null,
+      seasons: [],
+      lastEpisodeToAir: null,
+      nextEpisodeToAir: null,
+    };
+    expect(seriesDetailsSchema.safeParse(series).success).toBe(true);
+    expect(seriesDetailsSchema.safeParse({ ...series, releaseDate: "June 2000" }).success).toBe(false);
+    expect(seriesDetailsSchema.safeParse(without(series, "releaseDate")).success).toBe(false);
+  });
+
   it("reject a date that is not YYYY-MM-DD", () => {
     const series = {
       kind: "series",
       tmdbId: 1,
       name: "A",
       year: null,
+      releaseDate: null,
       posterPath: null,
       overview: null,
       status: null,
