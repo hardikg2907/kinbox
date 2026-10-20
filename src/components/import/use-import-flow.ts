@@ -113,7 +113,8 @@ export function useImportFlow(initialText: string) {
   const [retrying, setRetrying] = useState<ReadonlySet<number>>(new Set());
   const [plan, setPlan] = useState<AddRow[]>([]);
   const [results, setResults] = useState<AddResults>({});
-  const [adding, setAdding] = useState<{ done: number; total: number } | null>(null);
+  // `from` is the step whose screen stays up, out of reach, while the rows go in.
+  const [adding, setAdding] = useState<{ done: number; total: number; from: Step } | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   const run = useRef(0);
@@ -223,9 +224,9 @@ export function useImportFlow(initialText: string) {
     setCheck((current) => current && next(current));
   }
 
-  async function runAdds(rows: AddRow[], from: Step, token: number) {
+  async function runAdds(rows: AddRow[], from: "check" | "result", token: number) {
     setStep("add");
-    setAdding({ done: 0, total: rows.length });
+    setAdding({ done: 0, total: rows.length, from });
 
     let id = importId.current;
     if (id === null) {
@@ -250,7 +251,7 @@ export function useImportFlow(initialText: string) {
       if (!reply.ok) firstError ??= reply.error;
       setResults((current) => recordAddReply(current, batch, reply.ok ? reply.data : null));
       done += batch.length;
-      setAdding({ done, total: rows.length });
+      setAdding({ done, total: rows.length, from });
     }
 
     setAdding(null);

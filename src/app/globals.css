@@ -343,6 +343,14 @@ body:has(.dock) [data-sonner-toaster] {
   }
 }
 
+/* The import page's action bar stands where the dock would and grows with its progress line, so
+   toasts sit just above whatever height it has. The page marks <html> and publishes the height
+   only while it is the one on screen: a page Next.js keeps hidden stays in the document. */
+html[data-import-page] [data-sonner-toaster] {
+  --offset-bottom: calc(env(safe-area-inset-bottom) + var(--import-bar-height, 4.5rem) + 1.25rem) !important;
+  --mobile-offset-bottom: calc(env(safe-area-inset-bottom) + var(--import-bar-height, 4.5rem) + 1.25rem) !important;
+}
+
 /* While the Title drawer is open the Library behind it stays put. The gutter keeps a classic
    scrollbar's space, so the wall does not shift when the scrollbar goes. */
 html[data-drawer] {
@@ -567,7 +575,7 @@ html[data-drawer="full"] [data-sonner-toaster] {
 
 /* A sheet grows out of the dock and covers it, so the dock steps back while one is open: its words
    would otherwise show through the glass. It comes back as the sheet shrinks into it. */
-body:has([data-sheet][data-open="true"]) :is(.dock, #dock-pill) {
+body:has([data-sheet][data-open="true"]) :is(.dock, #dock-pill, [data-import-bar]) {
   opacity: 0;
   transition-duration: 150ms;
 }

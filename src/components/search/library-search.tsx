@@ -127,7 +127,7 @@ export function LibrarySearch({ children }: { children: ReactNode }) {
 }
 
 // iOS keeps fixed elements where the layout viewport ends, under the keyboard. The sheet lifts by the covered height so the field stays visible.
-function useKeyboardInset(active: boolean): number {
+export function useKeyboardInset(active: boolean): number {
   const [inset, setInset] = useState(0);
   useEffect(() => {
     const viewport = window.visualViewport;
