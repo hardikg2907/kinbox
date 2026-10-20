@@ -8,6 +8,11 @@ export const NAME_FLOOR = 0.6;
  * (`Shang chi` in `Shang-Chi and the Legend of the Ten Rings`). Below 1, so it never makes a Found.
  */
 export const CONTAINED_NAME_SCORE = 0.8;
+/**
+ * The most two different names can score. Pairs alone can reach 1 for different names made of
+ * the same pairs (`Ananta` and `Antana`), and only equal names may make a Found.
+ */
+export const MAX_UNEQUAL_NAME_SCORE = 0.99;
 /** A lone word needs this many letters to count as contained; `Run` opens `Run Lola Run` by chance. */
 const MIN_CONTAINED_LETTERS = 6;
 const MIN_CONTAINED_WORDS = 2;
@@ -97,8 +102,9 @@ export function compactName(text: string): string {
 }
 
 /**
- * 1 for the same name once normalised; otherwise how many character pairs the two share, from 0 to 1,
- * and at least `CONTAINED_NAME_SCORE` when one name's whole words open or close the other.
+ * 1 only for the same name once normalised; otherwise how many character pairs the two share,
+ * from 0 to `MAX_UNEQUAL_NAME_SCORE`, and at least `CONTAINED_NAME_SCORE` when one name's whole
+ * words open or close the other.
  */
 export function nameScore(lineText: string, resultName: string): number {
   const lineCompact = compactName(lineText);
@@ -109,7 +115,7 @@ export function nameScore(lineText: string, resultName: string): number {
   const resultNormal = normaliseName(resultName);
   if (lineCompact === resultCompact || lineNormal === resultNormal) return 1;
 
-  const pairScore = dice(lineCompact, resultCompact);
+  const pairScore = Math.min(dice(lineCompact, resultCompact), MAX_UNEQUAL_NAME_SCORE);
   return holdsWholeWords(lineNormal, resultNormal) ? Math.max(pairScore, CONTAINED_NAME_SCORE) : pairScore;
 }
 
