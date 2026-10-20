@@ -42,6 +42,7 @@ import {
   addLabel,
   buildRows,
   checkedCount,
+  checkedLabel,
   checkingLabel,
   couldNotAddLabel,
   linesNotAdded,
@@ -101,6 +102,13 @@ function ImportFlowView() {
     }
   }
 
+  // The result goes out of reach while its rows go in again, which would drop focus to the page;
+  // focus waits on the bar's button instead, beside the progress line.
+  function retryFailed() {
+    document.getElementById("import-primary")?.focus();
+    flow.retryFailed();
+  }
+
   // While adding, the step it started from stays on screen, out of reach.
   const shown = flow.step === "add" ? (flow.adding?.from ?? "check") : flow.step;
   const busy = flow.step === "add";
@@ -125,7 +133,7 @@ function ImportFlowView() {
         ) : null}
         {shown === "result" ? (
           <div inert={busy}>
-            <ResultStep summary={summary} notAdded={notAdded} busy={busy} onRetry={flow.retryFailed} onUndo={flow.undo} />
+            <ResultStep summary={summary} notAdded={notAdded} busy={busy} onRetry={retryFailed} onUndo={flow.undo} />
           </div>
         ) : null}
       </ImportContent>
@@ -212,6 +220,8 @@ type Primary = { label: string; enabled: boolean; onPress?: () => void };
 function ActionBarContent({ flow, count, addCount }: { flow: ImportFlow; count: PasteCount; addCount: number }) {
   let progress: { label: string; done: number; total: number } | null = null;
   let message: ReactNode = null;
+  // Read out only: the end of checking shows as a button turning on, which a screen reader misses.
+  let announcement = "";
   let primary: Primary | "sign-in";
 
   switch (flow.step) {
@@ -231,6 +241,7 @@ function ActionBarContent({ flow, count, addCount }: { flow: ImportFlow; count: 
         progress = { label: checkingLabel(done, check.lines.length), done, total: check.lines.length };
         primary = { label: addLabel(addCount), enabled: false };
       } else {
+        if (flow.checkRun === "done" && check) announcement = checkedLabel(check.lines.length);
         primary = { label: addLabel(addCount), enabled: addCount > 0 && flow.retrying.size === 0, onPress: flow.startAdding };
       }
       break;
@@ -249,8 +260,8 @@ function ActionBarContent({ flow, count, addCount }: { flow: ImportFlow; count: 
   return (
     <>
       {progress ? <ProgressLine {...progress} /> : null}
-      <p role="status" className={message ? "px-3 pt-1.5 pb-2.5 text-sm text-pretty" : undefined}>
-        {message}
+      <p role="status" className={message ? "px-3 pt-1.5 pb-2.5 text-sm text-pretty" : "sr-only"}>
+        {message ?? announcement}
       </p>
       {primary === "sign-in" ? (
         <Button asChild size="lg" className="w-full">
@@ -315,19 +326,36 @@ function usePick(flow: ImportFlow) {
   const [target, setTarget] = useState<PickTarget | null>(null);
   const [origin, setOrigin] = useState("50% 50%");
   const opener = useRef<HTMLElement | null>(null);
+  // Every line of the row the sheet was opened from.
+  const openedRow = useRef<number[]>([]);
 
   // A pick can merge the row into another or split a line out of it, which removes the button that
-  // opened the sheet. Focus then goes to the row that now holds the line.
+  // opened the sheet. Focus then goes to the row that now holds the line. A split line can land in
+  // the closed "look right" fold; then to the row it left, and failing that to the fold's toggle.
   useLayoutEffect(() => {
     if (!target || !opener.current || opener.current.isConnected) return;
-    opener.current = document.querySelector<HTMLElement>(
-      `#import-check [data-row-lines~="${target.lineIds[0]}"] [data-pick-button]`,
-    );
+    const ids = [...target.lineIds, ...openedRow.current.filter((id) => !target.lineIds.includes(id))];
+    opener.current =
+      ids
+        .map((id) => document.querySelector<HTMLElement>(`#import-check [data-row-lines~="${id}"] [data-pick-button]`))
+        .find((element) => element !== null) ?? document.getElementById("import-found-toggle");
   });
+
+  // The page stays mounted, hidden, after the Owner leaves it. An open sheet would come back open,
+  // and its open state would keep the Library's dock hidden meanwhile. With no opener, closing it
+  // here hands focus to nothing.
+  useLayoutEffect(
+    () => () => {
+      opener.current = null;
+      setOpen(false);
+    },
+    [],
+  );
 
   function open(row: Row, lineIds: number[], element: HTMLElement) {
     const lines = row.lines.filter((line) => lineIds.includes(line.id));
     opener.current = element;
+    openedRow.current = row.lines.map((line) => line.id);
     setOrigin(originFrom(element));
     setTarget({
       lineIds,
