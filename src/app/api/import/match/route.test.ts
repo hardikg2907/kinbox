@@ -79,6 +79,23 @@ describe("POST /api/import/match", () => {
     });
   });
 
+  it("finds a name typed with a space through the joined-up search", async () => {
+    const response = await POST(post({ lines: [{ id: 0, query: "West world", kind: "series", several: false }] }));
+
+    expect(await response.json()).toEqual({
+      lines: [{ id: 0, result: "found", candidates: [await candidate("series", TMDB.westworld)] }],
+    });
+  });
+
+  it("answers 'error' when the joined-up search for a line fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    testState.tmdbSearchDownFor.add("westworld");
+
+    const response = await POST(post({ lines: [{ id: 0, query: "West world", several: false }] }));
+
+    expect(await response.json()).toEqual({ lines: [{ id: 0, result: "error", candidates: [] }] });
+  });
+
   it("accepts a charset on the JSON type and 100 characters outside the Basic Multilingual Plane", async () => {
     const response = await POST(
       post({ lines: [{ id: 0, query: "😀".repeat(100), several: false }] }, {
@@ -156,7 +173,7 @@ describe("POST /api/import/match", () => {
       running -= 1;
       return [];
     });
-    const lines = Array.from({ length: 10 }, (_, id) => ({ id, query: `Title ${id}`, several: false }));
+    const lines = Array.from({ length: 10 }, (_, id) => ({ id, query: `Title${id}`, several: false }));
 
     const response = await POST(post({ lines }));
 
