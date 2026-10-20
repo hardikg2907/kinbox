@@ -7,7 +7,7 @@ import { closeDb, db } from "@/db/client";
 import { entries } from "@/db/schema";
 import { resetDatabase } from "@/test/db";
 import { OWNER_A, resetTestState, signInAs, TMDB } from "@/test/mocks";
-import { addToImport, finishImport, startImport } from "./import";
+import { addToImport, finishImport, startImport, undoImport } from "./import";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule());
@@ -115,6 +115,33 @@ describe("finishImport", () => {
   );
 });
 
+describe("undoImport", () => {
+  it("removes what the Import added and returns the counts", async () => {
+    const { importId } = ok(await startImport());
+    ok(await addToImport({ importId, rows: rows(2) }));
+    vi.mocked(refresh).mockClear();
+
+    expect(ok(await undoImport({ importId }))).toEqual({ removed: 2, kept: 0 });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(await entryCount()).toBe(0);
+  });
+
+  it.each([
+    ["a bad Import id", () => ({ importId: "not-a-uuid" })],
+    ["an extra key", (importId: string) => ({ importId, extra: true })],
+    ["no Import id", () => ({})],
+    ["no input", () => null],
+  ])("refuses %s and removes nothing", async (_, build) => {
+    const { importId } = ok(await startImport());
+    ok(await addToImport({ importId, rows: rows(1) }));
+    vi.mocked(refresh).mockClear();
+
+    expect(failure(await undoImport(build(importId) as never))).toBe(MESSAGES.invalid);
+    expect(refresh).not.toHaveBeenCalled();
+    expect(await entryCount()).toBe(1);
+  });
+});
+
 describe("without a session", () => {
   it("sends a signed-out caller to sign in", async () => {
     signInAs(null);
@@ -122,5 +149,6 @@ describe("without a session", () => {
     await expect(startImport()).rejects.toThrow(/NEXT_REDIRECT/);
     await expect(addToImport({ importId, rows: rows(1) })).rejects.toThrow(/NEXT_REDIRECT/);
     await expect(finishImport({ importId })).rejects.toThrow(/NEXT_REDIRECT/);
+    await expect(undoImport({ importId })).rejects.toThrow(/NEXT_REDIRECT/);
   });
 });

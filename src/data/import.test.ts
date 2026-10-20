@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Status, TitleKind } from "@/domain/types";
 import { closeDb, db } from "@/db/client";
@@ -6,9 +6,19 @@ import { entries, episodeProgress, imports, titles, watches } from "@/db/schema"
 import { getTmdbClient } from "@/lib/tmdb/client";
 import { entryRow, resetDatabase, setEntryTimes, tickKeys, watchRows } from "@/test/db";
 import { OWNER_A, OWNER_B, resetTestState, testState, TMDB } from "@/test/mocks";
-import { saveTitle } from "./entries";
+import {
+  deleteWatch,
+  saveTitle,
+  setNote,
+  setRating,
+  setStatus,
+  setWatchDate,
+  undoStatusMove,
+  watchAgain,
+} from "./entries";
 import { MESSAGES } from "./errors";
-import { addImportRows, finishImport, startImport } from "./import";
+import { addImportRows, finishImport, startImport, undoImport } from "./import";
+import { tickEpisode } from "./progress";
 import type { Owner } from "./session";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
@@ -57,6 +67,32 @@ async function importedEntryIds(importId: string): Promise<string[]> {
   return rows.map((row) => row.id).sort();
 }
 
+/** The Watches and ticks still pointing at these Entries. */
+async function rowsUnder(entryIds: string[]) {
+  const [watchCount] = await db()
+    .select({ n: count() })
+    .from(watches)
+    .where(inArray(watches.entryId, entryIds));
+  const [tickCount] = await db()
+    .select({ n: count() })
+    .from(episodeProgress)
+    .where(inArray(episodeProgress.entryId, entryIds));
+  return { watches: watchCount?.n ?? 0, ticks: tickCount?.n ?? 0 };
+}
+
+/** An Entry with its Watches and ticks, to show a step left them exactly as they were. */
+async function entryWithRows(entryId: string) {
+  return { entry: await entryRow(entryId), watches: await watchRows(entryId), ticks: await tickKeys(entryId) };
+}
+
+async function finishedAtText(importId: string) {
+  const [row] = await db()
+    .select({ finishedAt: sql<string | null>`${imports.finishedAt}::text` })
+    .from(imports)
+    .where(eq(imports.id, importId));
+  return row?.finishedAt;
+}
+
 /**
  * Whether every stamp on an Entry and its rows equals the Entry's created_at. Compared in the
  * database, since a JS Date drops the microseconds Postgres keeps.
@@ -73,7 +109,8 @@ async function stampsAgainstCreation(entryId: string) {
     .select({ same: sql<boolean>`${watches.createdAt} = ${entries.createdAt}` })
     .from(watches)
     .innerJoin(entries, eq(watches.entryId, entries.id))
-    .where(eq(watches.entryId, entryId));
+    .where(eq(watches.entryId, entryId))
+    .orderBy(asc(watches.createdAt));
   const tickStamps = await db()
     .select({ same: sql<boolean>`${episodeProgress.createdAt} = ${entries.createdAt}` })
     .from(episodeProgress)
@@ -423,8 +460,220 @@ describe("Imports", () => {
   });
 });
 
+type Stamps = Awaited<ReturnType<typeof stampsAgainstCreation>>;
+type Change = [name: string, row: Row, change: (entryId: string) => Promise<unknown>, stamps: Stamps];
+
+async function onlyWatchId(entryId: string): Promise<string> {
+  const [watch, ...more] = await watchRows(entryId);
+  if (!watch || more.length > 0) throw new Error("Expected exactly one Watch");
+  return watch.id;
+}
+
+// Each change trips a different part of the unchanged test; the stamps show which.
+const CHANGES: Change[] = [
+  [
+    "a Status move",
+    movie(TMDB.inception, "to_watch"),
+    (entryId) => setStatus(OWNER_A, { entryId, status: "watching" }),
+    { statusChangedAt: false, progressMovedAt: null, watches: [], ticks: [] },
+  ],
+  [
+    "a tick",
+    series(TMDB.thePitt, "watching"),
+    (entryId) => tickEpisode(OWNER_A, { entryId, seasonNumber: 1, episodeNumber: 1, watched: true }),
+    { statusChangedAt: true, progressMovedAt: false, watches: [], ticks: [false] },
+  ],
+  [
+    "an untick",
+    series(TMDB.breakingBad, "watched"),
+    (entryId) => tickEpisode(OWNER_A, { entryId, seasonNumber: 1, episodeNumber: 1, watched: false }),
+    { statusChangedAt: true, progressMovedAt: false, watches: [true], ticks: [true] },
+  ],
+  [
+    "a Rating",
+    movie(TMDB.matrix, "watched"),
+    (entryId) => setRating(OWNER_A, { entryId, ratingHalfStars: 8 }),
+    { statusChangedAt: true, progressMovedAt: null, watches: [true], ticks: [] },
+  ],
+  [
+    "a Note",
+    movie(TMDB.inception, "to_watch"),
+    (entryId) => setNote(OWNER_A, { entryId, note: "Sam says the ending is worth it" }),
+    { statusChangedAt: true, progressMovedAt: null, watches: [], ticks: [] },
+  ],
+  [
+    "a new Watch",
+    movie(TMDB.matrix, "watched"),
+    (entryId) => watchAgain(OWNER_A, { entryId }),
+    { statusChangedAt: true, progressMovedAt: null, watches: [true, false], ticks: [] },
+  ],
+  [
+    "a date set on its imported Watch",
+    movie(TMDB.matrix, "watched"),
+    async (entryId) => setWatchDate(OWNER_A, { watchId: await onlyWatchId(entryId), watchedOn: "2021-05-01" }),
+    { statusChangedAt: true, progressMovedAt: null, watches: [true], ticks: [] },
+  ],
+  [
+    "its imported Watch deleted",
+    movie(TMDB.matrix, "watched"),
+    async (entryId) => deleteWatch(OWNER_A, { watchId: await onlyWatchId(entryId) }),
+    { statusChangedAt: false, progressMovedAt: null, watches: [], ticks: [] },
+  ],
+];
+
+describe("undoImport: what it removes", () => {
+  it("removes every unchanged Entry the Import added, with its Watches and ticks, and keeps the Titles", async () => {
+    const rows = [
+      movie(TMDB.inception, "to_watch"),
+      movie(TMDB.matrix, "watched"),
+      series(TMDB.thePitt, "watched"),
+      series(TMDB.breakingBad, "watched"),
+    ];
+    const { importId, results } = await addRows(rows);
+    expect(results.map((row) => row.result)).toEqual(["added", "added", "added", "added"]);
+    const added = await importedEntryIds(importId);
+    expect(added).toHaveLength(4);
+    // The Watched Movie and the Watched Series have a Watch each; the two Series have 25 + 20 ticks.
+    expect(await rowsUnder(added)).toEqual({ watches: 2, ticks: 45 });
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 4, kept: 0 });
+
+    expect(await entryCount(OWNER_A)).toBe(0);
+    expect(await rowsUnder(added)).toEqual({ watches: 0, ticks: 0 });
+    const kept = await db()
+      .select({ tmdbId: titles.tmdbId })
+      .from(titles)
+      .where(inArray(titles.tmdbId, rows.map((row) => row.tmdbId)));
+    expect(kept).toHaveLength(4);
+  });
+
+  it.each(CHANGES)("keeps an imported Entry with %s, exactly as it is", async (_, row, change, stamps) => {
+    const { importId } = await addRows([row]);
+    const entry = await entryOf(OWNER_A, row.kind, row.tmdbId);
+    await change(entry.id);
+    expect(await stampsAgainstCreation(entry.id)).toEqual(stamps);
+    const before = await entryWithRows(entry.id);
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 0, kept: 1 });
+
+    expect(await entryWithRows(entry.id)).toEqual(before);
+    expect(await importedEntryIds(importId)).toEqual([entry.id]);
+  });
+
+  it("removes an Entry whose Status move was undone, since that Undo puts its stamps back", async () => {
+    const { importId } = await addRows([movie(TMDB.inception, "to_watch")]);
+    const entry = await entryOf(OWNER_A, "movie", TMDB.inception);
+    const move = await setStatus(OWNER_A, { entryId: entry.id, status: "watched" });
+    expect(move.undo).not.toBeNull();
+    expect(await undoStatusMove(OWNER_A, move.undo!)).toEqual({ status: "to_watch" });
+    expect(await stampsAgainstCreation(entry.id)).toEqual({
+      statusChangedAt: true,
+      progressMovedAt: null,
+      watches: [],
+      ticks: [],
+    });
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 1, kept: 0 });
+    expect(await entryCount(OWNER_A)).toBe(0);
+  });
+
+  it("counts what it removed and what it kept on a mixed Import", async () => {
+    const { importId } = await addRows([
+      movie(TMDB.inception, "to_watch"),
+      movie(TMDB.matrix, "watched"),
+      movie(TMDB.dune, "to_watch"),
+      series(TMDB.thePitt, "watched"),
+      series(TMDB.breakingBad, "watched"),
+    ]);
+    const matrix = await entryOf(OWNER_A, "movie", TMDB.matrix);
+    const pitt = await entryOf(OWNER_A, "series", TMDB.thePitt);
+    await setRating(OWNER_A, { entryId: matrix.id, ratingHalfStars: 9 });
+    await tickEpisode(OWNER_A, { entryId: pitt.id, seasonNumber: 1, episodeNumber: 3, watched: false });
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 3, kept: 2 });
+
+    expect(await importedEntryIds(importId)).toEqual([matrix.id, pitt.id].sort());
+    expect(await entryCount(OWNER_A)).toBe(2);
+  });
+
+  it("leaves Entries from another Import, saved by hand, or already in the Library when imported", async () => {
+    const { entryId: handSaved } = await saveTitle(OWNER_A, { kind: "movie", tmdbId: TMDB.dune, status: "to_watch" });
+    const first = await addRows([series(TMDB.westworld, "to_watch")]);
+    const westworld = await entryOf(OWNER_A, "series", TMDB.westworld);
+    const second = await addRows([
+      movie(TMDB.matrix, "to_watch"),
+      series(TMDB.westworld, "watched"),
+      movie(TMDB.dune, "watched"),
+    ]);
+    expect(second.results.map((row) => row.result)).toEqual(["added", "already", "already"]);
+    const before = [await entryWithRows(handSaved), await entryWithRows(westworld.id)];
+
+    expect(await undoImport(OWNER_A, { importId: second.importId })).toEqual({ removed: 1, kept: 0 });
+
+    expect([await entryWithRows(handSaved), await entryWithRows(westworld.id)]).toEqual(before);
+    expect(before[0]?.entry?.importId).toBeNull();
+    expect(before[1]?.entry?.importId).toBe(first.importId);
+    expect(await entryCount(OWNER_A)).toBe(2);
+
+    // Starting the second Import closed the first; a finished Import can still be undone.
+    expect(await undoImport(OWNER_A, { importId: first.importId })).toEqual({ removed: 1, kept: 0 });
+    expect(await entryWithRows(handSaved)).toEqual(before[0]);
+    expect(await entryCount(OWNER_A)).toBe(1);
+  });
+
+  it("does nothing with another Owner's Import or an unknown one, and never shows it exists", async () => {
+    const b = await addRows([movie(TMDB.inception, "to_watch"), movie(TMDB.matrix, "watched")], OWNER_B);
+    const bEntries = await importedEntryIds(b.importId);
+    expect(bEntries).toHaveLength(2);
+    const before = await Promise.all(bEntries.map(entryWithRows));
+
+    expect(await undoImport(OWNER_A, { importId: b.importId })).toEqual({ removed: 0, kept: 0 });
+    expect(
+      await undoImport(OWNER_A, { importId: "00000000-0000-4000-8000-000000000000" }),
+    ).toEqual({ removed: 0, kept: 0 });
+
+    expect(await Promise.all(bEntries.map(entryWithRows))).toEqual(before);
+    expect(await importsOf(OWNER_B)).toEqual([{ id: b.importId, open: true }]);
+  });
+
+  it("removes nothing the second time, and reports the same Entries kept", async () => {
+    const { importId } = await addRows([movie(TMDB.inception, "to_watch"), movie(TMDB.matrix, "watched")]);
+    const matrix = await entryOf(OWNER_A, "movie", TMDB.matrix);
+    await setNote(OWNER_A, { entryId: matrix.id, note: "Rewatch with Sam" });
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 1, kept: 1 });
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 0, kept: 1 });
+    expect(await importedEntryIds(importId)).toEqual([matrix.id]);
+  });
+});
+
+describe("undoImport: the Import", () => {
+  it("closes the Import, so it takes no more rows", async () => {
+    const { importId } = await addRows([movie(TMDB.inception, "to_watch")]);
+
+    await undoImport(OWNER_A, { importId });
+
+    expect(await importsOf(OWNER_A)).toEqual([{ id: importId, open: false }]);
+    await expect(
+      addImportRows(OWNER_A, { importId, rows: [movie(TMDB.matrix, "to_watch")] }),
+    ).rejects.toThrow(MESSAGES.importFinished);
+    expect(await entryCount(OWNER_A)).toBe(0);
+  });
+
+  it("undoes an Import that has finished, and keeps the time it finished", async () => {
+    const { importId } = await addRows([movie(TMDB.inception, "to_watch")]);
+    await finishImport(OWNER_A, { importId });
+    const finishedAt = await finishedAtText(importId);
+    expect(finishedAt).not.toBeNull();
+
+    expect(await undoImport(OWNER_A, { importId })).toEqual({ removed: 1, kept: 0 });
+    expect(await finishedAtText(importId)).toBe(finishedAt);
+  });
+});
+
 describe("addImportRows: an Import that closes while its rows load", () => {
   it.each([
+    ["undone", (importId: string) => undoImport(OWNER_A, { importId })],
     ["finished", (importId: string) => finishImport(OWNER_A, { importId })],
     ["replaced by a newer Import", () => startImport(OWNER_A)],
   ])("writes no row once the Import is %s", async (_, close) => {
