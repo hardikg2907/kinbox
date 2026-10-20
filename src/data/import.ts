@@ -11,7 +11,7 @@ import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { ImportRowResult } from "./dto";
 import { idSchema, insertNewEntry, kindSchema, statusSchema, tmdbIdSchema } from "./entries";
 import { logUnexpected, MESSAGES, UserError } from "./errors";
-import { loadSeriesEpisodes } from "./series";
+import { loadSeriesEpisodes, type Tx } from "./series";
 import type { Owner } from "./session";
 import { ensureTitle } from "./titles";
 import { getToday } from "./today";
@@ -95,6 +95,19 @@ function logRowFailure(error: unknown): void {
   }
 }
 
+// The check in addImportRows ran before the slow loads, so each row checks again in its own
+// transaction. The share lock waits for an Undo, finish or newer start that is closing the
+// Import, then sees it closed. The entries foreign key alone would not wait: closing leaves the
+// Import's key alone.
+async function importStillOpen(tx: Tx, owner: Owner, importId: string): Promise<boolean> {
+  const [open] = await tx
+    .select({ id: imports.id })
+    .from(imports)
+    .where(and(eq(imports.id, importId), eq(imports.userId, owner.id), isNull(imports.finishedAt)))
+    .for("share");
+  return open !== undefined;
+}
+
 async function writeRow(
   owner: Owner,
   importId: string,
@@ -103,9 +116,12 @@ async function writeRow(
 ): Promise<ImportRowResult> {
   const { kind, tmdbId } = row;
   try {
-    const saved = await db().transaction((tx) =>
-      insertNewEntry(tx, owner.id, { ...loaded, importId }),
+    const saved = await db().transaction(async (tx) =>
+      (await importStillOpen(tx, owner, importId))
+        ? insertNewEntry(tx, owner.id, { ...loaded, importId })
+        : null,
     );
+    if (saved === null) return { kind, tmdbId, result: "failed" };
     if (!saved.created) return { kind, tmdbId, result: "already" };
     return { kind, tmdbId, result: "added", status: saved.status, caughtUp: loaded.change.caughtUp };
   } catch (error) {
@@ -116,8 +132,9 @@ async function writeRow(
 
 /**
  * Adds each row's Title to the Library under the Owner's open Import. Each row stands alone:
- * one that fails is reported and the rest still go in. A Title already in the Library is left
- * as it was, so undoing the Import can never remove or change it.
+ * one that fails is reported and the rest still go in. A row whose turn comes after the Import
+ * closed fails too. A Title already in the Library is left as it was, so undoing the Import can
+ * never remove or change it.
  */
 export async function addImportRows(
   owner: Owner,
