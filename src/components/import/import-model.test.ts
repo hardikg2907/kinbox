@@ -12,6 +12,7 @@ import {
   buildRows,
   candidateFromSearch,
   checkedCount,
+  checkedLabel,
   checkingLabel,
   copyLabel,
   couldNotAddLabel,
@@ -626,6 +627,7 @@ describe("words", () => {
   it("shows progress as done of total", () => {
     expect(checkingLabel(120, 248)).toBe("Checking 120 of 248");
     expect(addingLabel(120, 238)).toBe("Adding 120 of 238");
+    expect([checkedLabel(1), checkedLabel(248)]).toEqual(["Checked 1 title", "Checked 248 titles"]);
   });
 
   it("says what Undo removed and kept", () => {

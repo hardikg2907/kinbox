@@ -451,6 +451,10 @@ export function checkingLabel(done: number, total: number): string {
   return `Checking ${done} of ${total}`;
 }
 
+export function checkedLabel(count: number): string {
+  return `Checked ${plural(count, "title", "titles")}`;
+}
+
 export function addingLabel(done: number, total: number): string {
   return `Adding ${done} of ${total}`;
 }
