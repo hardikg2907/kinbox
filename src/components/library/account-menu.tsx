@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { clearSearchCache } from "@/components/search/search-cache";
 import { authClient } from "@/lib/auth-client";
 
 export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
@@ -25,6 +26,7 @@ export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
         toast.error("Couldn't sign out. Try again.");
         return;
       }
+      clearSearchCache();
       // Replace, so Back cannot return to a screen that needs a session.
       router.replace("/sign-in");
       router.refresh();

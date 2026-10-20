@@ -10,7 +10,7 @@ type Slot = { value: CachedSearch; storedAt: number };
 // A Map keeps insertion order, so the first key is always the least recently used one.
 const slots = new Map<string, Slot>();
 
-/** The same key for "Dune", " dune " and "DUNE  part two". */
+/** The same key for "Dune", " dune " and "DUNE  Part Two" ("dune part two"). */
 export function cacheKey(query: string): string {
   return query.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -39,7 +39,18 @@ export function writeCached(query: string, value: CachedSearch, now = Date.now()
   }
 }
 
-/** Called after any save from search, so a cached Status never shows stale. */
+let generation = 0;
+
+/** Changes on every clear, so a fetch that began before a clear can tell its answer is outdated. */
+export function cacheGeneration(): number {
+  return generation;
+}
+
+/**
+ * Called when the search sheet opens, after a save made from search, and on sign-out. Saves made
+ * elsewhere in the app do not clear it: the sheet is closed then, and opening it clears it.
+ */
 export function clearSearchCache(): void {
+  generation += 1;
   slots.clear();
 }

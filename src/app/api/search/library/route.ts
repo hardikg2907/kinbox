@@ -22,7 +22,9 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   try {
-    return jsonResponse({ results: await searchLibraryFor(owner, parsed.data.q) }, 200, { session });
+    const dbStart = performance.now();
+    const results = await searchLibraryFor(owner, parsed.data.q);
+    return jsonResponse({ results }, 200, { session, db: performance.now() - dbStart });
   } catch (error) {
     return errorResponse(error, "api/search/library", { session });
   }

@@ -45,9 +45,8 @@ export function deriveSearchView(
 
   const shown = new Set(libraryItems.map(titleKey));
   const items = tmdb.items.filter((item) => !shown.has(titleKey(item)));
-  if (libraryItems.length === 0 && items.length === 0) {
-    // TMDB found nothing, but the Library answer may still bring a match.
-    return library === null ? { phase: "loading", library: [] } : { phase: "empty", query };
-  }
+  // Waiting for the Library answer keeps rows from moving under the finger when it lands after TMDB's.
+  if (library === null) return { phase: "loading", library: [] };
+  if (libraryItems.length === 0 && items.length === 0) return { phase: "empty", query };
   return { phase: "results", query, library: libraryItems, items };
 }
