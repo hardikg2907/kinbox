@@ -2,28 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { readCached, writeCached } from "@/components/search/search-cache";
+import {
+  deriveSearchView,
+  MIN_QUERY_LENGTH,
+  repliesFromCache,
+  type LibraryReply,
+  type SearchOutcome,
+  type TmdbReply,
+} from "@/components/search/search-view";
 import type { SearchItem } from "@/data/dto";
 
-export const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 200;
 
 export const TMDB_DOWN_MESSAGE = "Can't reach the movie database right now. Try again in a minute.";
 const SEARCH_FAILED_MESSAGE = "Couldn't search right now. Check your connection and try again.";
 const SIGNED_OUT_MESSAGE = "You were signed out. Sign in to keep searching.";
-
-export type SearchOutcome =
-  | { phase: "idle" }
-  | { phase: "loading"; library: SearchItem[] }
-  | { phase: "results"; query: string; library: SearchItem[]; items: SearchItem[] }
-  | { phase: "empty"; query: string }
-  | { phase: "error"; message: string; signedOut: boolean; library: SearchItem[] };
-
-type TmdbSettled =
-  | { query: string; ok: true; items: SearchItem[] }
-  | { query: string; ok: false; message: string; signedOut: boolean };
-
-// `items` is null when the Library request failed; the screen then simply shows no Library section.
-type LibrarySettled = { query: string; items: SearchItem[] | null };
 
 async function fetchResults(url: string, signal: AbortSignal): Promise<{ status: number; results: SearchItem[] | null } | null> {
   try {
@@ -39,7 +32,7 @@ async function fetchResults(url: string, signal: AbortSignal): Promise<{ status:
 }
 
 // Returns null when the request was cancelled, so a stale reply never reaches the screen.
-async function loadTmdb(query: string, signal: AbortSignal): Promise<TmdbSettled | null> {
+async function loadTmdb(query: string, signal: AbortSignal): Promise<TmdbReply | null> {
   const reply = await fetchResults(`/api/search?q=${encodeURIComponent(query)}`, signal);
   if (reply === null) return null;
   if (reply.status === 401) return { query, ok: false, message: SIGNED_OUT_MESSAGE, signedOut: true };
@@ -48,13 +41,11 @@ async function loadTmdb(query: string, signal: AbortSignal): Promise<TmdbSettled
   return { query, ok: true, items: reply.results };
 }
 
-async function loadLibrary(query: string, signal: AbortSignal): Promise<LibrarySettled | null> {
+async function loadLibrary(query: string, signal: AbortSignal): Promise<LibraryReply | null> {
   const reply = await fetchResults(`/api/search/library?q=${encodeURIComponent(query)}`, signal);
   if (reply === null) return null;
   return { query, items: reply.results };
 }
-
-const titleKey = (item: SearchItem) => `${item.kind}:${item.tmdbId}`;
 
 /**
  * Debounced search against the route handlers. "Loading" is derived (a query with no
@@ -62,8 +53,8 @@ const titleKey = (item: SearchItem) => `${item.kind}:${item.tmdbId}`;
  */
 export function useTitleSearch(input: string): SearchOutcome {
   const query = input.trim();
-  const [tmdb, setTmdb] = useState<TmdbSettled | null>(null);
-  const [library, setLibrary] = useState<LibrarySettled | null>(null);
+  const [tmdb, setTmdb] = useState<TmdbReply | null>(null);
+  const [library, setLibrary] = useState<LibraryReply | null>(null);
 
   useEffect(() => {
     if (query.length < MIN_QUERY_LENGTH) return;
@@ -75,8 +66,9 @@ export function useTitleSearch(input: string): SearchOutcome {
       // A microtask, not a timer: no wait is felt, and the effect still sets state only from a callback.
       void Promise.resolve().then(() => {
         if (signal.aborted) return;
-        setLibrary({ query, items: cached.library });
-        setTmdb({ query, ok: true, items: cached.tmdb });
+        const replies = repliesFromCache(query, cached);
+        setLibrary(replies.library);
+        setTmdb(replies.tmdb);
       });
       return () => controller.abort();
     }
@@ -101,17 +93,5 @@ export function useTitleSearch(input: string): SearchOutcome {
     };
   }, [query]);
 
-  if (query.length < MIN_QUERY_LENGTH) return { phase: "idle" };
-  const libraryItems = library !== null && library.query === query ? (library.items ?? []) : [];
-  const libraryPending = library === null || library.query !== query;
-  if (tmdb === null || tmdb.query !== query) return { phase: "loading", library: libraryItems };
-  if (!tmdb.ok) return { phase: "error", message: tmdb.message, signedOut: tmdb.signedOut, library: libraryItems };
-
-  const shown = new Set(libraryItems.map(titleKey));
-  const items = tmdb.items.filter((item) => !shown.has(titleKey(item)));
-  if (libraryItems.length === 0 && items.length === 0) {
-    // TMDB found nothing, but the Library answer may still bring a match.
-    return libraryPending ? { phase: "loading", library: [] } : { phase: "empty", query };
-  }
-  return { phase: "results", query, library: libraryItems, items };
+  return deriveSearchView(query, library, tmdb);
 }
