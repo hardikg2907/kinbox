@@ -209,6 +209,21 @@ describe("check progress", () => {
     expect(groups.error).toEqual([]);
     expect(groups.check.map((row) => row.title?.tmdbId)).toEqual([2]);
   });
+
+  it("keeps a pick or a skip made while a Couldn't check line was checked again", () => {
+    let state = checked([line(0, "A"), line(1, "B"), line(2, "C")], [found(0, title(1)), error(1), error(2)]);
+    state = pickTitle(state, [1], title(5));
+    state = skipLines(state, [2]);
+    state = applyCheckReply(state, [1, 2], [found(1, title(6)), check(2, title(7))]);
+
+    expect(state.states[1]).toMatchObject({ check: "found", candidates: [title(6)], title: title(5), skippedWith: null });
+    expect(state.states[2]).toMatchObject({ check: "check", candidates: [title(7)] });
+    expect(buildRows(state).find((row) => row.anchorId === 2)?.display).toBe("skipped");
+
+    // The guess waits behind the skip, so Include brings it back.
+    state = includeLines(state, [2]);
+    expect(buildRows(state).find((row) => row.anchorId === 2)).toMatchObject({ display: "choose", title: title(7) });
+  });
 });
 
 describe("rows", () => {
@@ -332,6 +347,17 @@ describe("rows", () => {
     expect(buildRows(state).map((row) => row.display)).toEqual(["choose", "skipped"]);
     state = skipLines(state, [1]);
     expect(buildRows(state)).toHaveLength(2);
+  });
+
+  it("never joins two separate skips, even when their first lines match", () => {
+    let state = checked([line(0, "A"), line(1, "A again")], [found(0, title(7)), found(1, title(7))]);
+    state = skipLines(state, [0, 1]);
+    state = pickTitle(state, [0], title(8));
+    state = skipLines(state, [0]);
+    expect(buildRows(state).map((row) => [row.display, row.lines.map((each) => each.id)])).toEqual([
+      ["skipped", [0]],
+      ["skipped", [1]],
+    ]);
   });
 
   it("skips and includes a Not found line, back to Not found", () => {

@@ -34,6 +34,8 @@ export type CheckState = {
   readerSkipped: readonly SkippedLine[];
   /** One per Import line; an Import line's id is its index here. */
   states: readonly LineState[];
+  /** Skips made so far. Each skip takes the next count as its token, so no two skips ever share one. */
+  skips: number;
 };
 
 export type Group = "check" | "not_found" | "error" | "found";
@@ -113,6 +115,7 @@ export function startCheck(list: PastedList): CheckState {
       skippedWith: null,
       intent: line.intent,
     })),
+    skips: 0,
   };
 }
 
@@ -164,7 +167,8 @@ export function shouldStopChecking(failuresInARow: number): boolean {
 /**
  * Records a reply for the lines that were sent. A complete failure changes nothing, so those lines
  * stay unchecked (or stay "Couldn't check") and the next try sends them again. A line the reply
- * leaves out counts as "Couldn't check", so checking never waits for it.
+ * leaves out counts as "Couldn't check", so checking never waits for it. A pick or a skip the Owner
+ * made while a "Couldn't check" line was being checked again stays as they left it.
  */
 export function applyCheckReply(
   state: CheckState,
@@ -181,7 +185,9 @@ export function applyCheckReply(
     const check: ImportMatchResult = match?.result ?? "error";
     const candidates = match?.candidates ?? [];
     const guess = check === "found" || check === "check" ? (candidates[0] ?? null) : null;
-    states[id] = { ...current, check, candidates, title: guess, skippedWith: null };
+    // Only lines with no answer yet and "Couldn't check" lines are sent, and neither has a guess,
+    // so a Title already here is one the Owner picked.
+    states[id] = { ...current, check, candidates, title: current.title ?? guess };
   }
   return { ...state, states };
 }
@@ -194,8 +200,8 @@ export function pickTitle(state: CheckState, lineIds: readonly number[], title: 
 
 export function skipLines(state: CheckState, lineIds: readonly number[]): CheckState {
   if (lineIds.length === 0) return state;
-  const token = Math.min(...lineIds);
-  return update(state, lineIds, (line) => ({ ...line, skippedWith: token }));
+  const token = state.skips + 1;
+  return { ...update(state, lineIds, (line) => ({ ...line, skippedWith: token })), skips: token };
 }
 
 export function includeLines(state: CheckState, lineIds: readonly number[]): CheckState {
