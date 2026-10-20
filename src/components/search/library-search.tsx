@@ -124,17 +124,42 @@ function useKeyboardInset(active: boolean): number {
 }
 
 function SearchResults({ outcome }: { outcome: SearchOutcome }) {
-  return (
-    <div id="search-results" aria-busy={outcome.phase === "loading"}>
-      <SearchStatus outcome={outcome} />
-      {outcome.phase === "loading" ? <SearchSkeleton /> : null}
-      {outcome.phase === "results" ? (
-        <ul id="search-list" className="flex flex-col">
-          {outcome.items.map((item) => (
+  const library = outcome.phase === "loading" || outcome.phase === "results" || outcome.phase === "error" ? outcome.library : [];
+  const libraryRows =
+    library.length > 0 ? (
+      <section aria-labelledby="search-library-heading">
+        <h2 id="search-library-heading" className="px-3 pt-2 pb-1 text-sm font-medium text-muted-foreground">
+          In your library
+        </h2>
+        <ul id="search-library-list" className="flex flex-col">
+          {library.map((item) => (
             <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
           ))}
         </ul>
-      ) : null}
+      </section>
+    ) : null;
+
+  return (
+    <div id="search-results" aria-busy={outcome.phase === "loading"}>
+      {outcome.phase === "error" ? (
+        <>
+          {libraryRows}
+          <SearchStatus outcome={outcome} />
+        </>
+      ) : (
+        <>
+          <SearchStatus outcome={outcome} />
+          {libraryRows}
+          {outcome.phase === "loading" ? <SearchSkeleton /> : null}
+          {outcome.phase === "results" && outcome.items.length > 0 ? (
+            <ul id="search-list" className={library.length > 0 ? "flex flex-col border-t" : "flex flex-col"}>
+              {outcome.items.map((item) => (
+                <SearchResultRow key={`${item.kind}-${item.tmdbId}`} item={item} />
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -142,12 +167,14 @@ function SearchResults({ outcome }: { outcome: SearchOutcome }) {
 // One polite live region: it announces the count, the empty text or the error as they arrive.
 function SearchStatus({ outcome }: { outcome: SearchOutcome }) {
   switch (outcome.phase) {
-    case "results":
+    case "results": {
+      const count = outcome.library.length + outcome.items.length;
       return (
         <p id="search-status" role="status" className="tabular px-3 pb-1 text-sm text-muted-foreground">
-          {outcome.items.length === 1 ? "1 result" : `${outcome.items.length} results`}
+          {count === 1 ? "1 result" : `${count} results`}
         </p>
       );
+    }
     case "empty":
       return (
         <p id="search-status" role="status" className="mx-auto flex max-w-sm flex-col items-center gap-3 px-2 py-12 text-center text-base text-pretty [overflow-wrap:anywhere]">

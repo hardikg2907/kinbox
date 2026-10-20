@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Poster } from "@/components/poster";
 import { KindBadge, STATUS_LABEL, StatusLabel } from "@/components/status";
+import { clearSearchCache } from "@/components/search/search-cache";
 import { SavedExtras } from "@/components/search/saved-extras";
 import { saveTitle } from "@/actions/entries";
 import type { SaveResult, SearchItem } from "@/data/dto";
@@ -64,6 +65,7 @@ export function SearchResultRow({ item }: { item: SearchItem }) {
         toast.error(result.error);
         return;
       }
+      clearSearchCache();
       startTransition(() => setSaved(result.data));
     });
   }
