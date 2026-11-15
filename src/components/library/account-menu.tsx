@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { clearSearchCache } from "@/components/search/search-cache";
-import { authClient } from "@/lib/auth-client";
 
 export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
   const router = useRouter();
@@ -21,6 +20,8 @@ export function AccountMenu({ id = "account-menu-trigger" }: { id?: string }) {
 
   function signOut() {
     startTransition(async () => {
+      // Loaded here so the auth client stays out of every Library view.
+      const { authClient } = await import("@/lib/auth-client");
       const { error } = await authClient.signOut();
       if (error) {
         toast.error("Couldn't sign out. Try again.");
