@@ -1,6 +1,8 @@
+import { attachDatabasePool } from "@vercel/functions";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { env } from "@/lib/env";
+import { describeError } from "@/lib/log";
 import * as schema from "./schema";
 
 export type Database = NodePgDatabase<typeof schema>;
@@ -18,6 +20,13 @@ function createDb(): Database {
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 5_000,
   });
+  // Neon suspends an idle compute, which drops idle clients. Without a listener that error
+  // would crash the process; pg discards the dead client on its own.
+  pool.on("error", (error) => {
+    console.error(`[db.pool] ${describeError(error)}`);
+  });
+  // Releases idle clients before a Fluid instance suspends.
+  attachDatabasePool(pool);
   globalForDb.kinboxPool = pool;
   return drizzle({ client: pool, schema, casing: "snake_case" });
 }
