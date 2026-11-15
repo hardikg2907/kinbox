@@ -347,9 +347,34 @@ describe("getSeriesWithSeasons", () => {
     expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([1, 3]);
   });
 
-  it("returns null on 404", async () => {
+  it("returns null when TMDB has no such Series", async () => {
     const { client } = clientWith(async () => jsonResponse({}, 404));
     expect(await client.getSeriesWithSeasons(1)).toBeNull();
+  });
+
+  it.each([404, 400, 422])(
+    "falls back to the listed Seasons when TMDB refuses the combined request with %i",
+    async (status) => {
+      const { client, fetchMock } = clientWith(async (input) => {
+        const url = new URL(input);
+        const append = url.searchParams.get("append_to_response");
+        if (append?.includes("season/19")) return jsonResponse({}, status);
+        if (append === null) return jsonResponse({ id: 1, name: "S", seasons: listedSeasons(1, 2) });
+        return respond([1, 2])(input, {});
+      });
+      const result = await client.getSeriesWithSeasons(1);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(calledUrl(fetchMock, 2).searchParams.get("append_to_response")).toBe("season/1,season/2");
+      expect(result?.details.name).toBe("S");
+      expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([1, 2]);
+    },
+  );
+
+  it("does not fall back when TMDB is down", async () => {
+    const { client, fetchMock } = clientWith(async () => jsonResponse({}, 503));
+    await expect(client.getSeriesWithSeasons(1)).rejects.toBeInstanceOf(TmdbUnavailableError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

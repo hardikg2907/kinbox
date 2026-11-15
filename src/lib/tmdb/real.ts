@@ -68,6 +68,12 @@ export class TmdbUnavailableError extends Error {
 
 type JsonResult = { found: true; body: unknown } | { found: false };
 
+// A 4xx other than 429 is TMDB refusing this request's shape, not TMDB being down.
+function isClientRefusal(error: unknown): boolean {
+  if (!(error instanceof TmdbUnavailableError) || error.status === null) return false;
+  return error.status >= 400 && error.status < 500 && error.status !== 429;
+}
+
 function chunk<T>(items: readonly T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -240,11 +246,19 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
     assertTmdbId(tmdbId);
     const path = `/tv/${tmdbId}`;
     const appended = Array.from({ length: MAX_APPENDED_SEASONS }, (_, number) => number);
-    const result = await getJson(path, {
-      language: "en-US",
-      append_to_response: appended.map((number) => `season/${number}`).join(","),
-    });
-    if (!result.found) return null;
+    let result: JsonResult;
+    try {
+      result = await getJson(path, {
+        language: "en-US",
+        append_to_response: appended.map((number) => `season/${number}`).join(","),
+      });
+    } catch (error) {
+      if (!isClientRefusal(error)) throw error;
+      return getSeriesThenSeasons(tmdbId);
+    }
+    // TMDB does not document how it answers an appended Season the Series lacks, so a refusal of
+    // the combined request falls back to asking only for the Seasons the Series lists.
+    if (!result.found) return getSeriesThenSeasons(tmdbId);
 
     const details = parseBody(path, result.body, mapSeries);
     const body = parseBody(path, result.body, (json) => z.record(z.string(), z.unknown()).parse(json));
@@ -261,6 +275,16 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
     const rest = [...listed].filter((number) => number >= MAX_APPENDED_SEASONS);
     if (rest.length > 0) seasons.push(...(await getSeasons(tmdbId, rest)));
     seasons.sort((a, b) => a.seasonNumber - b.seasonNumber);
+    return { details, seasons };
+  }
+
+  async function getSeriesThenSeasons(tmdbId: number): Promise<SeriesWithSeasons | null> {
+    const details = await getSeries(tmdbId);
+    if (details === null) return null;
+    const seasons = await getSeasons(
+      tmdbId,
+      details.seasons.map((season) => season.seasonNumber),
+    );
     return { details, seasons };
   }
 
