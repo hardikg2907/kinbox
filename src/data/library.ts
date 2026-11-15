@@ -44,12 +44,14 @@ function orderFor(tab: Status, latestWatchOn: SQL.Aliased<string | null>): SQL[]
 }
 
 async function loadCounts(ownerId: string, kindFilter: SQL | undefined): Promise<Record<Status, number>> {
-  const rows = await db()
-    .select({ status: entries.status, n: count() })
-    .from(entries)
-    .innerJoin(titles, eq(entries.titleId, titles.id))
-    .where(and(eq(entries.userId, ownerId), kindFilter))
-    .groupBy(entries.status);
+  const base = db().select({ status: entries.status, n: count() }).from(entries);
+  // The join only matters for a kind filter, which reads the Title's kind.
+  const rows = await (kindFilter === undefined
+    ? base.where(eq(entries.userId, ownerId))
+    : base
+        .innerJoin(titles, eq(entries.titleId, titles.id))
+        .where(and(eq(entries.userId, ownerId), kindFilter))
+  ).groupBy(entries.status);
   const counts = Object.fromEntries(STATUSES.map((status) => [status, 0])) as Record<Status, number>;
   for (const row of rows) counts[row.status] = row.n;
   return counts;
@@ -161,6 +163,15 @@ export async function getLibraryFor(owner: Owner, input: LibraryInput): Promise<
     latestWatchOn: tab === "watched" ? row.latestWatchOn : null,
   }));
   return { tab, kind, counts, cards };
+}
+
+const libraryCountsInput = z.strictObject({ kind: libraryInput.shape.kind });
+
+/** Entries per Status, within the kind filter. Reads no cards, ticks or TMDB data. */
+export async function getLibraryCounts(input: { kind: KindFilter }): Promise<Record<Status, number>> {
+  const owner = await requireOwner();
+  const { kind } = libraryCountsInput.parse(input);
+  return loadCounts(owner.id, kind === "all" ? undefined : eq(titles.kind, kind));
 }
 
 /** One Library tab with counts per Status; counts honour the kind filter. */

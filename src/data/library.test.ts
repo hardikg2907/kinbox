@@ -5,7 +5,8 @@ import { titles, watches } from "@/db/schema";
 import { insertEntry, resetDatabase } from "@/test/db";
 import { flushAfter, OWNER_A, OWNER_B, resetTestState, signInAs, testState, TMDB } from "@/test/mocks";
 import { saveTitle } from "./entries";
-import { getLibrary } from "./library";
+import { getLibrary, getLibraryCounts } from "./library";
+import { getTmdbClient } from "@/lib/tmdb/client";
 import { markEarlier, tickEpisode } from "./progress";
 
 vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
@@ -146,6 +147,59 @@ describe("getLibrary counts and filter", () => {
   it("rejects a tab or filter that is not one of the known values", async () => {
     await expect(getLibrary({ tab: "later", kind: "all" } as never)).rejects.toThrow();
     await expect(getLibrary({ tab: "to_watch", kind: "people" } as never)).rejects.toThrow();
+  });
+});
+
+describe("getLibraryCounts", () => {
+  it("counts each Status and never counts another Owner's Entries", async () => {
+    await insertEntry({ owner: OWNER_A, status: "to_watch" });
+    await insertEntry({ owner: OWNER_A, status: "to_watch" });
+    await insertEntry({ owner: OWNER_A, status: "watched" });
+    await insertEntry({ owner: OWNER_A, status: "watching", kind: "series" });
+    await insertEntry({ owner: OWNER_B, status: "to_watch", name: "Owner B's" });
+    await insertEntry({ owner: OWNER_B, status: "dropped", kind: "series" });
+
+    expect(await getLibraryCounts({ kind: "all" })).toEqual({
+      to_watch: 2,
+      watching: 1,
+      watched: 1,
+      dropped: 0,
+    });
+  });
+
+  it("honours the kind filter", async () => {
+    await insertEntry({ owner: OWNER_A, status: "to_watch" });
+    await insertEntry({ owner: OWNER_A, status: "watching", kind: "series" });
+    await insertEntry({ owner: OWNER_A, status: "dropped", kind: "series" });
+
+    expect(await getLibraryCounts({ kind: "movie" })).toEqual({
+      to_watch: 1,
+      watching: 0,
+      watched: 0,
+      dropped: 0,
+    });
+    expect(await getLibraryCounts({ kind: "series" })).toEqual({
+      to_watch: 0,
+      watching: 1,
+      watched: 0,
+      dropped: 1,
+    });
+  });
+
+  it("rejects a kind that is not a known value", async () => {
+    await expect(getLibraryCounts({ kind: "people" } as never)).rejects.toThrow();
+  });
+
+  it("asks TMDB for nothing, even with a Series in Watching", async () => {
+    await insertEntry({ owner: OWNER_A, status: "watching", kind: "series", tmdbId: TMDB.thePitt });
+    const client = getTmdbClient();
+    const spies = (["searchMulti", "getMovie", "getSeries", "getSeriesWithSeasons", "getSeasons"] as const).map(
+      (method) => vi.spyOn(client, method),
+    );
+
+    await getLibraryCounts({ kind: "all" });
+
+    for (const spy of spies) expect(spy).not.toHaveBeenCalled();
   });
 });
 

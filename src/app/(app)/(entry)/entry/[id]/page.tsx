@@ -9,7 +9,7 @@ import { TitlePage } from "@/components/entry/title-page";
 import { LibraryNav } from "@/components/library/library-nav";
 import { LibrarySearch } from "@/components/search/library-search";
 import { getEntry } from "@/data/entries";
-import { getLibrary } from "@/data/library";
+import { getLibraryCounts } from "@/data/library";
 import { parseWide, WIDE_COOKIE } from "@/lib/viewport";
 
 // getEntry is cached per request, so the page body and the sidebar reuse this lookup.
@@ -61,11 +61,11 @@ async function Sidebar({ params }: { params: PageProps<"/entry/[id]">["params"] 
   const { id } = await params;
   const entry = await getEntry(id);
   if (!entry) return <SidebarFrame />;
-  const view = await getLibrary({ tab: entry.status, kind: "all" });
+  const counts = await getLibraryCounts({ kind: "all" });
   // Its search button opens the search sheet, which lives here with it.
   return (
     <LibrarySearch>
-      <LibraryNav tab={entry.status} kind="all" counts={view.counts} />
+      <LibraryNav tab={entry.status} kind="all" counts={counts} />
     </LibrarySearch>
   );
 }
