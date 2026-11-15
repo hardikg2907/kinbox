@@ -58,6 +58,10 @@ const nextConfig: NextConfig = {
     // restored cache (Vercel keeps .next/cache between deploys) ships the previous stylesheet.
     turbopackFileSystemCacheForBuild: false,
     turbopackFileSystemCacheForDev: false,
+    // Going back to a tab or Title seen in the last 30 seconds paints from the browser at once.
+    // Every Server Action calls refresh(), which clears this cache, so the Owner's own changes
+    // always show; only a change made on another device can lag by up to 30 seconds.
+    staleTimes: { dynamic: 30 },
   },
 };
 
