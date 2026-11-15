@@ -236,6 +236,28 @@ describe("getLibrary Watching cards", () => {
     expect(byName.get("Inception")).toBeNull();
     expect(view.cards.every((card) => card.latestWatchOn === null)).toBe(true);
   });
+
+  it("lets an error that Next.js uses to stop rendering through, instead of hiding it as a missing card", async () => {
+    await saveTitle(OWNER_A, { kind: "series", tmdbId: TMDB.breakingBad, status: "watching" });
+    const stop = Object.assign(new Error("prerender stopped"), { digest: "HANGING_PROMISE_REJECTION" });
+    vi.spyOn(getTmdbClient(), "getSeriesWithSeasons").mockRejectedValueOnce(stop);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(getLibrary({ tab: "watching", kind: "all" })).rejects.toBe(stop);
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it("still shows the card without progress when an unexpected error happens", async () => {
+    await saveTitle(OWNER_A, { kind: "series", tmdbId: TMDB.breakingBad, status: "watching" });
+    vi.spyOn(getTmdbClient(), "getSeriesWithSeasons").mockRejectedValueOnce(new Error("boom"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    const view = await getLibrary({ tab: "watching", kind: "all" });
+    expect(view.cards.map((card) => [card.name, card.progress])).toEqual([["Breaking Bad", null]]);
+    expect(log).toHaveBeenCalledWith("[getLibrary.progress] Error");
+    log.mockRestore();
+  });
 });
 
 describe("getLibrary stale Titles", () => {

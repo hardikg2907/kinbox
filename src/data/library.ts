@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { unstable_rethrow } from "next/navigation";
 import { after } from "next/server";
 import { z } from "zod";
 import { episodeKey } from "@/domain/series";
@@ -118,6 +119,9 @@ async function safeCardProgress(
     const series = await loadSeriesEpisodes(tmdbId);
     return cardProgress(series.episodes, watched, today);
   } catch (error) {
+    // Next.js stops a prerender pass by rejecting the reads still pending in it; that rejection
+    // must reach Next.js, not become a missing card.
+    unstable_rethrow(error);
     if (!(error instanceof TmdbUnavailableError)) logUnexpected(error, "getLibrary.progress");
     return null;
   }
