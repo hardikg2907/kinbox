@@ -32,6 +32,13 @@ describe("fixtures", () => {
       expect(await client.getSeries(details.tmdbId)).toEqual(details);
       const numbers = seasons.map((season) => season.seasonNumber);
       expect(await client.getSeasons(details.tmdbId, numbers)).toEqual(seasons);
+      expect(await client.getSeriesWithSeasons(details.tmdbId)).toEqual({
+        details: await client.getSeries(details.tmdbId),
+        seasons: await client.getSeasons(
+          details.tmdbId,
+          details.seasons.map((season) => season.seasonNumber),
+        ),
+      });
       expect(posterUrl(details.posterPath, "w342")).not.toBeNull();
     }
   });

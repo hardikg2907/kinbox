@@ -2,7 +2,7 @@ import "server-only";
 import { cacheLife } from "next/cache";
 import { getTmdbClient } from "./client";
 import { TmdbUnavailableError } from "./real";
-import type { MovieDetails, SearchResult, SeasonDetails, SeriesDetails } from "./types";
+import type { MovieDetails, SearchResult, SeriesDetails, SeriesWithSeasons } from "./types";
 
 // Matches the real client's cap, so a long query cannot create an unbounded cache key.
 const MAX_QUERY_LENGTH = 100;
@@ -37,30 +37,27 @@ function normaliseQuery(query: string): string {
   return Array.from(collapsed).slice(0, MAX_QUERY_LENGTH).join("").trim();
 }
 
+// Plain in-memory cache: every typed query is its own key, so a shared store would only add writes and lookup latency.
 async function searchNormalised(query: string): Promise<Settled<SearchResult[]>> {
   "use cache";
   return settle(() => getTmdbClient().searchMulti(query), () => cacheLife("hours"));
 }
 
 async function getMovieCached(tmdbId: number): Promise<Settled<MovieDetails | null>> {
-  "use cache";
+  "use cache: remote";
   return settle(() => getTmdbClient().getMovie(tmdbId), () => cacheLife("days"));
 }
 
 async function getSeriesCached(tmdbId: number): Promise<Settled<SeriesDetails | null>> {
-  "use cache";
+  "use cache: remote";
   return settle(() => getTmdbClient().getSeries(tmdbId), () => cacheLife("hours"));
 }
 
-async function getSeasonsSorted(
+async function getSeriesWithSeasonsCached(
   tmdbId: number,
-  seasonNumbers: number[],
-): Promise<Settled<SeasonDetails[]>> {
-  "use cache";
-  return settle(
-    () => getTmdbClient().getSeasons(tmdbId, seasonNumbers),
-    () => cacheLife("hours"),
-  );
+): Promise<Settled<SeriesWithSeasons | null>> {
+  "use cache: remote";
+  return settle(() => getTmdbClient().getSeriesWithSeasons(tmdbId), () => cacheLife("hours"));
 }
 
 /** Movies and Series matching the text, cached per normalised query. */
@@ -80,12 +77,7 @@ export async function getSeries(tmdbId: number): Promise<SeriesDetails | null> {
   return unwrap(await getSeriesCached(tmdbId));
 }
 
-/** Several Seasons of one Series; order and repeats in the request do not change the cache key. */
-export async function getSeasons(
-  tmdbId: number,
-  seasonNumbers: number[],
-): Promise<SeasonDetails[]> {
-  const sorted = [...new Set(seasonNumbers)].sort((a, b) => a - b);
-  if (sorted.length === 0) return [];
-  return unwrap(await getSeasonsSorted(tmdbId, sorted));
+/** A Series with all its Seasons from one shared entry, or null when TMDB has no such Series. */
+export async function getSeriesWithSeasons(tmdbId: number): Promise<SeriesWithSeasons | null> {
+  return unwrap(await getSeriesWithSeasonsCached(tmdbId));
 }

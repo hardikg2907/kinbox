@@ -1,6 +1,6 @@
 import { cacheLife } from "next/cache";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getMovie, getSeasons, getSeries, searchTitles } from "./cached";
+import { getMovie, getSeries, getSeriesWithSeasons, searchTitles } from "./cached";
 import { TmdbUnavailableError } from "./real";
 import type { TmdbClient } from "./types";
 
@@ -8,6 +8,7 @@ const client = vi.hoisted(() => ({
   searchMulti: vi.fn(),
   getMovie: vi.fn(),
   getSeries: vi.fn(),
+  getSeriesWithSeasons: vi.fn(),
   getSeasons: vi.fn(),
 }));
 
@@ -18,7 +19,7 @@ const calls = [
   ["searchTitles", () => searchTitles("dune"), client.searchMulti, "hours"],
   ["getMovie", () => getMovie(603), client.getMovie, "days"],
   ["getSeries", () => getSeries(1396), client.getSeries, "hours"],
-  ["getSeasons", () => getSeasons(1396, [2, 1]), client.getSeasons, "hours"],
+  ["getSeriesWithSeasons", () => getSeriesWithSeasons(1396), client.getSeriesWithSeasons, "hours"],
 ] as const;
 
 beforeEach(() => {
@@ -57,6 +58,7 @@ describe("a Title TMDB does not list", () => {
   it.each([
     ["getMovie", () => getMovie(424242), client.getMovie, "days"],
     ["getSeries", () => getSeries(424242), client.getSeries, "hours"],
+    ["getSeriesWithSeasons", () => getSeriesWithSeasons(424242), client.getSeriesWithSeasons, "hours"],
   ] as const)("%s gives null, cached for the usual time", async (_, call, inner, life) => {
     inner.mockResolvedValue(null);
     await expect(call()).resolves.toBeNull();

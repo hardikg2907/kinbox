@@ -101,6 +101,17 @@ export function tmdbClientModule() {
       guard(tmdbId);
       return fake.getSeries(tmdbId);
     },
+    // Built from this stand-in's own methods, so a test that replaces one of them is honoured.
+    getSeriesWithSeasons: async (tmdbId) => {
+      guard(tmdbId);
+      const details = await client.getSeries(tmdbId);
+      if (details === null) return null;
+      const seasons = await client.getSeasons(
+        tmdbId,
+        details.seasons.map((season) => season.seasonNumber),
+      );
+      return { details, seasons };
+    },
     getSeasons: async (tmdbId, seasonNumbers) => {
       guard(tmdbId);
       return fake.getSeasons(tmdbId, seasonNumbers);

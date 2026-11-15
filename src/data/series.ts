@@ -11,7 +11,7 @@ import {
 import type { Episode, IsoDate, SeriesEpisodes } from "@/domain/types";
 import type { Database } from "@/db/client";
 import { entries, episodeProgress } from "@/db/schema";
-import { getSeasons, getSeries } from "@/lib/tmdb/cached";
+import { getSeriesWithSeasons } from "@/lib/tmdb/cached";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { SeriesDetails } from "@/lib/tmdb/types";
 import type {
@@ -30,13 +30,10 @@ export type LoadedSeries = { details: SeriesDetails; episodes: SeriesEpisodes };
 
 /** A Series and every Season TMDB lists for it, Specials included. */
 export async function loadSeriesEpisodes(tmdbId: number): Promise<LoadedSeries> {
-  const details = await getSeries(tmdbId);
+  const loaded = await getSeriesWithSeasons(tmdbId);
   // Without its Episode list a stored Series cannot be shown or changed, the same as TMDB being down.
-  if (details === null) throw new TmdbUnavailableError({ status: 404, path: "/tv" });
-  const seasons = await getSeasons(
-    tmdbId,
-    details.seasons.map((season) => season.seasonNumber),
-  );
+  if (loaded === null) throw new TmdbUnavailableError({ status: 404, path: "/tv" });
+  const { details, seasons } = loaded;
   return {
     details,
     episodes: {

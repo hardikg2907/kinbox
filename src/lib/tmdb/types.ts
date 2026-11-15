@@ -55,6 +55,8 @@ export type SeasonDetails = {
   episodes: Episode[];
 };
 
+export type SeriesWithSeasons = { details: SeriesDetails; seasons: SeasonDetails[] };
+
 export interface TmdbClient {
   /** Movies and Series only; people and other result types are dropped. */
   searchMulti(query: string): Promise<SearchResult[]>;
@@ -62,6 +64,8 @@ export interface TmdbClient {
   getMovie(tmdbId: number): Promise<MovieDetails | null>;
   /** Null when TMDB has no such Series. */
   getSeries(tmdbId: number): Promise<SeriesDetails | null>;
+  /** A Series with every Season it lists, Specials included. Null when TMDB has no such Series. */
+  getSeriesWithSeasons(tmdbId: number): Promise<SeriesWithSeasons | null>;
   /** Several Seasons of one Series. Unknown season numbers are left out of the result. */
   getSeasons(tmdbId: number, seasonNumbers: number[]): Promise<SeasonDetails[]>;
 }

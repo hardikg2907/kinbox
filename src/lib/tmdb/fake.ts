@@ -11,7 +11,14 @@ import {
   seriesFixtureSchema,
   type SeriesFixture,
 } from "./schemas";
-import type { MovieDetails, SearchResult, SeasonDetails, SeriesDetails, TmdbClient } from "./types";
+import type {
+  MovieDetails,
+  SearchResult,
+  SeasonDetails,
+  SeriesDetails,
+  SeriesWithSeasons,
+  TmdbClient,
+} from "./types";
 
 const MAX_SEARCH_RESULTS = 20;
 // Fixtures are well-known Titles. Import matching asks to check anything with too little
@@ -64,6 +71,16 @@ export function createFakeTmdbClient(): TmdbClient {
       assertTmdbId(tmdbId);
       const series = SERIES.find((candidate) => candidate.details.tmdbId === tmdbId);
       return series ? structuredClone(series.details) : null;
+    },
+
+    async getSeriesWithSeasons(tmdbId: number): Promise<SeriesWithSeasons | null> {
+      const details = await this.getSeries(tmdbId);
+      if (details === null) return null;
+      const seasons = await this.getSeasons(
+        tmdbId,
+        details.seasons.map((season) => season.seasonNumber),
+      );
+      return { details, seasons };
     },
 
     async getSeasons(tmdbId: number, seasonNumbers: number[]): Promise<SeasonDetails[]> {

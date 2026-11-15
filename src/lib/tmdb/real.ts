@@ -8,7 +8,14 @@ import {
   mapSeason,
   mapSeries,
 } from "./schemas";
-import type { MovieDetails, SearchResult, SeasonDetails, SeriesDetails, TmdbClient } from "./types";
+import type {
+  MovieDetails,
+  SearchResult,
+  SeasonDetails,
+  SeriesDetails,
+  SeriesWithSeasons,
+  TmdbClient,
+} from "./types";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 const REQUEST_TIMEOUT_MS = 8000;
@@ -227,5 +234,35 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
       .sort((a, b) => a.seasonNumber - b.seasonNumber);
   }
 
-  return { searchMulti, getMovie, getSeries, getSeasons };
+  // One request covers the Series and the Seasons numbered 0 to 19, which is nearly every Series.
+  // Only a Series with higher Season numbers needs a second request.
+  async function getSeriesWithSeasons(tmdbId: number): Promise<SeriesWithSeasons | null> {
+    assertTmdbId(tmdbId);
+    const path = `/tv/${tmdbId}`;
+    const appended = Array.from({ length: MAX_APPENDED_SEASONS }, (_, number) => number);
+    const result = await getJson(path, {
+      language: "en-US",
+      append_to_response: appended.map((number) => `season/${number}`).join(","),
+    });
+    if (!result.found) return null;
+
+    const details = parseBody(path, result.body, mapSeries);
+    const body = parseBody(path, result.body, (json) => z.record(z.string(), z.unknown()).parse(json));
+    const listed = new Set(details.seasons.map((season) => season.seasonNumber));
+    const seasons: SeasonDetails[] = [];
+    for (const number of appended) {
+      if (!listed.has(number)) continue;
+      const raw = body[`season/${number}`];
+      // TMDB leaves out Seasons it does not have.
+      if (raw === undefined || raw === null) continue;
+      seasons.push(parseBody(path, raw, mapSeason));
+    }
+
+    const rest = [...listed].filter((number) => number >= MAX_APPENDED_SEASONS);
+    if (rest.length > 0) seasons.push(...(await getSeasons(tmdbId, rest)));
+    seasons.sort((a, b) => a.seasonNumber - b.seasonNumber);
+    return { details, seasons };
+  }
+
+  return { searchMulti, getMovie, getSeries, getSeriesWithSeasons, getSeasons };
 }

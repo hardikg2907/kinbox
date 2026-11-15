@@ -290,6 +290,69 @@ describe("getSeasons", () => {
   });
 });
 
+function listedSeasons(...numbers: number[]) {
+  return numbers.map((number) => ({ season_number: number, name: `Season ${number}`, episode_count: 2 }));
+}
+
+describe("getSeriesWithSeasons", () => {
+  const respond = (listed: number[]): FetchLike => async (input) => {
+    const url = new URL(input);
+    const body = (await seasonsResponse(url).json()) as Record<string, unknown>;
+    return jsonResponse({ ...body, id: 1, name: "S", seasons: listedSeasons(...listed) });
+  };
+
+  it("reads the Series and its Seasons from one request", async () => {
+    const { client, fetchMock } = clientWith(respond([0, 1, 2]));
+    const result = await client.getSeriesWithSeasons(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = calledUrl(fetchMock);
+    expect(url.pathname).toBe("/3/tv/1");
+    expect(url.searchParams.get("append_to_response")).toBe(
+      Array.from({ length: 20 }, (_, number) => `season/${number}`).join(","),
+    );
+    expect(result?.details.name).toBe("S");
+    expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([0, 1, 2]);
+  });
+
+  it("is not broken by the extra season/N keys in the body", async () => {
+    const { client } = clientWith(respond([1]));
+    const result = await client.getSeriesWithSeasons(1);
+    expect(result?.details).toMatchObject({ kind: "series", tmdbId: 1, name: "S" });
+    expect(Object.keys(result?.details ?? {})).not.toContain("season/1");
+  });
+
+  it("fetches Seasons numbered above 19 in a second request", async () => {
+    const { client, fetchMock } = clientWith(respond([1, 2, 20, 21]));
+    const result = await client.getSeriesWithSeasons(1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(calledUrl(fetchMock, 1).searchParams.get("append_to_response")).toBe("season/20,season/21");
+    expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([1, 2, 20, 21]);
+  });
+
+  it("keeps only Seasons the Series lists", async () => {
+    const { client } = clientWith(respond([1, 3]));
+    const result = await client.getSeriesWithSeasons(1);
+    expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([1, 3]);
+  });
+
+  it("skips a listed Season whose season/N key is missing", async () => {
+    const { client } = clientWith(async (input) => {
+      const body = (await seasonsResponse(new URL(input)).json()) as Record<string, unknown>;
+      delete body["season/2"];
+      return jsonResponse({ ...body, id: 1, name: "S", seasons: listedSeasons(1, 2, 3) });
+    });
+    const result = await client.getSeriesWithSeasons(1);
+    expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([1, 3]);
+  });
+
+  it("returns null on 404", async () => {
+    const { client } = clientWith(async () => jsonResponse({}, 404));
+    expect(await client.getSeriesWithSeasons(1)).toBeNull();
+  });
+});
+
 describe("429 retry", () => {
   it("retries a 429 and returns the answer of the next try", async () => {
     const { client, fetchMock, sleep } = clientWith(inOrder(() => tooManyRequests(), movieOk));
