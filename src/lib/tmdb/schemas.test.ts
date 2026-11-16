@@ -7,6 +7,7 @@ import {
   mapSearchResponse,
   mapSeason,
   mapSeries,
+  mapSeriesBase,
   movieDetailsSchema,
   searchResultSchema,
   seriesDetailsSchema,
@@ -265,6 +266,7 @@ describe("mapMovie", () => {
         poster_path: "/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
         overview: "A thief enters dreams.",
         runtime: 148,
+        imdb_id: "tt1375666",
         genres: [{ id: 1 }],
       }),
     ).toEqual({
@@ -276,6 +278,7 @@ describe("mapMovie", () => {
       posterPath: "/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
       overview: "A thief enters dreams.",
       runtimeMinutes: 148,
+      imdbId: "tt1375666",
     });
   });
 
@@ -296,6 +299,26 @@ describe("mapMovie", () => {
       overview: null,
       runtimeMinutes: null,
     });
+  });
+
+  it.each([
+    ["valid", "tt0133093", "tt0133093"],
+    ["padded", "  tt0133093 ", "tt0133093"],
+    ["ten digits", "tt1234567890", "tt1234567890"],
+    ["empty", "", null],
+    ["null", null, null],
+    ["too short", "tt123456", null],
+    ["too long", "tt12345678901", null],
+    ["without the prefix", "0133093", null],
+    ["upper case", "TT0133093", null],
+    ["with text after", "tt0133093 extra", null],
+    ["a number", 133093, null],
+  ])("reads a %s imdb_id", (_label, value, expected) => {
+    expect(mapMovie({ id: 1, title: "A", imdb_id: value }).imdbId).toBe(expected);
+  });
+
+  it("reads a missing imdb_id as null without failing", () => {
+    expect(mapMovie({ id: 1, title: "A" }).imdbId).toBeNull();
   });
 
   it("reads a runtime of 0 as unknown", () => {
@@ -350,7 +373,31 @@ describe("mapSeries", () => {
       ],
       lastEpisodeToAir: { seasonNumber: 5, episodeNumber: 16, airDate: "2013-09-29" },
       nextEpisodeToAir: null,
+      imdbId: null,
     });
+  });
+
+  it.each([
+    ["valid", { imdb_id: "tt0903747" }, "tt0903747"],
+    ["padded", { imdb_id: " tt0903747 " }, "tt0903747"],
+    ["empty", { imdb_id: "" }, null],
+    ["null", { imdb_id: null }, null],
+    ["malformed", { imdb_id: "nm0000001" }, null],
+    ["missing from external_ids", {}, null],
+    ["a null external_ids", null, null],
+    ["a text external_ids", "tt0903747", null],
+  ])("reads %s external_ids", (_label, externalIds, expected) => {
+    expect(mapSeries({ ...body, external_ids: externalIds }).imdbId).toBe(expected);
+  });
+
+  it("reads a missing external_ids as null without failing", () => {
+    expect(mapSeries(body).imdbId).toBeNull();
+  });
+
+  it("mapSeriesBase drops the IMDb id", () => {
+    const base = mapSeriesBase({ ...body, external_ids: { imdb_id: "tt0903747" } });
+    expect(base).not.toHaveProperty("imdbId");
+    expect(base.name).toBe("Breaking Bad");
   });
 
   it("keeps season 0 (Specials)", () => {

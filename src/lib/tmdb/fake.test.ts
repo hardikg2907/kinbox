@@ -21,6 +21,18 @@ describe("fixtures", () => {
     expect(fixtureFiles.filter((name) => name.startsWith("series-"))).toHaveLength(3);
   });
 
+  it("carries the known IMDb ids, and none for the Series that has none", async () => {
+    const ids = [
+      [await client.getMovie(27205), "tt1375666"],
+      [await client.getMovie(603), "tt0133093"],
+      [await client.getMovie(693134), "tt15239678"],
+      [await client.getSeries(1396), "tt0903747"],
+      [await client.getSeries(63247), "tt0475784"],
+      [await client.getSeries(250307), null],
+    ] as const;
+    for (const [details, expected] of ids) expect(details?.imdbId).toBe(expected);
+  });
+
   it.each(fixtureFiles)("%s fits the contract and is served by the fake", async (fileName) => {
     const raw = readFixture(fileName);
     if (fileName.startsWith("movie-")) {

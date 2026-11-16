@@ -13,7 +13,7 @@ import type { Database } from "@/db/client";
 import { entries, episodeProgress } from "@/db/schema";
 import { getSeriesWithSeasons } from "@/lib/tmdb/cached";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
-import type { SeriesDetails } from "@/lib/tmdb/types";
+import type { SeriesBase } from "@/lib/tmdb/types";
 import type {
   CardProgress,
   EpisodeView,
@@ -26,7 +26,7 @@ import type {
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type Executor = Database | Tx;
 
-export type LoadedSeries = { details: SeriesDetails; episodes: SeriesEpisodes };
+export type LoadedSeries = { details: SeriesBase; episodes: SeriesEpisodes };
 
 /** A Series and every Season TMDB lists for it, Specials included. */
 export async function loadSeriesEpisodes(tmdbId: number): Promise<LoadedSeries> {
@@ -75,7 +75,7 @@ export function findEpisode(
   );
 }
 
-function seasonName(details: SeriesDetails, seasonNumber: number): string {
+function seasonName(details: SeriesBase, seasonNumber: number): string {
   const listed = details.seasons.find((season) => season.seasonNumber === seasonNumber)?.name;
   if (listed) return listed;
   return seasonNumber === 0 ? "Specials" : `Season ${seasonNumber}`;

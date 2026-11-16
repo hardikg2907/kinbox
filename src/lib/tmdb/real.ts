@@ -7,6 +7,7 @@ import {
   mapSearchResponse,
   mapSeason,
   mapSeries,
+  mapSeriesBase,
 } from "./schemas";
 import type {
   MovieDetails,
@@ -195,7 +196,7 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
   async function getSeries(tmdbId: number): Promise<SeriesDetails | null> {
     assertTmdbId(tmdbId);
     const path = `/tv/${tmdbId}`;
-    const result = await getJson(path, { language: "en-US" });
+    const result = await getJson(path, { language: "en-US", append_to_response: "external_ids" });
     return result.found ? parseBody(path, result.body, mapSeries) : null;
   }
 
@@ -260,7 +261,7 @@ export function createRealTmdbClient(options: RealTmdbClientOptions): TmdbClient
     // the combined request falls back to asking only for the Seasons the Series lists.
     if (!result.found) return getSeriesThenSeasons(tmdbId);
 
-    const details = parseBody(path, result.body, mapSeries);
+    const details = parseBody(path, result.body, mapSeriesBase);
     const body = parseBody(path, result.body, (json) => z.record(z.string(), z.unknown()).parse(json));
     const listed = new Set(details.seasons.map((season) => season.seasonNumber));
     const seasons: SeasonDetails[] = [];

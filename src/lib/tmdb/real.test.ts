@@ -173,10 +173,22 @@ describe("searchMulti", () => {
 describe("getMovie and getSeries", () => {
   it("requests the movie path and maps the response", async () => {
     const { client, fetchMock } = clientWith(async () =>
-      jsonResponse({ id: 27205, title: "Inception", release_date: "2010-07-15", runtime: 148 }),
+      jsonResponse({
+        id: 27205,
+        title: "Inception",
+        release_date: "2010-07-15",
+        runtime: 148,
+        imdb_id: "tt1375666",
+      }),
     );
     const movie = await client.getMovie(27205);
-    expect(movie).toMatchObject({ kind: "movie", tmdbId: 27205, name: "Inception", year: 2010 });
+    expect(movie).toMatchObject({
+      kind: "movie",
+      tmdbId: 27205,
+      name: "Inception",
+      year: 2010,
+      imdbId: "tt1375666",
+    });
     const url = calledUrl(fetchMock);
     expect(url.pathname).toBe("/3/movie/27205");
     expect(url.searchParams.get("language")).toBe("en-US");
@@ -190,12 +202,20 @@ describe("getMovie and getSeries", () => {
         status: "Ended",
         seasons: [{ season_number: 0, name: "Specials", episode_count: 9 }],
         last_episode_to_air: { season_number: 5, episode_number: 16, air_date: "2013-09-29" },
+        external_ids: { imdb_id: "tt0903747" },
       }),
     );
     const series = await client.getSeries(1396);
-    expect(series).toMatchObject({ kind: "series", status: "Ended", nextEpisodeToAir: null });
+    expect(series).toMatchObject({
+      kind: "series",
+      status: "Ended",
+      nextEpisodeToAir: null,
+      imdbId: "tt0903747",
+    });
     expect(series?.seasons[0]?.seasonNumber).toBe(0);
-    expect(calledUrl(fetchMock).pathname).toBe("/3/tv/1396");
+    const url = calledUrl(fetchMock);
+    expect(url.pathname).toBe("/3/tv/1396");
+    expect(url.searchParams.get("append_to_response")).toBe("external_ids");
   });
 
   it("returns null on 404", async () => {
@@ -313,6 +333,13 @@ describe("getSeriesWithSeasons", () => {
     );
     expect(result?.details.name).toBe("S");
     expect(result?.seasons.map((season) => season.seasonNumber)).toEqual([0, 1, 2]);
+  });
+
+  it("keeps the IMDb id out of the combined request and its details", async () => {
+    const { client, fetchMock } = clientWith(respond([1]));
+    const result = await client.getSeriesWithSeasons(1);
+    expect(calledUrl(fetchMock).searchParams.get("append_to_response")).not.toContain("external_ids");
+    expect(result?.details).not.toHaveProperty("imdbId");
   });
 
   it("is not broken by the extra season/N keys in the body", async () => {

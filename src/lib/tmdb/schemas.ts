@@ -6,6 +6,7 @@ import type {
   SearchResult,
   SeasonDetails,
   SeasonSummary,
+  SeriesBase,
   SeriesDetails,
 } from "./types";
 
@@ -75,6 +76,28 @@ const optionalPosterPath = z
   .nullish()
   .transform((value): string | null => (value != null && isPosterPath(value) ? value : null));
 
+const IMDB_ID_PATTERN = /^tt\d{7,10}$/;
+
+const imdbIdText = z.string().trim().regex(IMDB_ID_PATTERN);
+
+// An IMDb id is a convenience link, so a bad value must not fail the whole Title.
+const optionalImdbId = z
+  .unknown()
+  .optional()
+  .transform((value): string | null => {
+    const parsed = imdbIdText.safeParse(value);
+    return parsed.success ? parsed.data : null;
+  });
+
+// TMDB nests a Series' IMDb id under external_ids; any other shape means "no id".
+const rawExternalIds = z
+  .unknown()
+  .optional()
+  .transform((value): string | null => {
+    if (typeof value !== "object" || value === null) return null;
+    return optionalImdbId.parse((value as { imdb_id?: unknown }).imdb_id);
+  });
+
 const tmdbId = z.int().positive();
 const seasonNumber = z.int().min(0);
 const episodeNumber = z.int().min(0);
@@ -130,6 +153,7 @@ export const rawMovieSchema = z.object({
   release_date: optionalDate,
   poster_path: optionalPosterPath,
   overview: optionalText(MAX_OVERVIEW_LENGTH),
+  imdb_id: optionalImdbId,
   // TMDB reports 0 when the runtime is unknown.
   runtime: z
     .number()
@@ -162,6 +186,7 @@ export const rawSeriesSchema = z.object({
   seasons: z.array(rawSeasonSummary).nullish(),
   last_episode_to_air: rawEpisodeRef.nullish(),
   next_episode_to_air: rawEpisodeRef.nullish(),
+  external_ids: rawExternalIds,
 });
 
 const rawEpisode = z.object({
@@ -223,6 +248,7 @@ export function mapMovie(json: unknown): MovieDetails {
     posterPath: raw.poster_path,
     overview: raw.overview,
     runtimeMinutes: raw.runtime,
+    imdbId: raw.imdb_id,
   };
 }
 
@@ -235,8 +261,7 @@ function mapEpisodeRef(ref: z.infer<typeof rawEpisodeRef> | null | undefined) {
   };
 }
 
-export function mapSeries(json: unknown): SeriesDetails {
-  const raw = rawSeriesSchema.parse(json);
+function seriesBaseFrom(raw: z.infer<typeof rawSeriesSchema>): SeriesBase {
   const seasons: SeasonSummary[] = (raw.seasons ?? [])
     .map((season) => ({
       seasonNumber: season.season_number,
@@ -259,6 +284,16 @@ export function mapSeries(json: unknown): SeriesDetails {
     lastEpisodeToAir: mapEpisodeRef(raw.last_episode_to_air),
     nextEpisodeToAir: mapEpisodeRef(raw.next_episode_to_air),
   };
+}
+
+/** A Series without its IMDb id, for the combined Season request that does not ask for it. */
+export function mapSeriesBase(json: unknown): SeriesBase {
+  return seriesBaseFrom(rawSeriesSchema.parse(json));
+}
+
+export function mapSeries(json: unknown): SeriesDetails {
+  const raw = rawSeriesSchema.parse(json);
+  return { ...seriesBaseFrom(raw), imdbId: raw.external_ids };
 }
 
 export function mapSeason(json: unknown): SeasonDetails {
@@ -287,6 +322,8 @@ const contractName = z.string().min(1);
 const contractDate = z.string().regex(ISO_DATE_PATTERN);
 const contractPosterPath = z.string().refine(isPosterPath).nullable();
 const contractYear = z.int().min(1).max(9999).nullable();
+// Optional in fixture files: most Titles in them have no IMDb id worth keeping.
+const contractImdbId = z.string().regex(IMDB_ID_PATTERN).nullable().default(null);
 
 export const searchResultSchema: z.ZodType<SearchResult> = z.strictObject({
   kind: z.enum(["movie", "series"]),
@@ -308,6 +345,7 @@ export const movieDetailsSchema: z.ZodType<MovieDetails> = z.strictObject({
   posterPath: contractPosterPath,
   overview: z.string().nullable(),
   runtimeMinutes: z.int().positive().nullable(),
+  imdbId: contractImdbId,
 });
 
 const contractEpisodeRef = z.strictObject({
@@ -335,6 +373,7 @@ export const seriesDetailsSchema: z.ZodType<SeriesDetails> = z.strictObject({
   ),
   lastEpisodeToAir: contractEpisodeRef.nullable(),
   nextEpisodeToAir: contractEpisodeRef.nullable(),
+  imdbId: contractImdbId,
 });
 
 export const seasonDetailsSchema: z.ZodType<SeasonDetails> = z.strictObject({

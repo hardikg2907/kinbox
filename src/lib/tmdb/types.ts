@@ -24,6 +24,8 @@ export type MovieDetails = {
   posterPath: string | null;
   overview: string | null;
   runtimeMinutes: number | null;
+  /** IMDb's `tt` id; null when TMDB has none. */
+  imdbId: string | null;
 };
 
 export type SeasonSummary = {
@@ -33,7 +35,8 @@ export type SeasonSummary = {
   airDate: IsoDate | null;
 };
 
-export type SeriesDetails = {
+/** A Series as the combined Season request returns it, which carries no IMDb id. */
+export type SeriesBase = {
   kind: "series";
   tmdbId: number;
   name: string;
@@ -49,13 +52,18 @@ export type SeriesDetails = {
   nextEpisodeToAir: (EpisodeKey & { airDate: IsoDate | null }) | null;
 };
 
+export type SeriesDetails = SeriesBase & {
+  /** IMDb's `tt` id; null when TMDB has none. */
+  imdbId: string | null;
+};
+
 export type SeasonDetails = {
   seasonNumber: number;
   name: string;
   episodes: Episode[];
 };
 
-export type SeriesWithSeasons = { details: SeriesDetails; seasons: SeasonDetails[] };
+export type SeriesWithSeasons = { details: SeriesBase; seasons: SeasonDetails[] };
 
 export interface TmdbClient {
   /** Movies and Series only; people and other result types are dropped. */
