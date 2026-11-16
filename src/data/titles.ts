@@ -1,9 +1,10 @@
 import "server-only";
-import { and, asc, eq, lt } from "drizzle-orm";
+import { and, asc, eq, isNull, lt } from "drizzle-orm";
 import type { TitleKind } from "@/domain/types";
 import { db } from "@/db/client";
 import { entries, titles } from "@/db/schema";
 import { getMovie, getSeries } from "@/lib/tmdb/cached";
+import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { MovieDetails, SeriesDetails } from "@/lib/tmdb/types";
 import { logUnexpected, MESSAGES, UserError } from "./errors";
 
@@ -24,7 +25,16 @@ function snapshotOf(details: TitleDetails) {
     year: details.year,
     posterPath: details.posterPath,
     tmdbStatus: details.kind === "series" ? details.status : null,
+    imdbId: details.imdbId,
+    imdbCheckedAt: new Date(),
   };
+}
+
+async function writeSnapshot(titleId: string, details: TitleDetails): Promise<void> {
+  await db()
+    .update(titles)
+    .set({ ...snapshotOf(details), refreshedAt: new Date() })
+    .where(eq(titles.id, titleId));
 }
 
 export function isStale(refreshedAt: Date, now: Date = new Date()): boolean {
@@ -70,10 +80,7 @@ export async function refreshStaleTitle(titleId: string): Promise<void> {
     // A Title TMDB no longer lists keeps its snapshot; there is nothing newer to store.
     if (details === null) return;
 
-    await db()
-      .update(titles)
-      .set({ ...snapshotOf(details), refreshedAt: new Date() })
-      .where(eq(titles.id, titleId));
+    await writeSnapshot(titleId, details);
   } catch (error) {
     logUnexpected(error, "refreshStaleTitle");
   }
@@ -97,4 +104,50 @@ export async function refreshStaleTitlesFor(ownerId: string): Promise<void> {
   } catch (error) {
     logUnexpected(error, "refreshStaleTitlesFor");
   }
+}
+
+/**
+ * Looks up TMDB's IMDb id for Titles saved before ids were kept, oldest snapshot first, and stores
+ * the full fresh snapshot. A Title TMDB no longer lists is only marked as checked. Stops quietly
+ * when TMDB is unavailable; any other error reaches the caller. `complete` is false when some
+ * Titles are still unchecked afterwards, because TMDB was down or the limit was reached.
+ */
+export async function backfillImdbIds(
+  options: { limit?: number; concurrency?: number } = {},
+): Promise<{ complete: boolean }> {
+  const { limit = 500, concurrency = 6 } = options;
+  const pending = await db()
+    .select({ id: titles.id, kind: titles.kind, tmdbId: titles.tmdbId })
+    .from(titles)
+    .where(isNull(titles.imdbCheckedAt))
+    .orderBy(asc(titles.refreshedAt), asc(titles.id))
+    .limit(limit);
+
+  let next = 0;
+  // Set on TMDB being down or on any failure, so the other workers start no new fetch.
+  let stopped = false;
+  let tmdbDown = false;
+  async function work(): Promise<void> {
+    while (!stopped) {
+      const title = pending[next++];
+      if (!title) return;
+      try {
+        const details = await fetchDetails(title.kind, title.tmdbId);
+        if (details === null) {
+          await db().update(titles).set({ imdbCheckedAt: new Date() }).where(eq(titles.id, title.id));
+        } else {
+          await writeSnapshot(title.id, details);
+        }
+      } catch (error) {
+        stopped = true;
+        if (error instanceof TmdbUnavailableError) {
+          tmdbDown = true;
+          return;
+        }
+        throw error;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, work));
+  return { complete: !tmdbDown && pending.length < limit };
 }
