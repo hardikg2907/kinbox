@@ -34,9 +34,50 @@ export const titles = pgTable(
     year: smallint(),
     posterPath: text(),
     tmdbStatus: text(),
+    imdbId: text(),
+    // Null until TMDB's IMDb id has been looked up for this Title, so Titles saved earlier get found.
+    imdbCheckedAt: timestamp({ withTimezone: true }),
     refreshedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique("titles_kind_tmdb_id_key").on(t.kind, t.tmdbId)],
+  (t) => [
+    unique("titles_kind_tmdb_id_key").on(t.kind, t.tmdbId),
+    index("titles_imdb_id_idx").on(t.imdbId),
+    check("titles_imdb_id_check", sql`${t.imdbId} is null or ${t.imdbId} ~ '^tt[0-9]{7,10}$'`),
+  ],
+);
+
+// IMDb's public score, kept only for the IMDb ids of stored Titles. A row with a null rating means
+// IMDb was checked and has no rating for that id.
+export const imdbRatings = pgTable(
+  "imdb_ratings",
+  {
+    imdbId: text().primaryKey(),
+    // Tenths of a point: 87 is 8.7.
+    ratingTenths: smallint(),
+    votes: integer(),
+  },
+  (t) => [
+    check("imdb_ratings_imdb_id_check", sql`${t.imdbId} ~ '^tt[0-9]{7,10}$'`),
+    check(
+      "imdb_ratings_rating_tenths_check",
+      sql`${t.ratingTenths} is null or ${t.ratingTenths} between 10 and 100`,
+    ),
+    check("imdb_ratings_votes_check", sql`${t.votes} is null or ${t.votes} >= 0`),
+  ],
+);
+
+// One row (id 1) that makes sure only one ratings refresh runs at a time and remembers how the
+// last one went.
+export const imdbSync = pgTable(
+  "imdb_sync",
+  {
+    id: smallint().primaryKey(),
+    etag: text(),
+    lockedUntil: timestamp({ withTimezone: true }).notNull().default(sql`'epoch'`),
+    retryAfter: timestamp({ withTimezone: true }).notNull().default(sql`'epoch'`),
+    lastSuccessAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [check("imdb_sync_single_row_check", sql`${t.id} = 1`)],
 );
 
 // finished_at stays null while rows are still being added; one Owner has at most one open Import.

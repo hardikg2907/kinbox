@@ -15,6 +15,13 @@
       "when": 1792496247237,
       "tag": "0001_hot_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794826647824,
+      "tag": "0002_silly_peter_quill",
+      "breakpoints": true
     }
   ]
 }
