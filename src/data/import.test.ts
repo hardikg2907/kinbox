@@ -5,7 +5,7 @@ import { closeDb, db } from "@/db/client";
 import { entries, episodeProgress, imports, titles, watches } from "@/db/schema";
 import { getTmdbClient } from "@/lib/tmdb/client";
 import { entryRow, resetDatabase, setEntryTimes, tickKeys, watchRows } from "@/test/db";
-import { OWNER_A, OWNER_B, resetTestState, testState, TMDB, TODAY } from "@/test/mocks";
+import { flushAfter, OWNER_A, OWNER_B, resetTestState, testState, TMDB, TODAY } from "@/test/mocks";
 import {
   deleteWatch,
   saveTitle,
@@ -451,6 +451,20 @@ describe("Imports", () => {
       .from(imports)
       .where(eq(imports.id, importId));
     expect(again).toEqual(closed);
+  });
+
+  it("refreshes IMDb ratings once when the Import finishes, not for each batch of rows", async () => {
+    const { importId } = await startImport(OWNER_A);
+    await addImportRows(OWNER_A, { importId, rows: [movie(TMDB.inception, "to_watch")] });
+    await addImportRows(OWNER_A, { importId, rows: [movie(TMDB.matrix, "to_watch")] });
+    await flushAfter();
+    expect(testState.imdbCalls).toHaveLength(0);
+
+    await finishImport(OWNER_A, { importId });
+    await flushAfter();
+
+    expect(testState.imdbCalls).toHaveLength(1);
+    expect(testState.imdbCalls[0]?.wanted.sort()).toEqual(["tt0133093", "tt1375666"]);
   });
 
   it("never finishes another Owner's Import", async () => {

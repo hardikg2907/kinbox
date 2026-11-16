@@ -143,8 +143,6 @@ export async function addImportRows(
   input: AddImportRowsInput,
 ): Promise<ImportRowResult[]> {
   const [, today] = await Promise.all([requireOpenImport(owner, input.importId), getToday()]);
-  // Newly added Titles get their IMDb ratings after the response.
-  after(() => syncImdbRatingsIfDue());
 
   const limit = createLimit(LOADS_AT_ONCE);
   const loaded = await Promise.all(
@@ -242,5 +240,7 @@ export async function finishImport(owner: Owner, input: ImportIdInput): Promise<
     .where(
       and(eq(imports.id, input.importId), eq(imports.userId, owner.id), isNull(imports.finishedAt)),
     );
+  // One refresh when the Import ends gives every Title it added its rating, instead of one per batch.
+  after(() => syncImdbRatingsIfDue());
   return null;
 }

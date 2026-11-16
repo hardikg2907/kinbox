@@ -33,6 +33,7 @@ async function setSync(values: {
   lockedUntil?: Date;
   retryAfter?: Date;
   lastSuccessAt?: Date | null;
+  lastFullReadAt?: Date | null;
 }): Promise<void> {
   await db()
     .insert(imdbSync)
@@ -53,6 +54,7 @@ async function ratingRows() {
 const HOURS = 60 * 60 * 1000;
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * HOURS);
 const inMinutes = (minutes: number) => new Date(Date.now() + minutes * 60 * 1000);
+const minutesAgo = (minutes: number) => inMinutes(-minutes);
 
 beforeEach(async () => {
   resetTestState();
@@ -209,7 +211,44 @@ describe("syncImdbRatingsIfDue", () => {
     expect(await ratingRows()).toEqual({ [MATRIX]: [87, 2_213_456] });
   });
 
-  it("still reads the file when TMDB is down, and waits before the next try", async () => {
+  it("asks only with the ETag when TMDB is down and no stored Title lacks a rating", async () => {
+    await addTitle(MATRIX);
+    await db().insert(imdbRatings).values({ imdbId: MATRIX, ratingTenths: 87, votes: 1 });
+    await db()
+      .insert(titles)
+      .values({ kind: "movie", tmdbId: TMDB.dune, name: "Dune", imdbCheckedAt: null });
+    await setSync({ etag: '"stored"', lastSuccessAt: hoursAgo(1) });
+    testState.tmdbDown = true;
+    testState.imdbUnchanged = true;
+
+    await syncImdbRatingsIfDue();
+
+    expect(testState.imdbCalls).toEqual([{ wanted: [MATRIX], etag: '"stored"' }]);
+    expect((await syncRow())!.retryAfter.getTime()).toBeGreaterThan(Date.now() + 25 * 60 * 1000);
+
+    await syncImdbRatingsIfDue();
+    expect(testState.imdbCalls).toHaveLength(1);
+  });
+
+  it("sends the ETag when the only reason to run is Titles never looked up", async () => {
+    await addTitle(MATRIX);
+    await db().insert(imdbRatings).values({ imdbId: MATRIX, ratingTenths: 87, votes: 1 });
+    // TMDB lists The Pitt without an IMDb id, so the lookup leaves nothing missing.
+    await db()
+      .insert(titles)
+      .values({ kind: "series", tmdbId: TMDB.thePitt, name: "The Pitt", imdbCheckedAt: null });
+    await setSync({ etag: '"stored"', lastSuccessAt: hoursAgo(1) });
+    testState.imdbUnchanged = true;
+
+    await syncImdbRatingsIfDue();
+
+    expect(testState.imdbCalls).toEqual([{ wanted: [MATRIX], etag: '"stored"' }]);
+    const [pitt] = await db().select().from(titles).where(eq(titles.tmdbId, TMDB.thePitt));
+    expect(pitt?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect((await syncRow())?.etag).toBe('"stored"');
+  });
+
+  it("reads the whole file when TMDB is down and a stored Title lacks a rating", async () => {
     await addTitle(MATRIX);
     await db()
       .insert(titles)
@@ -218,12 +257,90 @@ describe("syncImdbRatingsIfDue", () => {
 
     await syncImdbRatingsIfDue();
 
-    expect(testState.imdbCalls).toHaveLength(1);
-    const row = await syncRow();
-    expect(row!.retryAfter.getTime()).toBeGreaterThan(Date.now() + 25 * 60 * 1000);
+    expect(testState.imdbCalls).toEqual([{ wanted: [MATRIX], etag: null }]);
+    expect((await syncRow())!.retryAfter.getTime()).toBeGreaterThan(Date.now() + 25 * 60 * 1000);
+  });
 
+  it("downloads the whole file once for missing ratings within two minutes", async () => {
+    await addTitle(MATRIX);
     await syncImdbRatingsIfDue();
     expect(testState.imdbCalls).toHaveLength(1);
+    expect((await syncRow())?.lastFullReadAt).toBeInstanceOf(Date);
+
+    // A new Title now has no rating row, but the file was just read.
+    await addTitle(DUNE);
+    await syncImdbRatingsIfDue();
+    await syncImdbRatingsIfDue();
+    expect(testState.imdbCalls).toHaveLength(1);
+
+    await setSync({ lastFullReadAt: minutesAgo(3) });
+    await syncImdbRatingsIfDue();
+    expect(testState.imdbCalls).toHaveLength(2);
+    expect((await ratingRows())[DUNE]).toEqual([null, null]);
+  });
+
+  it("does not read the file for missing ratings when Titles only just got their ids", async () => {
+    await db()
+      .insert(titles)
+      .values({ kind: "movie", tmdbId: TMDB.matrix, name: "The Matrix", imdbCheckedAt: null });
+    await setSync({ lastSuccessAt: hoursAgo(1), lastFullReadAt: minutesAgo(1) });
+
+    await syncImdbRatingsIfDue();
+
+    expect(testState.imdbCalls).toHaveLength(0);
+    const row = await syncRow();
+    expect(row!.lockedUntil.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+    // The lookup itself was kept.
+    const [title] = await db().select().from(titles).where(eq(titles.tmdbId, TMDB.matrix));
+    expect(title?.imdbId).toBe(MATRIX);
+  });
+
+  it("refreshes after 20 hours even when the file was read recently", async () => {
+    await addTitle(MATRIX);
+    await db().insert(imdbRatings).values({ imdbId: MATRIX, ratingTenths: 87, votes: 1 });
+    await setSync({ lastSuccessAt: hoursAgo(21), lastFullReadAt: minutesAgo(1), etag: '"stored"' });
+
+    await syncImdbRatingsIfDue();
+
+    expect(testState.imdbCalls).toEqual([{ wanted: [MATRIX], etag: '"stored"' }]);
+  });
+
+  it("leaves another run's lease and state alone when its own lease was taken over", async () => {
+    await addTitle(MATRIX);
+    const otherRun = "11111111-1111-4111-8111-111111111111";
+    const lease = inMinutes(4);
+    testState.imdbOnRead = async () => {
+      await db()
+        .update(imdbSync)
+        .set({ runId: otherRun, lockedUntil: lease, etag: '"theirs"' })
+        .where(eq(imdbSync.id, 1));
+    };
+
+    await syncImdbRatingsIfDue();
+
+    const row = await syncRow();
+    expect(row).toMatchObject({ runId: otherRun, etag: '"theirs"', lastSuccessAt: null, lastFullReadAt: null });
+    expect(row!.lockedUntil.getTime()).toBe(lease.getTime());
+    // The ratings are safe to write twice, so they were kept.
+    expect(await ratingRows()).toEqual({ [MATRIX]: [null, null] });
+  });
+
+  it("does not release another run's lease after a failure either", async () => {
+    await addTitle(MATRIX);
+    const otherRun = "11111111-1111-4111-8111-111111111111";
+    const lease = inMinutes(4);
+    testState.imdbDown = true;
+    testState.imdbOnRead = async () => {
+      await db().update(imdbSync).set({ runId: otherRun, lockedUntil: lease }).where(eq(imdbSync.id, 1));
+    };
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await syncImdbRatingsIfDue();
+
+    const row = await syncRow();
+    expect(row!.lockedUntil.getTime()).toBe(lease.getTime());
+    expect(row!.retryAfter.getTime()).toBeLessThan(Date.now());
+    log.mockRestore();
   });
 
   it("marks success without reading when no Title has an IMDb id", async () => {
