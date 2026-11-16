@@ -31,6 +31,8 @@ export const testState = {
   today: TODAY,
   tmdbDown: false,
   tmdbDownFor: new Set<number>(),
+  /** TMDB ids whose request fails with this HTTP status. */
+  tmdbStatusFor: new Map<number, number>(),
   /** Search texts whose search fails, written as the client receives them: trimmed and lower case. */
   tmdbSearchDownFor: new Set<string>(),
   afterTasks: [] as Promise<unknown>[],
@@ -42,6 +44,8 @@ export const testState = {
   imdbEtag: '"fixture-etag"' as string | null,
   /** One entry per read the stand-in served, with the wanted ids and the ETag that was sent. */
   imdbCalls: [] as { wanted: string[]; etag: string | null | undefined }[],
+  /** Runs inside a read, before it answers, so a test can change what happens during a run. */
+  imdbOnRead: null as (() => Promise<void>) | null,
 };
 
 // Kept apart from testState so a reset cannot drop a task that is still running; the next
@@ -58,6 +62,7 @@ export function resetTestState(): void {
   testState.today = TODAY;
   testState.tmdbDown = false;
   testState.tmdbDownFor.clear();
+  testState.tmdbStatusFor.clear();
   testState.tmdbSearchDownFor.clear();
   testState.afterTasks = [];
   testState.imdbRatings.clear();
@@ -65,6 +70,7 @@ export function resetTestState(): void {
   testState.imdbUnchanged = false;
   testState.imdbEtag = '"fixture-etag"';
   testState.imdbCalls = [];
+  testState.imdbOnRead = null;
 }
 
 export function signInAs(owner: Owner | null): void {
@@ -115,6 +121,7 @@ export function imdbRatingsFileModule() {
       options: ReadImdbRatingsOptions = {},
     ): Promise<ImdbRatingsResult> => {
       testState.imdbCalls.push({ wanted: [...wanted], etag: options.etag });
+      await testState.imdbOnRead?.();
       if (testState.imdbDown) throw new ImdbFileError("fetch_failed");
       if (testState.imdbUnchanged && options.etag) return { kind: "unchanged" };
       const ratings = new Map<string, ImdbRating>();
@@ -135,6 +142,8 @@ export function tmdbClientModule() {
     if (testState.tmdbDown || (tmdbId !== undefined && testState.tmdbDownFor.has(tmdbId))) {
       throw new TmdbUnavailableError({ status: 503 });
     }
+    const status = tmdbId === undefined ? undefined : testState.tmdbStatusFor.get(tmdbId);
+    if (status !== undefined) throw new TmdbUnavailableError({ status });
   };
   const client: TmdbClient = {
     searchMulti: async (query) => {

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, isNull, lt } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
 import type { TitleKind } from "@/domain/types";
 import { db } from "@/db/client";
 import { entries, titles } from "@/db/schema";
@@ -106,32 +106,52 @@ export async function refreshStaleTitlesFor(ownerId: string): Promise<void> {
   }
 }
 
+// A refusal of this one Title's request; a credential problem (401, 403) or rate limit (429)
+// says nothing about the Title, so those stop the run like an outage.
+function isTitleRefusal(error: TmdbUnavailableError): boolean {
+  const { status } = error;
+  return status !== null && status >= 400 && status < 500 && ![401, 403, 429].includes(status);
+}
+
+// One run must not hold its lease for long; the next run carries on.
+const BACKFILL_BUDGET_MS = 120_000;
+
 /**
- * Looks up TMDB's IMDb id for Titles saved before ids were kept, oldest snapshot first, and stores
- * the full fresh snapshot. A Title TMDB no longer lists is only marked as checked. Stops quietly
- * when TMDB is unavailable; any other error reaches the caller. `complete` is false when some
- * Titles are still unchecked afterwards, because TMDB was down or the limit was reached.
+ * Looks up TMDB's IMDb id for Titles saved before ids were kept and stores the full fresh
+ * snapshot. Titles whose last attempt is oldest go first, so one that keeps failing waits behind
+ * the rest. A Title TMDB no longer lists, or refuses, is only marked as checked. Stops quietly when
+ * TMDB is unavailable or the time budget is spent; any other error reaches the caller. `complete`
+ * is false when some Titles are still unchecked afterwards.
  */
 export async function backfillImdbIds(
-  options: { limit?: number; concurrency?: number } = {},
+  options: { limit?: number; concurrency?: number; budgetMs?: number; now?: () => number } = {},
 ): Promise<{ complete: boolean }> {
-  const { limit = 500, concurrency = 6 } = options;
-  const pending = await db()
+  const { limit = 500, concurrency = 6, budgetMs = BACKFILL_BUDGET_MS, now = Date.now } = options;
+  const startedAt = now();
+  // One more than the limit tells whether any Titles remain beyond this run.
+  const found = await db()
     .select({ id: titles.id, kind: titles.kind, tmdbId: titles.tmdbId })
     .from(titles)
     .where(isNull(titles.imdbCheckedAt))
-    .orderBy(asc(titles.refreshedAt), asc(titles.id))
-    .limit(limit);
+    .orderBy(sql`${titles.imdbAttemptedAt} asc nulls first`, asc(titles.refreshedAt), asc(titles.id))
+    .limit(limit + 1);
+  const pending = found.slice(0, limit);
 
   let next = 0;
-  // Set on TMDB being down or on any failure, so the other workers start no new fetch.
+  // Set on any failure and on a spent budget, so the other workers start no new fetch.
   let stopped = false;
-  let tmdbDown = false;
+  let cutShort = false;
   async function work(): Promise<void> {
     while (!stopped) {
+      if (now() - startedAt >= budgetMs) {
+        stopped = true;
+        cutShort = true;
+        return;
+      }
       const title = pending[next++];
       if (!title) return;
       try {
+        await db().update(titles).set({ imdbAttemptedAt: new Date() }).where(eq(titles.id, title.id));
         const details = await fetchDetails(title.kind, title.tmdbId);
         if (details === null) {
           await db().update(titles).set({ imdbCheckedAt: new Date() }).where(eq(titles.id, title.id));
@@ -139,15 +159,17 @@ export async function backfillImdbIds(
           await writeSnapshot(title.id, details);
         }
       } catch (error) {
-        stopped = true;
-        if (error instanceof TmdbUnavailableError) {
-          tmdbDown = true;
-          return;
+        if (error instanceof TmdbUnavailableError && isTitleRefusal(error)) {
+          await db().update(titles).set({ imdbCheckedAt: new Date() }).where(eq(titles.id, title.id));
+          continue;
         }
+        stopped = true;
+        cutShort = true;
+        if (error instanceof TmdbUnavailableError) return;
         throw error;
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, pending.length) }, work));
-  return { complete: !tmdbDown && pending.length < limit };
+  return { complete: !cutShort && found.length <= limit };
 }

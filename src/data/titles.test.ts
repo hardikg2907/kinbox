@@ -174,6 +174,78 @@ describe("backfillImdbIds", () => {
     for (const id of ids) expect((await titleRow(id))?.imdbCheckedAt).toBeNull();
   });
 
+  it("reports complete when exactly the limit is left, and does not touch the Title after it", async () => {
+    const first = await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z"));
+    const second = await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z"));
+
+    expect(await backfillImdbIds({ limit: 2 })).toEqual({ complete: true });
+    for (const id of [first, second]) expect((await titleRow(id))?.imdbCheckedAt).toBeInstanceOf(Date);
+
+    const third = await unchecked("movie", TMDB.dune, new Date("2024-03-01T00:00:00Z"));
+    const fourth = await unchecked("series", TMDB.westworld, new Date("2024-04-01T00:00:00Z"));
+    await db().update(titles).set({ imdbCheckedAt: null, imdbAttemptedAt: null, refreshedAt: new Date("2024-01-01T00:00:00Z") })
+      .where(eq(titles.id, first));
+    expect(await backfillImdbIds({ limit: 2 })).toEqual({ complete: false });
+    expect((await titleRow(first))?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect((await titleRow(third))?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect((await titleRow(fourth))?.imdbCheckedAt).toBeNull();
+  });
+
+  it("moves a Title that keeps failing behind the others", async () => {
+    const stuck = await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z"));
+    const other = await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z"));
+    testState.tmdbDownFor.add(TMDB.matrix);
+
+    expect(await backfillImdbIds({ limit: 1, concurrency: 1 })).toEqual({ complete: false });
+    expect((await titleRow(stuck))?.imdbAttemptedAt).toBeInstanceOf(Date);
+    expect((await titleRow(other))?.imdbCheckedAt).toBeNull();
+
+    await backfillImdbIds({ limit: 1, concurrency: 1 });
+
+    expect((await titleRow(other))?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect((await titleRow(stuck))?.imdbCheckedAt).toBeNull();
+  });
+
+  it("marks a Title TMDB refuses as checked and carries on with the others", async () => {
+    const refused = await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z"));
+    const other = await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z"));
+    testState.tmdbStatusFor.set(TMDB.matrix, 400);
+
+    expect(await backfillImdbIds({ concurrency: 1 })).toEqual({ complete: true });
+
+    expect(await titleRow(refused)).toMatchObject({ imdbId: null, name: "Old name" });
+    expect((await titleRow(refused))?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect(await titleRow(other)).toMatchObject({ imdbId: "tt1375666" });
+  });
+
+  it.each([401, 403, 429, 500, 503])("stops on a TMDB answer of %i without marking the Title", async (status) => {
+    const first = await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z"));
+    const second = await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z"));
+    testState.tmdbStatusFor.set(TMDB.matrix, status);
+
+    expect(await backfillImdbIds({ concurrency: 1 })).toEqual({ complete: false });
+
+    expect((await titleRow(first))?.imdbCheckedAt).toBeNull();
+    expect((await titleRow(second))?.imdbCheckedAt).toBeNull();
+  });
+
+  it("starts no new fetch after its time budget, and reports it is not complete", async () => {
+    const ids = [
+      await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z")),
+      await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z")),
+      await unchecked("movie", TMDB.dune, new Date("2024-03-01T00:00:00Z")),
+    ];
+    // Each look at the clock is a minute later than the one before.
+    let clock = -60_000;
+    const now = () => (clock += 60_000);
+
+    expect(await backfillImdbIds({ concurrency: 1, budgetMs: 120_000, now })).toEqual({ complete: false });
+
+    expect((await titleRow(ids[0]!))?.imdbCheckedAt).toBeInstanceOf(Date);
+    expect((await titleRow(ids[1]!))?.imdbCheckedAt).toBeNull();
+    expect((await titleRow(ids[2]!))?.imdbCheckedAt).toBeNull();
+  });
+
   it("starts no new fetch once TMDB failed", async () => {
     await unchecked("movie", TMDB.matrix, new Date("2024-01-01T00:00:00Z"));
     const second = await unchecked("movie", TMDB.inception, new Date("2024-02-01T00:00:00Z"));
