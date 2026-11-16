@@ -30,6 +30,10 @@ _Avoid_: ep, chapter
 An Episode the movie database lists outside the numbered Seasons, such as a recap, a short or an OVA. An Owner can mark a Special watched, but Specials never count toward finishing a Series.
 _Avoid_: extra, bonus, season 0
 
+**IMDb rating**:
+IMDb's public score for a Title, from 1.0 to 10.0, shown read-only on the Title's page. It is never a Rating, which is the Owner's own score.
+_Avoid_: score, rating (alone), stars
+
 **Progress**:
 Which Episodes of a Series an Owner has watched in the current Run. Gaps are possible, but Kinbox always shows the next Episode to watch.
 _Avoid_: tracking, checklist, position
