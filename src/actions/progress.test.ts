@@ -22,6 +22,7 @@ vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule()
 vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
 vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
+vi.mock("@/lib/imdb/ratings-file", async () => (await import("@/test/mocks")).imdbRatingsFileModule());
 
 const OLD = new Date("2020-01-01T00:00:00Z");
 

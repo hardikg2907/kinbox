@@ -22,7 +22,7 @@ import {
 } from "@/domain/status";
 import type { Episode, Status } from "@/domain/types";
 import { db } from "@/db/client";
-import { entries, episodeProgress, titles, watches } from "@/db/schema";
+import { entries, episodeProgress, imdbRatings, titles, watches } from "@/db/schema";
 import { getMovie } from "@/lib/tmdb/cached";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type {
@@ -35,6 +35,7 @@ import type {
   WatchView,
 } from "./dto";
 import { MESSAGES, UserError } from "./errors";
+import { syncImdbRatingsIfDue } from "./imdb-ratings";
 import { loadSeriesEpisodes, loadTicks, progressView, type Executor, type Tx } from "./series";
 import { requireOwner, type Owner } from "./session";
 import { ensureTitle, isStale, refreshStaleTitle } from "./titles";
@@ -305,6 +306,8 @@ export async function insertNewEntry(
 
 export async function saveTitle(owner: Owner, input: SaveTitleInput): Promise<SaveResult> {
   const { titleId, details } = await ensureTitle(input.kind, input.tmdbId);
+  // A new Title gets its IMDb rating within seconds, without slowing the save.
+  after(() => syncImdbRatingsIfDue());
   const change = statusOnSave(input.status);
 
   let ticks: Episode[] = [];
@@ -565,13 +568,18 @@ export async function getEntryFor(owner: Owner, entryId: string): Promise<EntryV
       year: titles.year,
       posterPath: titles.posterPath,
       refreshedAt: titles.refreshedAt,
+      imdbId: titles.imdbId,
+      imdbRatingTenths: imdbRatings.ratingTenths,
+      imdbVotes: imdbRatings.votes,
     })
     .from(entries)
     .innerJoin(titles, eq(entries.titleId, titles.id))
+    .leftJoin(imdbRatings, eq(imdbRatings.imdbId, titles.imdbId))
     .where(and(eq(entries.id, entryId), eq(entries.userId, owner.id)));
   if (!row) return null;
 
   if (isStale(row.refreshedAt)) after(() => refreshStaleTitle(row.titleId));
+  after(() => syncImdbRatingsIfDue());
 
   const [entryWatches, live] = await Promise.all([
     loadWatches(owner.id, row.id),
@@ -591,6 +599,10 @@ export async function getEntryFor(owner: Owner, entryId: string): Promise<EntryV
       posterPath: live ? live.posterPath : row.posterPath,
       overview: live?.overview ?? null,
       runtimeMinutes: live?.runtimeMinutes ?? null,
+      imdb:
+        row.imdbId !== null && row.imdbRatingTenths !== null && row.imdbVotes !== null
+          ? { id: row.imdbId, rating: row.imdbRatingTenths / 10, votes: row.imdbVotes }
+          : null,
     },
     watches: entryWatches,
     series: live?.series ?? null,

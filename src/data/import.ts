@@ -1,5 +1,6 @@
 import "server-only";
 import { and, eq, isNotNull, isNull, ne, notExists, or, sql } from "drizzle-orm";
+import { after } from "next/server";
 import { z } from "zod";
 import { airedNumberedEpisodes, isFinished } from "@/domain/series";
 import { importNeedsAiredEpisodes, statusOnImport, type ImportChange } from "@/domain/status";
@@ -11,6 +12,7 @@ import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { ImportRowResult } from "./dto";
 import { idSchema, insertNewEntry, kindSchema, statusSchema, tmdbIdSchema } from "./entries";
 import { logUnexpected, MESSAGES, UserError } from "./errors";
+import { syncImdbRatingsIfDue } from "./imdb-ratings";
 import { loadSeriesEpisodes, type Tx } from "./series";
 import type { Owner } from "./session";
 import { ensureTitle } from "./titles";
@@ -141,6 +143,8 @@ export async function addImportRows(
   input: AddImportRowsInput,
 ): Promise<ImportRowResult[]> {
   const [, today] = await Promise.all([requireOpenImport(owner, input.importId), getToday()]);
+  // Newly added Titles get their IMDb ratings after the response.
+  after(() => syncImdbRatingsIfDue());
 
   const limit = createLimit(LOADS_AT_ONCE);
   const loaded = await Promise.all(

@@ -14,6 +14,7 @@ vi.mock("@/data/today", async () => (await import("@/test/mocks")).todayModule()
 vi.mock("@/lib/tmdb/client", async () => (await import("@/test/mocks")).tmdbClientModule());
 vi.mock("next/cache", async () => (await import("@/test/mocks")).nextCacheModule());
 vi.mock("next/server", async () => (await import("@/test/mocks")).nextServerModule());
+vi.mock("@/lib/imdb/ratings-file", async () => (await import("@/test/mocks")).imdbRatingsFileModule());
 
 const ENDPOINT = "http://localhost/api/import/match";
 const JSON_TYPE = { "content-type": "application/json" };

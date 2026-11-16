@@ -11,6 +11,7 @@ import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { CardProgress, KindFilter, LibraryCard, LibraryView } from "./dto";
 import { statusSchema } from "./entries";
 import { logUnexpected } from "./errors";
+import { syncImdbRatingsIfDue } from "./imdb-ratings";
 import { cardProgress, loadSeriesEpisodes } from "./series";
 import { requireOwner, type Owner } from "./session";
 import { refreshStaleTitlesFor } from "./titles";
@@ -131,6 +132,7 @@ export async function getLibraryFor(owner: Owner, input: LibraryInput): Promise<
   const { tab, kind } = libraryInput.parse(input);
   const kindFilter = kind === "all" ? undefined : eq(titles.kind, kind);
   after(() => refreshStaleTitlesFor(owner.id));
+  after(() => syncImdbRatingsIfDue());
 
   const [counts, rows] = await Promise.all([
     loadCounts(owner.id, kindFilter),

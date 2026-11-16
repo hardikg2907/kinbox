@@ -3,6 +3,8 @@
 //   vi.mock("@/data/session", async () => (await import("@/test/mocks")).sessionModule());
 import { vi } from "vitest";
 import type { Owner } from "@/data/session";
+import { ImdbFileError } from "@/lib/imdb/file-error";
+import type { ImdbRating, ImdbRatingsResult, ReadImdbRatingsOptions } from "@/lib/imdb/ratings-file";
 import { createFakeTmdbClient } from "@/lib/tmdb/fake";
 import { TmdbUnavailableError } from "@/lib/tmdb/real";
 import type { TmdbClient } from "@/lib/tmdb/types";
@@ -32,7 +34,24 @@ export const testState = {
   /** Search texts whose search fails, written as the client receives them: trimmed and lower case. */
   tmdbSearchDownFor: new Set<string>(),
   afterTasks: [] as Promise<unknown>[],
+  /** What the stand-in for IMDb's ratings file holds; ids a test does not set have no rating. */
+  imdbRatings: new Map<string, ImdbRating>(),
+  imdbDown: false,
+  /** Answers 304 when the caller sends the ETag. */
+  imdbUnchanged: false,
+  imdbEtag: '"fixture-etag"' as string | null,
+  /** One entry per read the stand-in served, with the wanted ids and the ETag that was sent. */
+  imdbCalls: [] as { wanted: string[]; etag: string | null | undefined }[],
 };
+
+// Kept apart from testState so a reset cannot drop a task that is still running; the next
+// database reset waits for these instead of racing them.
+const runningAfterTasks = new Set<Promise<unknown>>();
+
+/** Waits for every `after` task started so far, including ones an earlier test never flushed. */
+export async function settleAfterTasks(): Promise<void> {
+  await Promise.allSettled([...runningAfterTasks]);
+}
 
 export function resetTestState(): void {
   testState.owner = OWNER_A;
@@ -41,6 +60,11 @@ export function resetTestState(): void {
   testState.tmdbDownFor.clear();
   testState.tmdbSearchDownFor.clear();
   testState.afterTasks = [];
+  testState.imdbRatings.clear();
+  testState.imdbDown = false;
+  testState.imdbUnchanged = false;
+  testState.imdbEtag = '"fixture-etag"';
+  testState.imdbCalls = [];
 }
 
 export function signInAs(owner: Owner | null): void {
@@ -73,7 +97,32 @@ export function nextCacheModule() {
 export function nextServerModule() {
   return {
     after: (task: () => unknown) => {
-      testState.afterTasks.push(Promise.resolve().then(task));
+      const running = Promise.resolve().then(task);
+      testState.afterTasks.push(running);
+      runningAfterTasks.add(running);
+      const done = () => runningAfterTasks.delete(running);
+      running.then(done, done);
+    },
+  };
+}
+
+// Stands in for IMDb's ratings file, so no test downloads it.
+export function imdbRatingsFileModule() {
+  return {
+    ImdbFileError,
+    readImdbRatings: async (
+      wanted: ReadonlySet<string>,
+      options: ReadImdbRatingsOptions = {},
+    ): Promise<ImdbRatingsResult> => {
+      testState.imdbCalls.push({ wanted: [...wanted], etag: options.etag });
+      if (testState.imdbDown) throw new ImdbFileError("fetch_failed");
+      if (testState.imdbUnchanged && options.etag) return { kind: "unchanged" };
+      const ratings = new Map<string, ImdbRating>();
+      for (const id of wanted) {
+        const found = testState.imdbRatings.get(id);
+        if (found) ratings.set(id, found);
+      }
+      return { kind: "read", etag: testState.imdbEtag, ratings };
     },
   };
 }

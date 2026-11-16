@@ -5,6 +5,8 @@ import {
   account,
   entries,
   episodeProgress,
+  imdbRatings,
+  imdbSync,
   imports,
   session,
   titles,
@@ -12,7 +14,7 @@ import {
   watches,
 } from "@/db/schema";
 import type { Owner } from "@/data/session";
-import { OWNER_A, OWNER_B } from "./mocks";
+import { OWNER_A, OWNER_B, settleAfterTasks } from "./mocks";
 
 /** Database tests wipe tables, so they refuse to run anywhere but the test database. */
 export function assertTestDatabase(): void {
@@ -24,11 +26,15 @@ export function assertTestDatabase(): void {
 /** Empties every table the data layer touches and adds Owner A and Owner B. */
 export async function resetDatabase(): Promise<void> {
   assertTestDatabase();
+  // A background task a test never flushed must not write into the next test's data.
+  await settleAfterTasks();
   const database = db();
   await database.delete(episodeProgress);
   await database.delete(watches);
   await database.delete(entries);
   await database.delete(imports);
+  await database.delete(imdbRatings);
+  await database.delete(imdbSync);
   await database.delete(titles);
   await database.delete(session);
   await database.delete(account);
@@ -59,7 +65,8 @@ export async function insertEntry(options: {
   const tmdbId = options.tmdbId ?? fakeTmdbId++;
   const [title] = await db()
     .insert(titles)
-    .values({ kind, tmdbId, name: options.name ?? `Title ${tmdbId}` })
+    // Already looked up for an IMDb id, so the background refresh leaves these rows alone.
+    .values({ kind, tmdbId, name: options.name ?? `Title ${tmdbId}`, imdbCheckedAt: new Date() })
     .onConflictDoUpdate({ target: [titles.kind, titles.tmdbId], set: { kind } })
     .returning({ id: titles.id });
   const now = new Date();

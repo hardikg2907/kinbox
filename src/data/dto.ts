@@ -110,6 +110,8 @@ export type EntryView = {
     posterPath: string | null;
     overview: string | null;
     runtimeMinutes: number | null;
+    /** IMDb's public score; null when the Title has no IMDb id, no rating, or ratings are not loaded yet. */
+    imdb: { id: string; rating: number; votes: number } | null;
   };
   /** Newest date first; "date unknown" Watches last. */
   watches: WatchView[];
