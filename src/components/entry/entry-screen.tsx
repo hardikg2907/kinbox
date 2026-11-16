@@ -20,6 +20,7 @@ export function EntryScreen({ entry, container }: { entry: EntryView; container:
     kind: title.kind,
     runtimeMinutes: title.runtimeMinutes,
     overview: title.overview,
+    imdb: title.imdb,
   };
   const layout = TITLE_LAYOUT[container];
   // The page's colour is read from this small poster; fetched with the page, it is there by the time

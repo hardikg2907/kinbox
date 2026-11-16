@@ -21,6 +21,7 @@ export type TitleFacts = {
   kind: TitleKind;
   runtimeMinutes: number | null;
   overview: string | null;
+  imdb: { id: string; rating: number; votes: number } | null;
 };
 
 function formatRuntime(minutes: number): string {
@@ -32,6 +33,22 @@ function formatRuntime(minutes: number): string {
 
 const META = "flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground";
 
+// No star: that colour belongs to the Owner's own Rating.
+function ImdbRating({ imdb }: { imdb: NonNullable<TitleFacts["imdb"]> }) {
+  const score = imdb.rating.toFixed(1);
+  return (
+    <a
+      href={`https://www.imdb.com/title/${imdb.id}/`}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`IMDb rating ${score} out of 10, ${imdb.votes.toLocaleString("en-US")} votes. Opens IMDb.`}
+      className="tabular rounded-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+    >
+      IMDb {score}
+    </a>
+  );
+}
+
 export function TitleMeta({ facts }: { facts: TitleFacts }) {
   return (
     <p className={META}>
@@ -40,6 +57,7 @@ export function TitleMeta({ facts }: { facts: TitleFacts }) {
       {facts.kind === "movie" && facts.runtimeMinutes ? (
         <span className="tabular">{formatRuntime(facts.runtimeMinutes)}</span>
       ) : null}
+      {facts.imdb ? <ImdbRating imdb={facts.imdb} /> : null}
     </p>
   );
 }

@@ -37,6 +37,18 @@ export default function AboutPage() {
         <p className="mt-3 max-w-prose text-sm leading-relaxed text-muted-foreground">
           Titles, posters and episode lists come from TMDB. Posters load straight from TMDB and are never copied.
         </p>
+        <p className="mt-5 max-w-prose text-base leading-relaxed">
+          Information courtesy of IMDb (
+          <a
+            href="https://www.imdb.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-sm underline underline-offset-4 focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
+          >
+            https://www.imdb.com
+          </a>
+          ). Used with permission.
+        </p>
       </section>
     </main>
   );
