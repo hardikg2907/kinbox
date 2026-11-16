@@ -1,5 +1,5 @@
 {
-  "id": "36bbb988-1df9-4847-a736-8f43e73a0d2b",
+  "id": "538b4f64-0eea-4930-abaf-032764a8c139",
   "prevId": "b3cccc31-300d-4137-b242-d87d39d7faf4",
   "version": "7",
   "dialect": "postgresql",
@@ -322,6 +322,18 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
+        },
+        "last_full_read_at": {
+          "name": "last_full_read_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "run_id": {
+          "name": "run_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -463,6 +475,12 @@
         },
         "imdb_checked_at": {
           "name": "imdb_checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "imdb_attempted_at": {
+          "name": "imdb_attempted_at",
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false

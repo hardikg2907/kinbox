@@ -37,6 +37,8 @@ export const titles = pgTable(
     imdbId: text(),
     // Null until TMDB's IMDb id has been looked up for this Title, so Titles saved earlier get found.
     imdbCheckedAt: timestamp({ withTimezone: true }),
+    // When a lookup was last started, so a Title that keeps failing waits behind the others.
+    imdbAttemptedAt: timestamp({ withTimezone: true }),
     refreshedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -76,6 +78,10 @@ export const imdbSync = pgTable(
     lockedUntil: timestamp({ withTimezone: true }).notNull().default(sql`'epoch'`),
     retryAfter: timestamp({ withTimezone: true }).notNull().default(sql`'epoch'`),
     lastSuccessAt: timestamp({ withTimezone: true }),
+    // When the whole file was last downloaded, so missing ratings cannot start a download per request.
+    lastFullReadAt: timestamp({ withTimezone: true }),
+    // Names the run that holds the lease; a run whose lease was taken over writes no state.
+    runId: uuid(),
   },
   (t) => [check("imdb_sync_single_row_check", sql`${t.id} = 1`)],
 );
