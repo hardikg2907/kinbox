@@ -41,7 +41,7 @@ function ImdbRating({ imdb }: { imdb: NonNullable<TitleFacts["imdb"]> }) {
       href={`https://www.imdb.com/title/${imdb.id}/`}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`IMDb rating ${score} out of 10, ${imdb.votes.toLocaleString("en-US")} votes. Opens IMDb.`}
+      aria-label={`IMDb ${score} out of 10, ${imdb.votes.toLocaleString("en-US")} votes. Opens IMDb.`}
       className="tabular rounded-sm underline-offset-4 hover:underline focus-visible:underline focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
     >
       IMDb {score}

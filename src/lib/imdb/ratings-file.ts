@@ -14,7 +14,8 @@ const ROW_PATTERN = /^tt\d{7,10}\t\d{1,2}\.\d\t\d{1,10}$/;
 // Only a validator-shaped value is ever sent back as If-None-Match, so a stored value cannot add headers.
 const ETAG_PATTERN = /^(?:W\/)?"[\x21\x23-\x7e]{1,200}"$/;
 
-const DEFAULT_MIN_ROWS = 500_000;
+// The real file has about 1.7M rows; a short but valid file must not erase stored ratings.
+const DEFAULT_MIN_ROWS = 1_500_000;
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_COMPRESSED_BYTES = 64 * 1024 * 1024;
 const MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024;
